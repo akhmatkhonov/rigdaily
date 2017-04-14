@@ -1,0 +1,2728 @@
+table.reports {
+    margin-top: 10px;
+}
+
+table.reports > thead > tr > th, table.reports > tbody > tr > td {
+    margin: 2px 2px 2px 2px;
+}
+
+table.reports > thead > tr > th {
+    text-align: left;
+}
+
+table.reports {
+    width: 100%;
+}
+
+div[contenteditable="true"] {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+button.retry {
+    margin-top: 10px;
+}
+
+.apiClientModalLoading {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: rgba(255, 255, 255, .8) url('images/ajax-loader.gif') 50% 50% no-repeat;
+    text-align: center;
+}
+
+body.loading {
+    overflow: hidden;
+}
+
+body.loading .apiClientModalLoading {
+    display: block;
+}
+
+/* my */
+#apiClientAuthDialog input {
+    width: 98%;
+}
+
+#apiClientAuthDialog input {
+    margin-top: 5px;
+    width: 288px;
+    height: 34px;
+    line-height: 32px;
+    display: block;
+    margin-bottom: 20px;
+    padding: 0 10px;
+    font-size: 14px;
+    border: 1px solid #E5E5E5;
+    border-radius: 2px;
+    outline: none;
+    transition: 0.4s;
+}
+
+#apiClientAuthDialog button.authorize {
+    margin-top: 10px;
+}
+
+#apiClientAuthDialog span.endpoint {
+    font-weight: bold;
+}
+
+#content {
+    display: none;
+}
+
+.style25 {
+    color: blue;
+    font-size: 11.0pt;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: underline;
+    text-underline-style: single;
+    font-family: Calibri, sans-serif;
+}
+
+a:link {
+    color: blue;
+    font-size: 11.0pt;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: underline;
+    text-underline-style: single;
+    font-family: Calibri, sans-serif;
+}
+
+a:visited {
+    color: purple;
+    font-size: 14.3pt;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: underline;
+    text-underline-style: single;
+    font-family: Calibri, sans-serif;
+}
+
+.style0 {
+    text-align: left;
+    vertical-align: bottom;
+    white-space: nowrap;
+    color: black;
+    font-size: 11.0pt;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    font-family: Calibri, sans-serif;
+    border: none;
+}
+
+.font11 {
+    color: windowtext;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    font-family: Arial, sans-serif;
+}
+
+.font16 {
+    color: black;
+    font-size: 9.0pt;
+    font-style: normal;
+    text-decoration: none;
+    font-family: Tahoma, sans-serif;
+}
+
+.font17 {
+    color: black;
+    font-size: 9.0pt;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    font-family: Tahoma, sans-serif;
+}
+
+td {
+    padding: 0 0 0 2px;
+    color: black;
+    font-size: 11.0pt;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    font-family: Calibri, sans-serif;
+    text-align: left;
+    vertical-align: bottom;
+    border: none;
+    white-space: nowrap;
+}
+
+.xl72 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+}
+
+.xl73 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+}
+
+.xl74 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+}
+
+.xl75 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+.xl76 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+.xl77 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+}
+
+.xl78 {
+    color: windowtext;
+    font-family: Arial, sans-serif;
+}
+
+.xl79 {
+    color: windowtext;
+    font-size: 8.0pt;
+    font-family: Arial, sans-serif;
+    vertical-align: middle;
+}
+
+.xl81 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl82 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl83 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl84 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl85 {
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl86 {
+    text-align: center;
+    border: .5pt solid windowtext;
+}
+
+.xl87 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl88 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl89 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl90 {
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl91 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl92 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl93 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl94 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl95 {
+    background: #365a88;
+    color: white;
+}
+
+.xl96 {
+    border: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl97 {
+    background: black;
+}
+
+.xl98 {
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    background: black;
+}
+
+.xl99 {
+    border: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl100 {
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl101 {
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl102 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl103 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl104 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl105 {
+    text-align: left;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl106 {
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl107 {
+    border: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl108 {
+    background: #0D0D0D;
+}
+
+.xl109 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #0D0D0D;
+}
+
+.xl110 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #0D0D0D;
+}
+
+.xl111 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: black;
+}
+
+.xl112 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: black;
+}
+
+.xl113 {
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: black;
+}
+
+.xl114 {
+    border: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl115 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl116 {
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl117 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl118 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl119 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl120 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl121 {
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl122 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl123 {
+    text-align: left;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl124 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl125 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl126 {
+    color: #0070C0;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl127 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl128 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl129 {
+    color: #0070C0;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl130 {
+    text-align: left;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl131 {
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl132 {
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl133 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl134 {
+    color: #0070C0;
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl135 {
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl136 {
+    color: #00B0F0;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl137 {
+    color: #00B0F0;
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl138 {
+    border: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl139 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl140 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl141 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl142 {
+    color: #00B0F0;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl143 {
+    border: .5pt solid windowtext;
+    border-top-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl144 {
+    color: #00B0F0;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl145 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl146 {
+    color: #00B0F0;
+    font-size: 9.0pt;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl147 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl148 {
+    font-size: 9.0pt;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl149 {
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+}
+
+.xl150 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl151 {
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl152 {
+    text-align: center;
+    border: .5pt solid windowtext;
+}
+
+.xl153 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl154 {
+    text-align: left;
+    border: .5pt solid windowtext;
+}
+
+.xl155 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl156 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl157 {
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+    text-align: center;
+}
+
+.xl158 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl159 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+}
+
+.xl160 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl161 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl162 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl163 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+}
+
+.xl164 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl165 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    border-bottom-width: 1.0pt;
+}
+
+.xl166 {
+    color: #0070C0;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl167 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl168 {
+    border: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl169 {
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: white;
+}
+
+.xl170 {
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl171 {
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl172 {
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: white;
+}
+
+.xl173 {
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl174 {
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl175 {
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    border-left-width: 1.0pt;
+    background: white;
+}
+
+.xl176 {
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    background: white;
+}
+
+.xl177 {
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    border-bottom-width: 1.0pt;
+    background: white;
+}
+
+.xl178 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl179 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl180 {
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl181 {
+    border-top: 1.0pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl182 {
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl183 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl184 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl185 {
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+}
+
+.xl186 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+}
+
+.xl187 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl188 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl189 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-right-width: .5pt;
+    border-bottom-width: .5pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl190 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-top-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl191 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl192 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl193 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl194 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl195 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl196 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl197 {
+    text-align: left;
+    border: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl198 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl199 {
+    text-align: center;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl200 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl201 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl202 {
+    color: #00B0F0;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl203 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+}
+
+.xl204 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl205 {
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+}
+
+.xl206 {
+    color: windowtext;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl207 {
+    color: windowtext;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl208 {
+    color: windowtext;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl209 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl210 {
+    color: windowtext;
+}
+
+.xl211 {
+    color: windowtext;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+}
+
+.xl212 {
+    color: windowtext;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl213 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #C2D69A;
+}
+
+.xl214 {
+    color: windowtext;
+    font-style: italic;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: white;
+}
+
+.xl215 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #FCD5B4;
+}
+
+.xl216 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+}
+
+.xl217 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #8DB4E3;
+}
+
+.xl218 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: white;
+}
+
+.xl219 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+}
+
+.xl220 {
+    color: windowtext;
+    border-top: 1.0pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl221 {
+    color: windowtext;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl222 {
+    color: windowtext;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl223 {
+    color: windowtext;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl224 {
+    color: windowtext;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+}
+
+.xl225 {
+    background: #8DB4E3;
+}
+
+.xl226 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: #FFC000;
+}
+
+.xl227 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: #FFC000;
+}
+
+.xl228 {
+    color: blue;
+    text-decoration: underline;
+    text-underline-style: single;
+}
+
+.xl229 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: white;
+}
+
+.xl230 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl231 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl232 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl233 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl234 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl235 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-left-width: 1.0pt;
+    background: white;
+}
+
+.xl236 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl237 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    border-left-width: 1.0pt;
+    background: white;
+    font-weight: 700;
+}
+
+.xl238 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    background: white;
+    font-weight: 700;
+}
+
+.xl239 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: yellow;
+}
+
+.xl240 {
+    text-align: left;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    white-space: normal;
+}
+
+.xl241 {
+    text-align: left;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl242 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    white-space: normal;
+}
+
+.xl243 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl244 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    white-space: normal;
+}
+
+.xl245 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl246 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl247 {
+    text-align: left;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    white-space: normal;
+}
+
+.xl248 {
+    text-align: left;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl249 {
+    text-align: left;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl250 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    white-space: normal;
+}
+
+.xl251 {
+    text-align: left;
+    vertical-align: top;
+    white-space: normal;
+}
+
+.xl252 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl253 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    white-space: normal;
+}
+
+.xl254 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl255 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl256 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl257 {
+    text-align: left;
+    vertical-align: top;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    white-space: normal;
+}
+
+.xl258 {
+    text-align: left;
+    vertical-align: top;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl259 {
+    text-align: left;
+    vertical-align: top;
+    white-space: normal;
+}
+
+.xl260 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    white-space: normal;
+}
+
+.xl261 {
+    text-align: left;
+    vertical-align: top;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    white-space: normal;
+}
+
+.xl262 {
+    text-align: center;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl263 {
+    text-align: center;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl264 {
+    text-align: center;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl265 {
+    text-align: center;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl266 {
+    text-align: center;
+    border-top: 1.0pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl267 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-bottom-width: .5pt;
+    border-left-width: .5pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl268 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-bottom-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl269 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl270 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl271 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl272 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl273 {
+    text-align: center;
+    border-top: 1.0pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    background: #BFBFBF;
+}
+
+.xl274 {
+    text-align: center;
+    background: #BFBFBF;
+}
+
+.xl275 {
+    text-align: center;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1.0pt solid windowtext;
+    border-left: none;
+    background: #BFBFBF;
+}
+
+.xl276 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-bottom-width: .5pt;
+    border-left-width: .5pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl277 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl278 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl279 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl280 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl281 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl282 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl283 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl284 {
+    text-align: center;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl285 {
+    text-align: center;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl286 {
+    text-align: center;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl287 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl288 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+    white-space: normal;
+}
+
+.xl289 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+    white-space: normal;
+}
+
+.xl290 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl291 {
+    color: #00B0F0;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #FFC000;
+}
+
+.xl292 {
+    color: #00B0F0;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #FFC000;
+}
+
+.xl293 {
+    color: #00B0F0;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #FFC000;
+}
+
+.xl294 {
+    color: #00B0F0;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    background: #FFC000;
+}
+
+.xl295 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl296 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl297 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl298 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl299 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl300 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl301 {
+    color: windowtext;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.xl302 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl303 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl304 {
+    color: windowtext;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl305 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: white;
+    font-weight: 700;
+}
+
+.xl306 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl307 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl308 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl309 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl310 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl311 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl312 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl313 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl314 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl315 {
+    color: windowtext;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border: .5pt solid windowtext;
+}
+
+.xl316 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+.xl317 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl318 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl319 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl320 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl321 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl322 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: none;
+    border-left: none;
+    background: white;
+}
+
+.xl323 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl324 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl325 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-right-width: .5pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl326 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-right-width: .5pt;
+    border-left-width: .5pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl327 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-left-width: .5pt;
+    background: #365a88;
+    color: white;
+}
+
+.xl328 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl329 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl330 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl331 {
+    color: windowtext;
+    font-size: 6.0pt;
+    text-align: center;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+}
+
+.xl332 {
+    color: windowtext;
+    font-size: 6.0pt;
+    text-align: center;
+}
+
+.xl333 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl334 {
+    color: windowtext;
+    font-size: 12.0pt;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl335 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+    white-space: normal;
+}
+
+.xl336 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+    white-space: normal;
+}
+
+.xl337 {
+    color: windowtext;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+}
+
+.xl338 {
+    color: windowtext;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    vertical-align: top;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl339 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl340 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: black;
+}
+
+.xl341 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: black;
+}
+
+.xl342 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl343 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: 1.0pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl344 {
+    text-align: center;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl345 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl346 {
+    text-align: center;
+    border-top: none;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl347 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    background: black;
+}
+
+.xl348 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: black;
+}
+
+.xl349 {
+    text-align: left;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #b8cce4;
+}
+
+.xl350 {
+    text-align: left;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl351 {
+    text-align: left;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #b8cce4;
+}
+
+.xl352 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl353 {
+    color: #00B050;
+    font-style: italic;
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl354 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: white;
+}
+
+.xl355 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl356 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: white;
+}
+
+.xl357 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-right-width: .5pt;
+    border-bottom-width: .5pt;
+    background: #b8cce4;
+}
+
+.xl358 {
+    text-align: center;
+    border: .5pt solid windowtext;
+    border-top-width: 1.0pt;
+    background: #b8cce4;
+}
+
+.xl359 {
+    text-align: center;
+    border: 1.0pt solid windowtext;
+    border-bottom-width: .5pt;
+    border-left-width: .5pt;
+    background: #b8cce4;
+}
+
+.xl360 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: yellow;
+    font-size: 16pt;
+}
+
+.xl361 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+}
+
+.xl362 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl363 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+    background: #365a88;
+    color: white;
+}
+
+.xl364 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: none;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+    background: #365a88;
+    color: white;
+}
+
+.xl365 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+}
+
+.xl366 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+}
+
+.xl367 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: .5pt solid windowtext;
+    border-bottom: none;
+    border-left: .5pt solid windowtext;
+    background: yellow;
+    font-size: 16pt;
+}
+
+.xl368 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: white;
+}
+
+.xl369 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: white;
+}
+
+.xl370 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: none;
+    border-bottom: .5pt solid windowtext;
+    border-left: .5pt solid windowtext;
+}
+
+.xl371 {
+    text-align: center;
+    vertical-align: middle;
+    border-top: .5pt solid windowtext;
+    border-right: 1.0pt solid windowtext;
+    border-bottom: .5pt solid windowtext;
+    border-left: none;
+}
+
+.xl372 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    background: yellow;
+    font-size: 16pt;
+}
+
+.xl373 {
+    text-align: center;
+    vertical-align: middle;
+    border: .5pt solid windowtext;
+    border-right-width: 1.0pt;
+    background: yellow;
+}
