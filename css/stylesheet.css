@@ -14,6 +14,14 @@ table.reports {
     width: 100%;
 }
 
+table.reports > tbody > tr > td {
+    padding: 4px;
+}
+
+table.reports > tbody > tr {
+    cursor: pointer;
+}
+
 div[contenteditable="true"] {
     word-wrap: break-word;
     overflow-wrap: break-word;

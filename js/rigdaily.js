@@ -1028,13 +1028,9 @@ function selectReportLoadPage(selectReportDialog, page) {
 
             var table = selectReportDialog.find('table.reports tbody').empty();
             $.each(response, function (idx, obj) {
+                var tid = obj['TRACKOR_ID'];
                 var tr = $('<tr></tr>');
-                $('<td></td>').text(obj[config.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
-                $('<td></td>').text(obj['RDR_REPORT_DAY']).appendTo(tr);
-                $('<td></td>').text(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']).appendTo(tr);
-                $('<td></td>').text(obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']).appendTo(tr);
-
-                var link = $('<a>Open</a>').attr('href', 'javascript:void(0)').data('tid', obj['TRACKOR_ID']).click(function () {
+                tr.click(function () {
                     $('span.site').empty().text(obj[config.rigSiteTT + '.TRACKOR_KEY']);
                     $('span.reportdate').empty().text(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH'] + ' ' + obj['RDR_REPORT_DAY'] + ', ' +
                         obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']);
@@ -1045,9 +1041,15 @@ function selectReportLoadPage(selectReportDialog, page) {
                         obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']);
 
                     selectReportDialog.dialog('close');
-                    var tid = $(this).data('tid');
                     loadReport(tid);
                 });
+
+                $('<td></td>').text(obj[config.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
+                $('<td></td>').text(obj['RDR_REPORT_DAY']).appendTo(tr);
+                $('<td></td>').text(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']).appendTo(tr);
+                $('<td></td>').text(obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']).appendTo(tr);
+
+                var link = $('<a>Open</a>').attr('href', 'javascript:void(0)');
                 $('<td></td>').append(link).appendTo(tr);
 
                 table.append(tr);
