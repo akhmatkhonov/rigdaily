@@ -198,6 +198,11 @@ var ApiClient = {
         };
 
         ApiClient.authDialog = $('#apiClientAuthDialog');
+        ApiClient.authDialog.find('input[name="username"], input[name="password"]').keypress(function (event) {
+            if (event.which === 13 || event.keyCode === 13) {
+                ApiClient.authDialog.find('button.authorize').trigger('click');
+            }
+        });
         ApiClient.authDialog.dialog(dlgOptsNoClosable);
         ApiClient.authDialog.find('span.endpoint').text(ApiClient.endpoint);
         ApiClient.authDialog.find('button.authorize').button().click(function () {
