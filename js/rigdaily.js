@@ -1,6 +1,6 @@
 'use strict';
 
-ApiClient.endpoint = 'http://energy.onevizion.com';
+ApiClient.endpoint = 'https://energy.onevizion.com';
 
 var config = {
     rigDailyReportTT: 'Rig_Daily_Report',
@@ -145,7 +145,6 @@ dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
     });
 
     setCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
-    setCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL', newValue);
 };
 
 // consumablesUsageTT
@@ -214,6 +213,30 @@ dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
     });
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
 };
+//
+
+// binderLbls
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
+        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL');
+    setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
+};
+//
+
+// Other
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'];
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
+    var number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(config.dynTT + '.PREV', number);
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'];
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER');
+    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+};
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'];
 //
 
 function getCfValue(name, tid, tblIdx) {
@@ -307,11 +330,12 @@ function startRequestQueueWork(requestQueue, message, callback) {
     callNextRequest();
 }
 
-function getConfigFields(ttName, parent, tblIdx) {
+function getConfigFields(ttName, parent, tblIdx, prependTtName) {
     var cfs = {};
     $('[data-cf^="' + ttName + '."]' + (typeof tblIdx !== 'undefined' ? '[data-tIdx="' + tblIdx + '"]' : ''), parent).each(function (idx, elem) {
         var obj = $(elem);
-        var cfName = obj.data('cf').split('.').splice(1).join('.');
+        var shortCfName = obj.data('cf').split('.').splice(1).join('.');
+        var cfName = (typeof prependTtName !== 'undefined' && prependTtName ? obj.data('cf') : shortCfName);
 
         if (typeof cfs[cfName] === 'undefined') {
             cfs[cfName] = [];
@@ -319,7 +343,7 @@ function getConfigFields(ttName, parent, tblIdx) {
 
         cfs[cfName].push({
             'tt': ttName,
-            'name': cfName,
+            'name': shortCfName,
             'obj': obj,
             'forceSubmit': typeof obj.data('submit') !== 'undefined' ? obj.data('submit') === 'true' : false,
             'type': obj.data('t'),
@@ -332,6 +356,13 @@ function getConfigFields(ttName, parent, tblIdx) {
 }
 
 function fillCf(cf, value) {
+    if (cf.type === 'number') {
+        value = parseFloat(value).toFixed(2);
+        if (value % 1 === 0) {
+            value = parseInt(value);
+        }
+    }
+
     cf.obj.text(value);
 
     var subscribeObj = cf.obj;
@@ -399,7 +430,7 @@ function fillCf(cf, value) {
                 var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
                 dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
             });
-        });
+        }).trigger('change');
     }
 }
 
@@ -407,7 +438,7 @@ function fillCfs(cfs, response) {
     $.each(cfs, function (cfName, cfArr) {
         if (response.hasOwnProperty(cfName)) {
             $.each(cfArr, function (idx, cf) {
-                fillCf(cf, response[cf.name]);
+                fillCf(cf, response[cfName]);
             });
         }
     });
@@ -645,11 +676,15 @@ function loadReport(tid) {
 
     // rigDaily
     var rigDailyCfs = getConfigFields(config.rigDailyReportTT);
+    var rigMonthCfs = getConfigFields(config.rigMonthReportTT, undefined, undefined, true);
+    var rigYearCfs = getConfigFields(config.rigYearReportTT, undefined, undefined, true);
     var fields = [
         'TRACKOR_KEY',
         config.rigSiteTT + '.TRACKOR_KEY'
     ];
     fields = fields.concat(Object.keys(rigDailyCfs));
+    fields = fields.concat(Object.keys(rigMonthCfs));
+    fields = fields.concat(Object.keys(rigYearCfs));
 
     requestQueue.push({
         url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
@@ -659,6 +694,8 @@ function loadReport(tid) {
             key = response['TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
+            fillCfs(rigMonthCfs, response);
+            fillCfs(rigYearCfs, response);
         }
     });
 
@@ -744,7 +781,7 @@ function loadReport(tid) {
         },
         successCode: 200,
         success: function (response) {
-            $.each(response, function (idx, elem) {
+            $.each(response.splice(0, 4), function (idx, elem) {
                 saveTid(config.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
 
                 var row = appendSubtableRow(configTblIdxs[config.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
@@ -766,7 +803,7 @@ function loadReport(tid) {
         },
         successCode: 200,
         success: function (response) {
-            $.each(response, function (idx, elem) {
+            $.each(response.splice(0, 4), function (idx, elem) {
                 saveTid(config.labTestingTT, elem['TRACKOR_ID'], false);
 
                 var row = appendSubtableRow(configTblIdxs[config.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
@@ -791,7 +828,7 @@ function loadReport(tid) {
             var startIdx = 7;
             var endIdx = 11;
 
-            $.each(response, function (idx, elem) {
+            $.each(response.splice(0, 3), function (idx, elem) {
                 saveTid(config.apiScreenSizeTT, elem['TRACKOR_ID'], false);
 
                 var row = appendSubtableRow(configTblIdxs[config.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
@@ -1055,7 +1092,7 @@ function selectReportLoadPage(selectReportDialog, page) {
                 table.append(tr);
             });
             if (response.length === 0) {
-                var tr = $('<tr></tr>');
+                var tr = $('<tr></tr>').addClass('nodata');
                 $('<td colspan="5"></td>').text('No reports').appendTo(tr);
 
                 table.append(tr);

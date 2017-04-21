@@ -95,6 +95,12 @@
         <button id="changeReport">Change report</button>
     </div>
 
+    <!-- Hidden cfs -->
+    <div style="display: none;">
+        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"></span>
+        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"></span>
+    </div>
+
     <table class="tbl1" border=0 cellpadding=0 cellspacing=0
            style="border-collapse: collapse;table-layout:fixed;width: 1000px;">
         <tbody>
@@ -151,9 +157,9 @@
             <td colspan=4 class=xl198 style='border-left:none'
                 data-cf="Rig_Site.RS_WELL_NAME" data-ed="false"></td>
             <td colspan=3 class=xl197 style='border-left:none'>Previous Measured Depth</td>
-            <td class=xl179 style='border-top:none;border-left:none'
+            <td class=xl179 style='border-top:none;border-left:none; background: red'
                 data-cf="Rig_Daily_Report.RDR_AM_PREVIOUS_MEASURED_DEPTH" data-ed="false"></td>
-            <td class=xl179 style='border-top:none;border-left:none'
+            <td class=xl179 style='border-top:none;border-left:none; background: red'
                 data-cf="Rig_Daily_Report.RDR_PM_PREVIOUS_MEASURED_DEPTH" data-ed="false"></td>
         </tr>
         <tr style='height:15.0pt'>
@@ -286,7 +292,7 @@
             <td class="xl194" style="border-top:none;border-left:none">AM</td>
             <td class="xl194" style="border-top:none;border-left:none">PM</td>
             <td class="xl96" style="border-left:none"
-                data-cf="Api_Screen_Size.ASS_NAME" data-t="number" data-ed="false"></td>
+                data-cf="Api_Screen_Size.ASS_NAME" data-ed="false"></td>
             <td class="xl83" style="border-top:none;border-left:none"
                 data-cf="Api_Screen_Size.ASS_WATER" data-t="number"></td>
             <td class="xl83" style="border-top:none;border-left:none"
@@ -308,7 +314,7 @@
             <td class="xl239" style="border-top:none;border-left:none"
                 data-cf="Rig_Daily_Report.RDR_VD_PM_AVG_DISCARD_RATE_GPM"></td>
             <td class="xl96" style="border-left:none"
-                data-cf="Api_Screen_Size.ASS_NAME" data-t="number" data-ed="false"></td>
+                data-cf="Api_Screen_Size.ASS_NAME" data-ed="false"></td>
             <td class="xl83" style="border-top:none;border-left:none"
                 data-cf="Api_Screen_Size.ASS_WATER" data-t="number"></td>
             <td class="xl83" style="border-top:none;border-left:none"
@@ -330,7 +336,7 @@
             <td class="xl239" style="border-top:none;border-left:none"
                 data-cf="Rig_Daily_Report.RDR_VD_PM_BOWL_RPM"></td>
             <td class="xl96" style="border-left:none"
-                data-cf="Api_Screen_Size.ASS_NAME" data-t="number" data-ed="false"></td>
+                data-cf="Api_Screen_Size.ASS_NAME" data-ed="false"></td>
             <td class="xl83" style="border-top:none;border-left:none"
                 data-cf="Api_Screen_Size.ASS_WATER" data-t="number"></td>
             <td class="xl83" style="border-top:none;border-left:none"
@@ -749,8 +755,8 @@
                 data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
-            <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false"></td>
+            <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none; background: red'
+                data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -787,7 +793,7 @@
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl293 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -835,7 +841,7 @@
             <td class=xl237 style='border-top:none;border-left:none'>Cost / Ton</td>
             <td class=xl238 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
-                <span style="float: right; margin-right: 5px"
+                <span style="float: right; margin-right: 5px; background: red"
                       data-cf="Rig_Daily_Report.RDR_WHOU_COST_TON" data-ed="false"></span>
             </td>
             <td class=xl163 style='border-top:none;border-left:none'
@@ -909,7 +915,7 @@
                 data-cf="Consumables_Usage.CONU_BALANCE" data-ed="false" data-t="number"></td>
             <td class=xl128 style='border-top:none;border-left:none'
                 data-cf="Consumables_Usage.CONU_DAILY" data-ed="false" data-t="number"></td>
-            <td class=xl129 style='border-top:none;border-left:none'
+            <td class=xl129 style='border-top:none;border-left:none;background:red'
                 data-cf="Consumables_Usage.CONU_TOTAL" data-ed="false" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt'>
@@ -967,7 +973,7 @@
                 data-cf="Binder_Usage.BU_BALANCE" data-ed="false" data-t="number"></td>
             <td class=xl128 style='border-top:none;border-left:none'
                 data-cf="Binder_Usage.BU_DAILY" data-ed="false" data-t="number"></td>
-            <td class=xl136 style='border-top:none;border-left:none'
+            <td class=xl136 style='border-top:none;border-left:none; background: red'
                 data-cf="Binder_Usage.BU_TOTAL" data-ed="false" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt'>
@@ -979,17 +985,18 @@
             <td></td>
             <td class=xl137></td>
         </tr>
-        <!--<tr style='height:15.0pt'>
+        <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
             <td class=xl196 style='border-top:none'>Binder Lbs Used</td>
-            <td class=xl96 style='border-top:none;border-left:none'>K-Dry Green</td>
-            <td class=xl96 style='border-top:none;border-left:none'>Product 2</td>
-            <td class=xl96 style='border-top:none;border-left:none'>Product 3</td>
-            <td class=xl188 style='border-top:none;border-left:none'>Product 4</td>
+            <td class=xl96 style='border-top:none;border-left:none'></td>
+            <td class=xl96 style='border-top:none;border-left:none'></td>
+            <td class=xl96 style='border-top:none;border-left:none'></td>
+            <td class=xl188 style='border-top:none;border-left:none'></td>
             <td class=xl193 style='border-top:none;border-left:none'>Cumulative Total Lbs</td>
             <td class=xl138 style='border-top:none;border-left:none'>Lbs / Ton</td>
             <td colspan=2 class=xl193 style='border-left:none'>Previous</td>
-            <td class=xl201 style='border-top:none;border-left:none'></td>
+            <td class=xl201 style='border-top:none;border-left:none' data-cf="Dynamic.PREV" data-ed="false"
+                data-t="number"></td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
@@ -1002,16 +1009,16 @@
                 data-cf=""></td>
             <td class=xl89 style='border-top:none;border-left:none'
                 data-cf=""></td>
-            <td class=xl140 style='border-top:none;border-left:none'
-                data-cf=""></td>
-            <td class=xl141 style='border-top:none;border-left:none'
-                data-cf=""></td>
+            <td class=xl140 style='border-top:none;border-left:none; background: red'
+                data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER_LBS" data-ed="false" data-t="number"></td>
+            <td class=xl141 style='border-top:none;border-left:none; background: red'
+                data-cf="Rig_Month_Report.RMR_LBS__TONS" data-ed="false" data-t="number"></td>
             <td colspan=2 class=xl288 width=148 style='border-right:.5pt solid black; border-left:none;width:111pt'>
                 Cumulative Total
             </td>
             <td class=xl142 style='border-top:none;border-left:none'
-                data-cf=""></td>
-        </tr>-->
+                data-cf="Dynamic.CUMULATIVE_TOTAL" data-ed="false" data-t="number"></td>
+        </tr>
         </tbody>
     </table>
 
