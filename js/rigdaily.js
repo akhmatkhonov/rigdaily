@@ -1,6 +1,6 @@
 'use strict';
 
-ApiClient.endpoint = 'http://energy.onevizion.com';
+ApiClient.endpoint = 'https://energy.onevizion.com';
 
 var config = {
     rigDailyReportTT: 'Rig_Daily_Report',
