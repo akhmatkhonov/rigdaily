@@ -21,6 +21,7 @@ var config = {
     consumablesTT: 'Consumables',
     binderTT: 'Binder',
     binderUsageTT: 'Binder_Usage',
+    binderLbsUsedTT: 'Binder_Lbs_Used',
 
     // For dynamic calculations
     dynTT: 'Dynamic'
@@ -34,6 +35,7 @@ configTblIdxs[config.retortsTT] = 'rtrs';
 configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
 configTblIdxs[config.consumablesUsageTT] = 'cu';
 configTblIdxs[config.binderUsageTT] = 'bu';
+configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
 
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
 
@@ -205,6 +207,31 @@ dynCalculations[config.binderUsageTT + '.BU_USED'] = function (tid, tblIdx) {
     var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
     var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
     setCfValue(config.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
+
+    dynCalculations[config.binderUsageTT + '.BU_UNIT'](tid, tblIdx);
+};
+dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
+    var key = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tid, tblIdx);
+    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
+    var unit = getCfValue(config.binderUsageTT + '.BU_UNIT', tid, tblIdx);
+
+    var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
+    var binderLbsUsedTid;
+    var binderLbsUsedTblIdx;
+
+    $.each(configTblIdxs[config.binderLbsUsedTT], function (idx, tblIdx) {
+        var tblIdxTid = baseRowData['tid_' + tblIdx];
+        if (getCfValue(config.binderLbsUsedTT + '.' + config.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
+            binderLbsUsedTid = tblIdxTid;
+            binderLbsUsedTblIdx = tblIdx;
+            return false;
+        }
+    });
+
+    if (binderLbsUsedTid && binderLbsUsedTblIdx) {
+        setCfValue(config.binderLbsUsedTT + '.BLU_UNIT', unit, binderLbsUsedTid, binderLbsUsedTblIdx);
+        setCfValue(config.binderLbsUsedTT + '.BLU_USED', used, binderLbsUsedTid, binderLbsUsedTblIdx);
+    }
 };
 dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
     var summ = 0;
@@ -221,6 +248,15 @@ dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = 
         getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL');
     setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
 };
+//
+
+// binderLbsUsedTT
+dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'] = function (tid, tblIdx) {
+    var number = getCfValue(config.binderLbsUsedTT + '.BLU_UNIT', tid, tblIdx) +
+        getCfValue(config.binderLbsUsedTT + '.BLU_USED', tid, tblIdx);
+    setCfValue(config.dynTT + '.BLU_USED_UNIT', number, tid, tblIdx);
+};
+dynCalculations[config.binderLbsUsedTT + '.BLU_USED'] = dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'];
 //
 
 // Other
@@ -244,7 +280,8 @@ function getCfValue(name, tid, tblIdx) {
 
     if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
         cfs = cfs.filter(function () {
-            return $(this).closest('tr').data('tid_' + tblIdx) === tid;
+            var cf = $(this);
+            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
         });
     }
 
@@ -262,7 +299,8 @@ function setCfValue(name, value, tid, tblIdx) {
 
     if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
         cfs = cfs.filter(function () {
-            return $(this).closest('tr').data('tid_' + tblIdx) === tid;
+            var cf = $(this);
+            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
         });
     }
 
@@ -335,9 +373,9 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
     $('[data-cf^="' + ttName + '."]' + (typeof tblIdx !== 'undefined' ? '[data-tIdx="' + tblIdx + '"]' : ''), parent).each(function (idx, elem) {
         var obj = $(elem);
         var shortCfName = obj.data('cf').split('.').splice(1).join('.');
-        var cfName = (typeof prependTtName !== 'undefined' && prependTtName ? obj.data('cf') : shortCfName);
+        var cfName = (prependTtName ? obj.data('cf') : shortCfName);
 
-        if (typeof cfs[cfName] === 'undefined') {
+        if (!cfs[cfName]) {
             cfs[cfName] = [];
         }
 
@@ -345,10 +383,11 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'tt': ttName,
             'name': shortCfName,
             'obj': obj,
-            'forceSubmit': typeof obj.data('submit') !== 'undefined' ? obj.data('submit') === 'true' : false,
+            'tIdx': tblIdx,
+            'forceSubmit': obj.data('submit') + '' === 'true',
+            'reload': obj.data('reload') + '' === 'true',
             'type': obj.data('t'),
-            'required': typeof obj.data('req') !== 'undefined' ? obj.data('req') === 'true' : false,
-            'editable': typeof obj.data('ed') !== 'undefined' ? obj.data('ed') === 'true' : true,
+            'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
         });
     });
@@ -372,7 +411,7 @@ function fillCf(cf, value) {
 
         div.html(cf.obj.html());
 
-        if (typeof(cf.editable_style) !== 'undefined') {
+        if (cf.editable_style) {
             div.attr('style', cf.editable_style);
         }
 
@@ -424,12 +463,9 @@ function fillCf(cf, value) {
     if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
         subscribeObj.change(function () {
             var tr = cf.obj.closest('tr');
-            var isTblIdxObj = typeof configTblIdxs[cf.tt] === 'object';
-
-            $.each(isTblIdxObj ? configTblIdxs[cf.tt] : [configTblIdxs[cf.tt]], function (idx, tblIdx) {
-                var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-                dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
-            });
+            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+            var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
         }).trigger('change');
     }
 }
@@ -605,7 +641,7 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.addClass('subtable subtable_' + tblIdx);
     }
 
-    if (typeof tid !== 'undefined') {
+    if (tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
@@ -616,8 +652,10 @@ function convertEditableCfsToDataObject(cfs) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
-            if (cf.editable || cf.forceSubmit) {
+            if (cf.editable) {
                 result[cf.name] = cf.obj.children('div').text();
+            } else if (cf.forceSubmit) {
+                result[cf.name] = cf.obj.text();
             }
         });
     });
@@ -639,6 +677,10 @@ function startSubmitReport() {
     };
 
     $.each(tids, function (ttName, tidObj) {
+        if (ttName === config.dynTT) {
+            return;
+        }
+
         if (typeof tidObj === 'object') {
             // Find subtable objects
             $.each(tidObj, function (idx, tid) {
@@ -788,6 +830,8 @@ function loadReport(tid) {
                 var rowCfs = getConfigFields(config.holeDesignAndVolumeTT, row);
                 fillCfs(rowCfs, elem);
             });
+
+            dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, configTblIdxs[config.holeDesignAndVolumeTT]);
         }
     });
 
@@ -999,7 +1043,7 @@ function loadReport(tid) {
         }
     });
 
-    // consumablesUsageTT
+    // binderUsageTT
     var binderUsageBaseRow = $('tr.binderUsageBaseRow');
     var binderUsageBaseRowCfs = getConfigFields(config.binderUsageTT, binderUsageBaseRow);
 
@@ -1017,6 +1061,38 @@ function loadReport(tid) {
                 var row = appendSubtableRow(configTblIdxs[config.binderUsageTT], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
                 var rowCfs = getConfigFields(config.binderUsageTT, row);
                 fillCfs(rowCfs, elem);
+            });
+        }
+    });
+
+    // binderLbsUsedTT
+    var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
+    var binderLbsUsedBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderLbsUsedTT][0]);
+    var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
+    var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderLbsUsedTT][0]);
+
+    requestQueue.push({
+        url: function () {
+            var fields = Object.keys(binderLbsUsedBaseRowCfs).concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
+            return '/api/v3/trackor_types/' + config.binderLbsUsedTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+        },
+        successCode: 200,
+        success: function (response) {
+            $.each(response.splice(0, 4), function (idx, elem) {
+                saveTid(config.binderLbsUsedTT, elem['TRACKOR_ID'], false);
+                saveTid(config.dynTT, elem['TRACKOR_ID'], false);
+
+                var tblIdx = configTblIdxs[config.binderLbsUsedTT][idx];
+                var tdIdxs = 2 + idx;
+
+                var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
+                var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
+                var row1Cfs = getConfigFields(config.binderLbsUsedTT, row1, tblIdx);
+                var row2Cfs = getConfigFields(config.binderLbsUsedTT, row2, tblIdx);
+
+                fillCfs(row1Cfs, elem);
+                fillCfs(row2Cfs, elem);
             });
         }
     });
