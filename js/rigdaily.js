@@ -476,9 +476,9 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
         });
 
         // TODO: remove
-        if (obj.data('reload') + '' === 'true') {
+        /*if (obj.data('reload') + '' === 'true') {
             obj.css('background', 'red');
-        }
+        }*/
     });
     return cfs;
 }
