@@ -98,8 +98,11 @@
 
     <!-- Hidden cfs -->
     <div style="display: none;">
-        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"></span>
-        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"></span>
+        <!-- Equipment & Technicians Daily + Cumulative Total -->
+        <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"></span>
+        <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"></span>
+        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"></span>
+        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"></span>
     </div>
 
     <table class="tbl1" border=0 cellpadding=0 cellspacing=0
@@ -111,7 +114,7 @@
             <td width=93 style='width:70pt'></td>
             <td width=78 style='width:59pt'></td>
             <td width=77 style='width:58pt'></td>
-            <td width=65 style='width:49pt'></td>
+            <td width=65 style='width:60pt'></td>
             <td width=148 style='width:111pt'></td>
             <td width=85 style='width:64pt'></td>
             <td width=83 style='width:62pt'></td>
@@ -236,7 +239,7 @@
                 data-cf="Hole_Design_And_Volume.HDV_GAUGE_BBL" data-t="number" data-ed="false" data-submit="true"></td>
 
             <td class="xl197" style="border-top:none;border-left:none"
-                data-cf="Lab_Testing.LABT_TESTING_NAME" data-ed="false"></td>
+                data-cf="Lab_Testing.LABT_TESTING_NAME" data-required="true" data-lockable="true" data-ed="false"></td>
             <td class="xl152" style="border-top:none;border-left:none">
                 <span data-cf="Lab_Testing.LABT_WATER" data-t="number" data-ed-style="display: inline"></span>
                 %
@@ -264,7 +267,7 @@
             <td width="93" style="width:70pt"></td>
             <td width="78" style="width:59pt"></td>
             <td width="77" style="width:58pt"></td>
-            <td width="65" style="width:49pt"></td>
+            <td width="65" style="width:60pt"></td>
             <td width="148" style="width:111pt"></td>
             <td width="85" style="width:64pt"></td>
             <td width="83" style="width:62pt"></td>
@@ -471,7 +474,7 @@
             <td width="93" style="width:70pt"></td>
             <td width="78" style="width:59pt"></td>
             <td width="77" style="width:58pt"></td>
-            <td width="65" style="width:49pt"></td>
+            <td width="65" style="width:60pt"></td>
             <td width="148" style="width:111pt"></td>
             <td width="85" style="width:64pt"></td>
             <td width="83" style="width:62pt"></td>
@@ -866,7 +869,7 @@
             <td width="93" style="width:70pt"></td>
             <td width="78" style="width:59pt"></td>
             <td width="77" style="width:58pt"></td>
-            <td width="65" style="width:49pt"></td>
+            <td width="65" style="width:60pt"></td>
             <td width="148" style="width:111pt"></td>
             <td width="85" style="width:64pt"></td>
             <td width="83" style="width:62pt"></td>
@@ -923,10 +926,8 @@
             <td style='height:15.0pt'></td>
             <td colspan=6 class=xl191>Daily and Cumulative Totals</td>
             <td class=xl168 style='border-top:none'>Daily Total</td>
-            <td class=xl133 style='border-left:none'
+            <td colspan="3" class=xl133 style='border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_CONSUMABLES" data-ed="false" data-t="number"></td>
-            <td class=xl134></td>
-            <td class=xl134></td>
         </tr>
         </tbody>
     </table>
@@ -940,7 +941,7 @@
             <td width="93" style="width:70pt"></td>
             <td width="78" style="width:59pt"></td>
             <td width="77" style="width:58pt"></td>
-            <td width="65" style="width:49pt"></td>
+            <td width="65" style="width:60pt"></td>
             <td width="148" style="width:111pt"></td>
             <td width="85" style="width:64pt"></td>
             <td width="83" style="width:62pt"></td>
@@ -981,10 +982,8 @@
             <td style='height:15.0pt'></td>
             <td colspan=6 class=xl191>Daily and Cumulative Totals</td>
             <td class=xl168 style='border-top:none'>Daily Total</td>
-            <td class=xl178 style='border-left:none'
+            <td colspan="3" class=xl178 style='border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL" data-ed="false" data-t="number"></td>
-            <td></td>
-            <td class=xl137></td>
         </tr>
         <tr style='height:15.0pt' class="binderLbsUsedBaseRow baseRow">
             <td style='height:15.0pt'></td>
@@ -1056,254 +1055,315 @@
         </tbody>
     </table>
 
-    <!--
+    <table class="tbl5" border="0" cellpadding="0" cellspacing="0"
+           style="border-collapse: collapse;table-layout:fixed;width: 1000px;">
+        <tbody>
+        <tr style="height: 0;">
+            <td width="64" style="height: 0;width:48pt;"></td>
+            <td width="166" style="width:125pt"></td>
+            <td width="93" style="width:70pt"></td>
+            <td width="78" style="width:59pt"></td>
+            <td width="77" style="width:58pt"></td>
+            <td width="65" style="width:60pt"></td>
+            <td width="148" style="width:111pt"></td>
+            <td width="85" style="width:64pt"></td>
+            <td width="83" style="width:62pt"></td>
+            <td width="65" style="width:49pt"></td>
+            <td width="64" style="width:48pt"></td>
+        </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
-            <td colspan=10 class=xl270 style='border-right:1.0pt solid black'>Equipment,
-                Technicians &amp; Running Total
+            <td colspan=10 class=xl270 style='border-right:1.0pt solid black'>Equipment, Technicians &amp; Running Total
             </td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
-            <td class=xl189>Item</td>
+            <td class=xl189>Equipment</td>
             <td class=xl190 style='border-left:none'>Daily Cost</td>
-            <td class=xl190 style='border-left:none'>Quantity<![if !supportAnnotations]><span
-                    class=msocomspan1><span class=msocomspan2 id="_anchor_28"
-                                            onmouseover="msoCommentShow('_com_28','_anchor_28')"
-                                            onmouseout="msoCommentHide('_com_28')" language=JavaScript><a
-                    class=msocomanch href="#_msocom_28" name="_msoanchor_28">[28]</a></span></span><![endif]>
-            </td>
+            <td class=xl190 style='border-left:none'>Quantity</td>
             <td class=xl190 style='border-left:none'>Total</td>
-            <td rowspan=13 class=xl273 style='border-bottom:1.0pt solid black'>&nbsp;</td>
-            <td class=xl143>&nbsp;</td>
+            <td rowspan=15 class=xl273 style='border-bottom:1.0pt solid black'></td>
+            <td class=xl143></td>
             <td class=xl190 style='border-left:none'>Previous</td>
             <td class=xl190 style='border-left:none'>Daily</td>
-            <td colspan=2 class=xl190 style='border-right:1.0pt solid black;border-left:
-  none'>Total
-            </td>
+            <td colspan=2 class=xl190 style='border-right:1.0pt solid black;border-left:none'>Total</td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="equipmentUsageBaseRow baseRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Centrifuge Package</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>500,00
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>500,00
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl96 style='border-top:none'>Consumables</td>
-            <td class=xl146 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>                   </span>-<span
-                    style=''>   </span></td>
-            <td class=xl147 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>        
-  </span>631,70
+            <td class=xl146 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_PREV_CONSUMABLES" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:
-  none'><span style=''> </span>$<span
-                    style=''>                       </span>631,70
+            <td class=xl147 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_CONSUMABLES" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false"
+                      data-t="number"></span>
             </td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Transfer Pump</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>              </span>50,00
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>2</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>100,00
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl96 style='border-top:none'>Binder</td>
-            <td class=xl146 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>                   </span>-<span
-                    style=''>   </span></td>
-            <td class=xl147 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>    
-  </span>1 451,00
+            <td class=xl146 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_PREV_BINDER" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:
-  none'><span style=''> </span>$<span
-                    style=''>                    </span>1 451,00
+            <td class=xl147 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"></span>
             </td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Fast Flow Hydraulic Pump</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>205,00
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>205,00
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl96 style='border-top:none'>Equip &amp; Techs</td>
-            <td class=xl146 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>                   </span>-<span
-                    style=''>   </span></td>
-            <td class=xl147 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>    
-  </span>2 745,54
+            <td class=xl146 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_PREV_EQTECH" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:
-  none'><span style=''> </span>$<span
-                    style=''>                    </span>2 745,54
+            <td class=xl147 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_DAILY_EQTECH" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_TOTAL_EQTECH" data-ed="false" data-t="number"></span>
             </td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Hydraulic Dewatering Skid</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>125,00
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>125,00
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl96 style='border-top:none'>Waste Haul Off</td>
-            <td class=xl146 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>                   </span>-<span
-                    style=''>   </span></td>
-            <td class=xl148 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:
-  none'><span style=''> </span>$<span
-                    style=''>                                </span>-<span
-                    style=''>   </span></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Vertical Dryer</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>550,00
+            <td class=xl146 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_PREV_WHLOFF" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>0</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>               </span>-<span
-                    style=''>   </span></td>
+            <td class=xl148 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"></span>
+            </td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
+            </td>
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
             <td class=xl96 style='border-top:none'>Running Total</td>
-            <td class=xl146 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>                   </span>-<span
-                    style=''>   </span></td>
-            <td class=xl187 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>    
-  </span>4 828,24
+            <td class=xl146 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.RT_PREV" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:
-  none'><span style=''> </span>$<span
-                    style=''>                    </span>4 828,24
+            <td class=xl187 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false"
+                      data-t="number"></span>
             </td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Day Tech</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>660,00
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>660,00
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
             <td colspan=2 class=xl246 style='border-right:.5pt solid black'>Est Cost / Ft</td>
-            <td class=xl209 style='border-top:none;border-left:none'>$13,79</td>
-            <td colspan=2 class=xl282 style='border-right:1.0pt solid black;border-left:
-  none'><span style=''> </span>$<span
-                    style=''>                         </span>13,79
+            <td class=xl209 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Daily_Report.RDR_DAILY_EST_COST__FT" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=2 class=xl282 style='border-right:1.0pt solid black;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Rig_Month_Report.RMR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"></span>
+            </td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
+            </td>
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=5 rowspan=8 class=xl247 width=445
+                style='border-right:1.0pt solid black;border-bottom:.5pt solid black;width:334pt'></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
+            </td>
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
+            </td>
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Night Tech</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>660,00
+            <td class=xl189>Technicians</td>
+            <td class=xl190 style='border-left:none'>Daily Cost</td>
+            <td class=xl190 style='border-left:none'>Quantity</td>
+            <td class=xl190 style='border-left:none'>Total</td>
+        </tr>
+        <tr style='height:15.0pt' class="techniciansUsageBaseRow baseRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl151 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Technicians_Usage.Workers.WOR_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>660,00
-            </td>
-            <td colspan=5 rowspan=6 class=xl247 width=445 style='border-right:1.0pt solid black;
-  border-bottom:.5pt solid black;width:334pt'>&nbsp;
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Technicians_Usage.TECU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Dewatering Package</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>100,00
+            <td class=xl151 data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td class=xl202 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Technicians_Usage.Workers.WOR_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>100,00
+            <td class=xl203 style='border-top:none;border-left:none'
+                data-cf="Technicians_Usage.TECU_QUANTITY" data-t="number"></td>
+            <td class=xl204 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
-            <td class=xl151 style='border-top:none'>Generator/Dist Panel</td>
-            <td class=xl144 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>275,54
+            <td class=xl85 data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td class=xl144 style='border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Technicians_Usage.Workers.WOR_DAILY_COST" data-ed="false" data-t="number"></span>
             </td>
-            <td class=xl83 style='border-top:none;border-left:none'>1</td>
-            <td class=xl145 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>275,54
+            <td class=xl83 style='border-left:none'
+                data-cf="Technicians_Usage.TECU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl151>Per Diem(s)</td>
-            <td class=xl202 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>              </span>60,00
-            </td>
-            <td class=xl203 style='border-top:none;border-left:none'>2</td>
-            <td class=xl204 style='border-top:none;border-left:none'><span
-                    style=''> </span>$<span style=''>     
-  </span>120,00
-            </td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl85>Rig Up</td>
-            <td class=xl144 style='border-left:none'><span
-                    style=''> </span>$<span style=''>           
-  </span>500,00
-            </td>
-            <td class=xl83 style='border-left:none'>0</td>
-            <td class=xl145 style='border-left:none'><span
-                    style=''> </span>$<span
-                    style=''>               </span>-<span
-                    style=''>   </span></td>
         </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
             <td class=xl149>Daily Total All In</td>
-            <td colspan=3 class=xl256><span style=''> </span>$<span
-                    style=''>                                                           
-  </span>2 745,54
+            <td colspan=3 class=xl256>
+                <span style="float: left">$</span>
+                <span data-cf="Dynamic.EQ_TEC_DAILY_TOTAL_IN" data-ed="false" data-t="number"></span>
             </td>
         </tr>
+        </tbody>
+    </table>
+    <!--
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
             <td colspan=10 rowspan=9 class=xl257 width=924 style='border-right:1.0pt solid black;
