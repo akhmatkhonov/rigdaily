@@ -25,6 +25,8 @@ var config = {
     equipmentTT: 'Equipment',
     equipmentUsageTT: 'Equipment_Usage',
     techniciansUsageTT: 'Technicians_Usage',
+    supplyRequestTT: 'Supply_Request',
+    safeNotesTT: 'Safe_Notes',
 
     // For dynamic calculations
     dynTT: 'Dynamic'
@@ -41,6 +43,8 @@ configTblIdxs[config.binderUsageTT] = 'bu';
 configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
 configTblIdxs[config.equipmentUsageTT] = 'equ';
 configTblIdxs[config.techniciansUsageTT] = 'tecu';
+configTblIdxs[config.supplyRequestTT] = 'sr';
+configTblIdxs[config.safeNotesTT] = 'sn';
 
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
 
@@ -97,6 +101,7 @@ dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
         getCfValue(config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'));
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'] = dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'];
+
 
 // labTestingTT
 dynCalculations[config.labTestingTT + '.LABT_WATER'] = function (tid, tblIdx) {
@@ -293,6 +298,12 @@ dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
 
 dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
     dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT']();
+
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 };
 //
 
@@ -311,8 +322,23 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = func
     var number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
         (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
     setCfValue(config.dynTT + '.PREV', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'];
+
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
+        (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'));
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
+dynCalculations[config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
 
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
     var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER');
@@ -734,7 +760,7 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         // Clone baseRow
         row = baseRow.clone();
 
-        // Fill outside ranges with black boxes
+        // Fill outside ranges with empty white space
         var newTd = function (colspan) {
             return $('<td></td>').addClass('xl97 emptycols')
                 .attr('colspan', colspan)
@@ -1265,80 +1291,79 @@ function loadReport(tid) {
         }
     });
 
-    // techniciansUsageTT
+    // techniciansUsageTT, contactInformation
     var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
     var techniciansUsageBaseRowCfs = getConfigFields(config.techniciansUsageTT, techniciansUsageBaseRow);
+    var contactInformationBaseRow = $('tr.contactInformationBaseRow');
+    var contactInformationBaseRowCfs = getConfigFields(config.techniciansUsageTT, contactInformationBaseRow);
 
     requestQueue.push({
         url: function () {
-            var fields = Object.keys(techniciansUsageBaseRowCfs);
+            var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
             return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
                 '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
         },
         successCode: 200,
         success: function (response) {
-            $.each(response.splice(0, 2), function (idx, elem) {
+            $.each(response.splice(0, 3), function (idx, elem) {
                 saveTid(config.techniciansUsageTT, elem['TRACKOR_ID'], false);
 
                 var row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
                 var rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                fillCfs(rowCfs, elem);
+
+                row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
+                rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                fillCfs(rowCfs, elem);
+            });
+        }
+    });
+
+    // supplyRequestTT
+    var supplyRequestBaseRow = $('tr.supplyRequestBaseRow');
+    var supplyRequestBaseRowCfs = getConfigFields(config.supplyRequestTT, supplyRequestBaseRow);
+
+    requestQueue.push({
+        url: function () {
+            var fields = Object.keys(supplyRequestBaseRowCfs);
+            return '/api/v3/trackor_types/' + config.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+        },
+        successCode: 200,
+        success: function (response) {
+            $.each(response, function (idx, elem) {
+                saveTid(config.supplyRequestTT, elem['TRACKOR_ID'], false);
+
+                var row = appendSubtableRow(configTblIdxs[config.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
+                var rowCfs = getConfigFields(config.supplyRequestTT, row);
+                fillCfs(rowCfs, elem);
+            });
+        }
+    });
+
+    // safeNotesTT
+    var safeNotesBaseRow = $('tr.safeNotesBaseRow');
+    var safeNotesBaseRowCfs = getConfigFields(config.safeNotesTT, safeNotesBaseRow);
+
+    requestQueue.push({
+        url: function () {
+            var fields = Object.keys(safeNotesBaseRowCfs);
+            return '/api/v3/trackor_types/' + config.safeNotesTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+        },
+        successCode: 200,
+        success: function (response) {
+            $.each(response.splice(0, 7), function (idx, elem) {
+                saveTid(config.safeNotesTT, elem['TRACKOR_ID'], false);
+
+                var row = appendSubtableRow(configTblIdxs[config.safeNotesTT], 7, 11, safeNotesBaseRow, elem['TRACKOR_ID']);
+                var rowCfs = getConfigFields(config.safeNotesTT, row);
                 fillCfs(rowCfs, elem);
             });
         }
     });
 
     startRequestQueueWork(requestQueue, 'Loading report data...', function () {
-        // TODO: config field locks (wait for locks fix deploy)
-        /*var lockableFields = {};
-         var pushLockableField = function (cf) {
-         if (!lockableFields[cf.tt]) {
-         lockableFields[cf.tt] = [];
-         }
-         lockableFields[cf.tt].push(cf.name);
-         };
-
-         $.each(Object.keys(tids), function (idx, ttName) {
-         var cfs = getConfigFields(ttName);
-         $.each(cfs, function (cfName, cfsArr) {
-         if (cfsArr[0].lockable) {
-         pushLockableField(cfsArr[0]);
-         }
-         });
-         });
-
-         requestQueue = [];
-         $.each(lockableFields, function (ttName, cfs) {
-         requestQueue.push({
-         url: function () {
-         return '/api/v3/trackor_types/' + ttName + '/trackors/locks?fields=' + encodeURIComponent(cfs.join(',')) +
-         '&trackors=' + encodeURIComponent(typeof tids[ttName] === 'object' ? tids[ttName].join(',') : tids[ttName]);
-         },
-         successCode: 200,
-         success: function (response) {
-         if (!locks[ttName]) {
-         locks[ttName] = {};
-         }
-
-         $.each(response, function (idx, lock) {
-         if (!lock['locked']) {
-         return;
-         }
-
-         if (!locks[ttName][lock['trackor_id']]) {
-         locks[ttName][lock['trackor_id']] = [];
-         }
-         locks[ttName][lock['trackor_id']].push(lock['field_name']);
-
-         // TODO: refill cf
-         });
-         }
-         });
-         });
-
-         startRequestQueueWork(requestQueue, 'Check fields is locked...', function () {
-         $('#content').show();
-         });*/
-
         subscribeChangeDynCfs();
         $('#content').show();
     });
@@ -1387,8 +1412,6 @@ function selectReportLoadPage(selectReportDialog, page) {
                 var tr = $('<tr></tr>');
                 tr.click(function () {
                     $('span.site').empty().text(obj[config.rigSiteTT + '.TRACKOR_KEY']);
-                    $('span.reportdate').empty().text(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH'] + ' ' + obj['RDR_REPORT_DAY'] + ', ' +
-                        obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']);
 
                     setCfValue(config.dynTT + '.REPORT_DATE',
                         getRigMonthIndex(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']) + '/' +

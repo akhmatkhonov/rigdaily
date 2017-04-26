@@ -84,13 +84,9 @@
             Logged in as
             <span class="loggedin" style="font-weight: bold"></span>
         </div>
-        <div style="margin-top: 20px">
+        <div>
             Site:
             <span class="site" style="font-weight: bold"></span>
-        </div>
-        <div>
-            Report date:
-            <span class="reportdate" style="font-weight: bold"></span>
         </div>
         <div style="margin-top: 30px">
             <button id="submitReportData">Submit Report data</button>
@@ -1278,8 +1274,25 @@
                 <span style="float: left">$</span>
                 <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=5 rowspan=8 class=xl247 width=445
-                style='border-right:1.0pt solid black;border-bottom:.5pt solid black;width:334pt'></td>
+            <td colspan=5 class=xl189 style='border-right:1.0pt solid black;border-left:none'>Safety Notes</td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow safeNotesBaseRow baseRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
+                data-ed="false"></td>
+            <td class=xl144 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
+            </td>
+            <td class=xl83 style='border-top:none;border-left:none'
+                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
+            <td class=xl145 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
+            </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -1295,28 +1308,19 @@
                 <span style="float: left">$</span>
                 <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
+            </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
-            <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
-                data-ed="false"></td>
-            <td class=xl144 style='border-top:none;border-left:none'>
-                <span style="float: left">$</span>
-                <span data-cf="Equipment_Usage.Equipment.EQ_DAILY_COST" data-ed="false" data-t="number"></span>
-            </td>
-            <td class=xl83 style='border-top:none;border-left:none'
-                data-cf="Equipment_Usage.EQU_QUANTITY" data-t="number"></td>
-            <td class=xl145 style='border-top:none;border-left:none'>
-                <span style="float: left">$</span>
-                <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
-            </td>
-        </tr>
-        <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
             <td class=xl189>Technicians</td>
             <td class=xl190 style='border-left:none'>Daily Cost</td>
             <td class=xl190 style='border-left:none'>Quantity</td>
             <td class=xl190 style='border-left:none'>Total</td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
+            </td>
         </tr>
         <tr style='height:15.0pt' class="techniciansUsageBaseRow baseRow">
             <td style='height:15.0pt'></td>
@@ -1331,6 +1335,9 @@
             <td class=xl145 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
                 <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
+            </td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1347,6 +1354,9 @@
                 <span style="float: left">$</span>
                 <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
+            </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -1362,138 +1372,68 @@
                 <span style="float: left">$</span>
                 <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
+            </td>
         </tr>
-        <tr style='height:15.75pt'>
+        <tr style='height:15.75pt' class="staticRow">
             <td style='height:15.75pt'></td>
             <td class=xl149>Daily Total All In</td>
             <td colspan=3 class=xl256>
                 <span style="float: left">$</span>
                 <span data-cf="Dynamic.RT_DAILY_EQTECH" data-ed="false" data-t="number"></span>
             </td>
+            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Safe_Notes.SN_NOTES">
+            </td>
         </tr>
         </tbody>
     </table>
-    <!--
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td colspan=10 rowspan=9 class=xl257 width=924 style='border-right:1.0pt solid black;
-  width:695pt'>&nbsp;
-            </td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-        </tr>
-        <tr style='height:15.75pt'>
-            <td style='height:15.75pt'></td>
+
+    <table class="tbl6" border="0" cellpadding="0" cellspacing="0"
+           style="border-collapse: collapse;table-layout:fixed;width: 1000px;">
+        <tbody>
+        <tr style="height: 0;">
+            <td width="64" style="height: 0;width:48pt;"></td>
+            <td width="166" style="width:125pt"></td>
+            <td width="93" style="width:70pt"></td>
+            <td width="78" style="width:59pt"></td>
+            <td width="77" style="width:58pt"></td>
+            <td width="65" style="width:60pt"></td>
+            <td width="148" style="width:111pt"></td>
+            <td width="85" style="width:64pt"></td>
+            <td width="83" style="width:62pt"></td>
+            <td width="65" style="width:49pt"></td>
+            <td width="64" style="width:48pt"></td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
             <td colspan=5 class=xl262>Contact Information</td>
-            <td colspan=3 class=xl264 style='border-right:1.0pt solid black'>Supply
-                Request<![if !supportAnnotations]><span class=msocomspan1><span
-                        class=msocomspan2 id="_anchor_29"
-                        onmouseover="msoCommentShow('_com_29','_anchor_29')"
-                        onmouseout="msoCommentHide('_com_29')" language=JavaScript><a
-                        class=msocomanch href="#_msocom_29" name="_msoanchor_29">[29]</a></span></span><![endif]>
-            </td>
-            <td colspan=2 class=xl189 style='border-right:1.0pt solid black;border-left:
-  none'>Safety Notes
-            </td>
+            <td colspan=5 class=xl264 style='border-right:1.0pt solid black'>Supply Request</td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
             <td class=xl85 style='border-top:none'>Title</td>
             <td colspan=2 class=xl188 style='border-left:none'>Name</td>
             <td colspan=2 class=xl188 style='border-left:none'>Cell</td>
-            <td class=xl139>Item</td>
+            <td class=xl139 colspan="2">Item</td>
             <td class=xl188 style='border-left:none'>Quantity</td>
-            <td class=xl150 style='border-left:none'>When</td>
-            <td colspan=2 rowspan=8 class=xl240 width=129 style='border-right:1.0pt solid black;
-  border-bottom:1.0pt solid black;width:97pt'>&nbsp;
-            </td>
+            <td class=xl150 style='border-left:none' colspan="2">When</td>
         </tr>
-        <tr style='height:15.0pt'>
+        <tr style='height:15.0pt' class="contactInformationBaseRow supplyRequestBaseRow baseRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>QHSE Manager</td>
-            <td colspan=2 class=xl188 style='border-left:none'>bob</td>
-            <td colspan=2 class=xl188 style='border-left:none'>999</td>
-            <td class=xl169 style='border-top:none'>&nbsp;</td>
-            <td class=xl170 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td class=xl171 style='border-top:none;border-left:none'>&nbsp;</td>
+            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID" data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME" data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE" data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-ed="false" data-lockable="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-ed="false"></td>
         </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Supervisor</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td class=xl169 style='border-top:none'>&nbsp;</td>
-            <td class=xl170 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td class=xl171 style='border-top:none;border-left:none'>&nbsp;</td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Supervisor</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td class=xl169 style='border-top:none'>&nbsp;</td>
-            <td class=xl170 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td class=xl171 style='border-top:none;border-left:none'>&nbsp;</td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Day Technician</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td class=xl169 style='border-top:none'>&nbsp;</td>
-            <td class=xl170 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td class=xl171 style='border-top:none;border-left:none'>&nbsp;</td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none'>Night Technician</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td class=xl169 style='border-top:none'>&nbsp;</td>
-            <td class=xl170 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td class=xl171 style='border-top:none;border-left:none'>&nbsp;</td>
-        </tr>
-        <tr style='height:15.0pt'>
-            <td style='height:15.0pt'></td>
-            <td class=xl151 style='border-top:none'>Technician</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl188 style='border-left:none'>&nbsp;</td>
-            <td class=xl172 style='border-top:none'>&nbsp;</td>
-            <td class=xl173 style='border-top:none;border-left:none'>&nbsp;</td>
-            <td class=xl174 style='border-top:none;border-left:none'>&nbsp;</td>
-        </tr>
-        <tr style='height:15.75pt'>
-            <td style='height:15.75pt'></td>
-            <td class=xl121>Account Representative</td>
-            <td colspan=2 class=xl268 style='border-left:none'>&nbsp;</td>
-            <td colspan=2 class=xl268 style='border-left:none'>&nbsp;</td>
-            <td class=xl175>&nbsp;</td>
-            <td class=xl176 style='border-left:none'>&nbsp;</td>
-            <td class=xl177 style='border-left:none'>&nbsp;</td>
-        </tr>
-    </table>-->
+        </tbody>
+    </table>
 </div>
 </body>
 </html>
