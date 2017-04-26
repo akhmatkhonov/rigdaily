@@ -935,12 +935,14 @@ td {
 .xl170 {
     border: .5pt solid windowtext;
     background: white;
+    text-align: center;
 }
 
 .xl171 {
     border: .5pt solid windowtext;
     border-right-width: 1.0pt;
     background: white;
+    text-align: center;
 }
 
 .xl172 {
@@ -1487,7 +1489,7 @@ td {
 }
 
 .xl240 {
-    text-align: left;
+    text-align: center;
     vertical-align: top;
     border-top: .5pt solid windowtext;
     border-right: none;
@@ -1913,7 +1915,7 @@ td {
 
 .xl284 {
     text-align: center;
-    border-top: none;
+    border-top: 1.0pt solid windowtext;
     border-right: none;
     border-bottom: .5pt solid windowtext;
     border-left: 1.0pt solid windowtext;
