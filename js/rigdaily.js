@@ -22,6 +22,9 @@ var config = {
     binderTT: 'Binder',
     binderUsageTT: 'Binder_Usage',
     binderLbsUsedTT: 'Binder_Lbs_Used',
+    equipmentTT: 'Equipment',
+    equipmentUsageTT: 'Equipment_Usage',
+    techniciansUsageTT: 'Technicians_Usage',
 
     // For dynamic calculations
     dynTT: 'Dynamic'
@@ -36,8 +39,14 @@ configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
 configTblIdxs[config.consumablesUsageTT] = 'cu';
 configTblIdxs[config.binderUsageTT] = 'bu';
 configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
+configTblIdxs[config.equipmentUsageTT] = 'equ';
+configTblIdxs[config.techniciansUsageTT] = 'tecu';
 
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
+
+var isReportEdited = false;
+var tids = {};
+var locks = {};
 
 function getRigMonthIndex(name) {
     switch (name) {
@@ -259,6 +268,48 @@ dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'] = function (tid, tblIdx) {
 dynCalculations[config.binderLbsUsedTT + '.BLU_USED'] = dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'];
 //
 
+// equipmentUsageTT
+dynCalculations[config.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
+    var number = getCfValue(config.equipmentUsageTT + '.EQU_QUANTITY', tid, tblIdx) *
+        getCfValue(config.equipmentUsageTT + '.' + config.equipmentTT + '.EQ_DAILY_COST', tid, tblIdx);
+    setCfValue(config.equipmentUsageTT + '.EQU_TOTAL', number, tid, tblIdx);
+};
+dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
+    // Daily Total All In
+    var dailyTotalEquip = 0;
+    $.each(tids[config.equipmentUsageTT], function (idx, tid) {
+        dailyTotalEquip += getCfValue(config.equipmentUsageTT + '.EQU_TOTAL', tid, configTblIdxs[config.equipmentUsageTT]);
+    });
+
+    var dailyTotalTech = 0;
+    $.each(tids[config.techniciansUsageTT], function (idx, tid) {
+        dailyTotalTech += getCfValue(config.techniciansUsageTT + '.TECU_TOTAL', tid, configTblIdxs[config.techniciansUsageTT]);
+    });
+
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_EQUIPMENT', dailyTotalEquip);
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_TECHNICIANS', dailyTotalTech);
+    setCfValue(config.dynTT + '.EQ_TEC_DAILY_TOTAL_IN', dailyTotalEquip + dailyTotalTech);
+
+    // RT_DAILY_EQTECH
+    // RT_PREV_EQTECH
+    // TODO
+    /*
+     *         <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"></span>
+     <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"></span>
+
+     * */
+};
+//
+
+// techniciansUsageTT
+dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, tblIdx) {
+    var number = getCfValue(config.techniciansUsageTT + '.TECU_QUANTITY', tid, tblIdx) *
+        getCfValue(config.techniciansUsageTT + '.' + config.workersTT + '.WOR_DAILY_COST', tid, tblIdx);
+    setCfValue(config.techniciansUsageTT + '.TECU_TOTAL', number, tid, tblIdx);
+};
+dynCalculations[config.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'];
+//
+
 // Other
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'];
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
@@ -273,6 +324,18 @@ dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] =
     setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
 };
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'];
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
+    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+};
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
+    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+};
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
 //
 
 function getCfValue(name, tid, tblIdx) {
@@ -287,6 +350,8 @@ function getCfValue(name, tid, tblIdx) {
 
     if (cfs.length === 0) {
         return null;
+    } else if (cfs.length > 1) {
+        cfs = cfs.first();
     }
 
     var dataType = cfs.data('t');
@@ -313,6 +378,10 @@ function setCfValue(name, value, tid, tblIdx) {
         if (value % 1 === 0) {
             value = parseInt(value);
         }
+
+        if (isNaN(value)) {
+            value = '0';
+        }
     }
 
     var editDiv = cfs.find('div[contenteditable]');
@@ -324,8 +393,6 @@ function setCfValue(name, value, tid, tblIdx) {
     }
 }
 
-var isReportEdited = false;
-var tids = {};
 function saveTid(ttName, tid, isSingle) {
     if (isSingle) {
         tids[ttName] = tid;
@@ -386,6 +453,8 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'tIdx': tblIdx,
             'forceSubmit': obj.data('submit') + '' === 'true',
             'reload': obj.data('reload') + '' === 'true',
+            'required': obj.data('required') + '' === 'true',
+            'lockable': obj.data('lockable') + '' === 'true',
             'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
@@ -394,11 +463,32 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
     return cfs;
 }
 
+function isCfLocked(cf) {
+    if (!cf.lockable) {
+        return false;
+    }
+
+    var tr = cf.obj.closest('tr');
+    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+
+    if (!$.isArray(locks[cf.tt])) {
+        return false;
+    }
+
+    var lockVal = $.isArray(locks[cf.tt][tid]) ? locks[cf.tt][tid][cf.name] : undefined;
+    return lockVal !== undefined ? lockVal : false;
+}
+
 function fillCf(cf, value) {
     if (cf.type === 'number') {
         value = parseFloat(value).toFixed(2);
         if (value % 1 === 0) {
             value = parseInt(value);
+        }
+
+        if (isNaN(value)) {
+            value = 0;
         }
     }
 
@@ -406,7 +496,8 @@ function fillCf(cf, value) {
 
     var subscribeObj = cf.obj;
     if (cf.editable) {
-        var div = $('<div contenteditable="true"></div>');
+        var isLocked = isCfLocked(cf);
+        var div = $('<div contenteditable="' + (isLocked ? 'false' : 'true') + '"></div>');
         subscribeObj = div;
 
         div.html(cf.obj.html());
@@ -415,43 +506,61 @@ function fillCf(cf, value) {
             div.attr('style', cf.editable_style);
         }
 
-        // Init editable
-        div.keypress(function (e) {
-            return e.which !== 13;
-        }).on('blur keyup paste', function () {
-            if (!isReportEdited) {
-                $(window).on('beforeunload', function () {
-                    return loseDataMessage;
-                });
-            }
-            isReportEdited = true;
+        if (isLocked) {
+            div.tooltip({
+                items: 'div',
+                content: 'Locked'
+            });
+        } else {
+            // Init editable
+            div.keypress(function (e) {
+                return e.which !== 13;
+            }).on('blur keyup paste', function () {
+                if (!isReportEdited) {
+                    $(window).on('beforeunload', function () {
+                        return loseDataMessage;
+                    });
+                }
+                isReportEdited = true;
 
-            if (cf.type === 'number' && div.text().trim().length === 0) {
-                div.text('0');
-            }
-            div.trigger('change');
-        });
-        switch (cf.type) {
-            case 'number': {
-                // Deny input not number chars
-                // http://stackoverflow.com/a/995193
-                div.keydown(function (e) {
-                    // Allow: backspace, delete, tab, escape, enter and .
-                    if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
-                        // Allow: Ctrl+A, Command+A
-                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                        // Allow: home, end, left, right, down, up
-                        (e.keyCode >= 35 && e.keyCode <= 40)) {
-                        // let it happen, don't do anything
-                        return;
+                var triggerChange = true;
+                if (div.text().trim().length === 0) {
+                    if (cf.type === 'number') {
+                        div.text('0');
+                    } else if (cf.required) {
+                        cf.obj.addClass('required_error');
+                        triggerChange = false;
                     }
-                    // Ensure that it is a number and stop the keypress
-                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
-                        e.preventDefault();
+                } else {
+                    cf.obj.removeClass('required_error');
+                }
+
+                if (triggerChange) {
+                    div.trigger('change');
+                }
+            });
+            switch (cf.type) {
+                case 'number': {
+                    // Deny input not number chars
+                    // http://stackoverflow.com/a/995193
+                    div.keydown(function (e) {
+                        // Allow: backspace, delete, tab, escape, enter and .
+                        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
+                            // Allow: Ctrl+A, Command+A
+                            (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                            // Allow: home, end, left, right, down, up
+                            (e.keyCode >= 35 && e.keyCode <= 40)) {
+                            // let it happen, don't do anything
+                            return;
+                        }
+                        // Ensure that it is a number and stop the keypress
+                        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                            e.preventDefault();
+                        }
+                    });
+                    if (value === null || value === '') {
+                        div.text('0');
                     }
-                });
-                if (value === null || value === '') {
-                    div.text('0');
                 }
             }
         }
@@ -494,6 +603,7 @@ function init() {
 
     var changeReport = function () {
         tids = {};
+
         isReportEdited = false;
         $(window).off('beforeunload');
 
@@ -648,12 +758,22 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
+function RequiredFieldsNotPresentException(focusObj) {
+    this.message = 'Required fields not present!';
+    this.focusObj = focusObj;
+}
+
 function convertEditableCfsToDataObject(cfs) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
-            if (cf.editable) {
-                result[cf.name] = cf.obj.children('div').text();
+            if (cf.editable && !isCfLocked(cf)) {
+                result[cf.name] = cf.obj.children('div[contenteditable]').text();
+
+                if (cf.required && result[cf.name].length === 0) {
+                    var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
+                    throw new RequiredFieldsNotPresentException(focusObj);
+                }
             } else if (cf.forceSubmit) {
                 result[cf.name] = cf.obj.text();
             }
@@ -676,33 +796,44 @@ function startSubmitReport() {
         });
     };
 
-    $.each(tids, function (ttName, tidObj) {
-        if (ttName === config.dynTT) {
+    try {
+        $.each(tids, function (ttName, tidObj) {
+            if (ttName === config.dynTT) {
+                return;
+            }
+
+            if (typeof tidObj === 'object') {
+                // Find subtable objects
+                $.each(tidObj, function (idx, tid) {
+                    var isTblIdxObject = typeof configTblIdxs[ttName] === 'object';
+                    $.each(isTblIdxObject ? configTblIdxs[ttName] : [configTblIdxs[ttName]], function (idx, tblIdx) {
+                        var parent = $('tr.subtable.subtable_' + tblIdx).filter(function () {
+                            return $(this).data('tid_' + tblIdx) === tid;
+                        });
+                        if (parent.length !== 0) {
+                            var data = convertEditableCfsToDataObject(getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined));
+                            makePutRequest(tid, data);
+                        }
+                    });
+                });
+            } else {
+                var data = convertEditableCfsToDataObject(getConfigFields(ttName));
+                makePutRequest(tidObj, data);
+            }
+        });
+    } catch (e) {
+        if (e instanceof RequiredFieldsNotPresentException) {
+            alertDialog(e.message, function () {
+                e.focusObj.focus();
+            });
             return;
         }
-
-        if (typeof tidObj === 'object') {
-            // Find subtable objects
-            $.each(tidObj, function (idx, tid) {
-                var isTblIdxObject = typeof configTblIdxs[ttName] === 'object';
-                $.each(isTblIdxObject ? configTblIdxs[ttName] : [configTblIdxs[ttName]], function (idx, tblIdx) {
-                    var parent = $('tr.subtable.subtable_' + tblIdx).filter(function () {
-                        return $(this).data('tid_' + tblIdx) === tid;
-                    });
-                    if (parent.length !== 0) {
-                        var data = convertEditableCfsToDataObject(getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined));
-                        makePutRequest(tid, data);
-                    }
-                });
-            });
-        } else {
-            var data = convertEditableCfsToDataObject(getConfigFields(ttName));
-            makePutRequest(tidObj, data);
-        }
-    });
+    }
 
     startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
         isReportEdited = false;
+
+        // TODO: start reload queue work
     });
 }
 
@@ -1097,7 +1228,102 @@ function loadReport(tid) {
         }
     });
 
+    // equipmentUsageTT
+    var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
+    var equipmentUsageBaseRowCfs = getConfigFields(config.equipmentUsageTT, equipmentUsageBaseRow);
+
+    requestQueue.push({
+        url: function () {
+            var fields = Object.keys(equipmentUsageBaseRowCfs);
+            return '/api/v3/trackor_types/' + config.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+        },
+        successCode: 200,
+        success: function (response) {
+            $.each(response.splice(0, 9), function (idx, elem) {
+                saveTid(config.equipmentUsageTT, elem['TRACKOR_ID'], false);
+
+                var row = appendSubtableRow(configTblIdxs[config.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
+                var rowCfs = getConfigFields(config.equipmentUsageTT, row);
+                fillCfs(rowCfs, elem);
+            });
+        }
+    });
+
+    // techniciansUsageTT
+    var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
+    var techniciansUsageBaseRowCfs = getConfigFields(config.techniciansUsageTT, techniciansUsageBaseRow);
+
+    requestQueue.push({
+        url: function () {
+            var fields = Object.keys(techniciansUsageBaseRowCfs);
+            return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+        },
+        successCode: 200,
+        success: function (response) {
+            $.each(response.splice(0, 2), function (idx, elem) {
+                saveTid(config.techniciansUsageTT, elem['TRACKOR_ID'], false);
+
+                var row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
+                var rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                fillCfs(rowCfs, elem);
+            });
+        }
+    });
+
     startRequestQueueWork(requestQueue, 'Loading report data...', function () {
+        // TODO: config field locks (wait for locks fix deploy)
+        /*var lockableFields = {};
+         var pushLockableField = function (cf) {
+         if (!lockableFields[cf.tt]) {
+         lockableFields[cf.tt] = [];
+         }
+         lockableFields[cf.tt].push(cf.name);
+         };
+
+         $.each(Object.keys(tids), function (idx, ttName) {
+         var cfs = getConfigFields(ttName);
+         $.each(cfs, function (cfName, cfsArr) {
+         if (cfsArr[0].lockable) {
+         pushLockableField(cfsArr[0]);
+         }
+         });
+         });
+
+         requestQueue = [];
+         $.each(lockableFields, function (ttName, cfs) {
+         requestQueue.push({
+         url: function () {
+         return '/api/v3/trackor_types/' + ttName + '/trackors/locks?fields=' + encodeURIComponent(cfs.join(',')) +
+         '&trackors=' + encodeURIComponent(typeof tids[ttName] === 'object' ? tids[ttName].join(',') : tids[ttName]);
+         },
+         successCode: 200,
+         success: function (response) {
+         if (!locks[ttName]) {
+         locks[ttName] = {};
+         }
+
+         $.each(response, function (idx, lock) {
+         if (!lock['locked']) {
+         return;
+         }
+
+         if (!locks[ttName][lock['trackor_id']]) {
+         locks[ttName][lock['trackor_id']] = [];
+         }
+         locks[ttName][lock['trackor_id']].push(lock['field_name']);
+
+         // TODO: refill cf
+         });
+         }
+         });
+         });
+
+         startRequestQueueWork(requestQueue, 'Check fields is locked...', function () {
+         $('#content').show();
+         });*/
+
         $('#content').show();
     });
 }
@@ -1244,6 +1470,30 @@ function initSelectReportDialog() {
     });
 
     return selectReportDialog;
+}
+
+function alertDialog(message, callback, title) {
+    if (typeof(title) !== 'string') {
+        title = 'Information';
+    }
+
+    var div = $('<div></div>');
+    div.html(message).dialog({
+        title: title,
+        resizable: false,
+        modal: true,
+        buttons: {
+            'OK': function () {
+                $(this).dialog('close');
+            }
+        },
+        close: function () {
+            div.remove();
+            if (typeof(callback) === 'function') {
+                callback();
+            }
+        }
+    });
 }
 
 function confirmDialog(message, callback, title) {
