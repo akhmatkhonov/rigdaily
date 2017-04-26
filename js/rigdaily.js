@@ -288,16 +288,11 @@ dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
 
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_EQUIPMENT', dailyTotalEquip);
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_TECHNICIANS', dailyTotalTech);
-    setCfValue(config.dynTT + '.EQ_TEC_DAILY_TOTAL_IN', dailyTotalEquip + dailyTotalTech);
+    setCfValue(config.dynTT + '.RT_DAILY_EQTECH', dailyTotalEquip + dailyTotalTech);
+};
 
-    // RT_DAILY_EQTECH
-    // RT_PREV_EQTECH
-    // TODO
-    /*
-     *         <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"></span>
-     <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"></span>
-
-     * */
+dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
+    dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT']();
 };
 //
 
@@ -324,12 +319,6 @@ dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] =
     setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
 };
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'];
-
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
-    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
-};
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
 
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
     var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
@@ -459,6 +448,11 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
         });
+
+        // TODO: remove
+        if (obj.data('reload') + '' === 'true') {
+            obj.css('background', 'red');
+        }
     });
     return cfs;
 }
@@ -579,6 +573,22 @@ function fillCf(cf, value) {
     }
 }
 
+function subscribeChangeDynCfs() {
+    var cfs = getConfigFields(config.dynTT);
+    $.each(cfs, function (cfName, cfArr) {
+        $.each(cfArr, function (idx, cf) {
+            if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
+                cf.obj.change(function () {
+                    var tr = cf.obj.closest('tr');
+                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+                    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+                }).trigger('change');
+            }
+        });
+    });
+}
+
 function fillCfs(cfs, response) {
     $.each(cfs, function (cfName, cfArr) {
         if (response.hasOwnProperty(cfName)) {
@@ -637,6 +647,11 @@ function init() {
         } else {
             changeReport();
         }
+    });
+    $('#print').button({
+        icon: 'ui-icon-print'
+    }).click(function () {
+        window.print();
     });
 }
 
@@ -1324,6 +1339,7 @@ function loadReport(tid) {
          $('#content').show();
          });*/
 
+        subscribeChangeDynCfs();
         $('#content').show();
     });
 }
