@@ -79,30 +79,37 @@
 <!-- Rig daily end -->
 
 <div id="content">
-    <div>
-        Logged in as
-        <span class="loggedin" style="font-weight: bold"></span>
-    </div>
-    <div style="margin-top: 20px">
-        Site:
-        <span class="site" style="font-weight: bold"></span>
-    </div>
-    <div>
-        Report date:
-        <span class="reportdate" style="font-weight: bold"></span>
-    </div>
-    <div style="margin-top: 30px">
-        <button id="submitReportData">Submit Report data</button>
-        <button id="changeReport">Change report</button>
-    </div>
+    <div class="nonprint">
+        <div>
+            Logged in as
+            <span class="loggedin" style="font-weight: bold"></span>
+        </div>
+        <div style="margin-top: 20px">
+            Site:
+            <span class="site" style="font-weight: bold"></span>
+        </div>
+        <div>
+            Report date:
+            <span class="reportdate" style="font-weight: bold"></span>
+        </div>
+        <div style="margin-top: 30px">
+            <button id="submitReportData">Submit Report data</button>
+            <button id="changeReport">Change report</button>
+            <button id="print">Print</button>
+        </div>
 
-    <!-- Hidden cfs -->
-    <div style="display: none;">
-        <!-- Equipment & Technicians Daily + Cumulative Total -->
-        <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"></span>
-        <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"></span>
-        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"></span>
-        <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"></span>
+        <!-- Hidden cfs -->
+        <div style="display: none;">
+            <!-- Equipment & Technicians Daily + Cumulative Total -->
+            <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+        </div>
     </div>
 
     <table class="tbl1" border=0 cellpadding=0 cellspacing=0
@@ -161,9 +168,9 @@
             <td colspan=4 class=xl198 style='border-left:none'
                 data-cf="Rig_Site.RS_WELL_NAME" data-ed="false"></td>
             <td colspan=3 class=xl197 style='border-left:none'>Previous Measured Depth</td>
-            <td class=xl179 style='border-top:none;border-left:none; background: red'
+            <td class=xl179 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_AM_PREVIOUS_MEASURED_DEPTH" data-ed="false" data-reload="true"></td>
-            <td class=xl179 style='border-top:none;border-left:none; background: red'
+            <td class=xl179 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_PM_PREVIOUS_MEASURED_DEPTH" data-ed="false" data-reload="true"></td>
         </tr>
         <tr style='height:15.0pt'>
@@ -452,7 +459,7 @@
         <tr height="22" style="height:16.5pt">
             <td height="22" style="height:16.5pt"></td>
             <td colspan="5" class="xl97"
-                style="border-right: 1.0pt solid black;border-left: none;border-bottom: 1.0pt solid black;"></td>
+                style="border-right: 1.0pt solid black;border-left: 1.0pt solid black;border-bottom: 1.0pt solid black;"></td>
             <td class="xl101" style="border-top:none;border-left:none;border-bottom: 1.0pt solid black;">Pump 2 GPM</td>
             <td class="xl159" style="border-top:none;border-left:none;border-bottom: 1.0pt solid black;"
                 data-cf="Rig_Daily_Report.RDR_PUMP_2_GPM_AM" data-t="number"></td>
@@ -759,7 +766,7 @@
                 data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
-            <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none; background: red'
+            <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none'
                 data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-reload="true"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -845,7 +852,7 @@
             <td class=xl237 style='border-top:none;border-left:none'>Cost / Ton</td>
             <td class=xl238 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
-                <span style="float: right; margin-right: 5px; background: red"
+                <span style="float: right; margin-right: 5px"
                       data-cf="Rig_Daily_Report.RDR_WHOU_COST_TON" data-ed="false" data-reload="true"></span>
             </td>
             <td class=xl163 style='border-top:none;border-left:none'
@@ -919,7 +926,7 @@
                 data-cf="Consumables_Usage.CONU_BALANCE" data-ed="false" data-t="number"></td>
             <td class=xl128 style='border-top:none;border-left:none'
                 data-cf="Consumables_Usage.CONU_DAILY" data-ed="false" data-t="number"></td>
-            <td class=xl129 style='border-top:none;border-left:none;background: red'
+            <td class=xl129 style='border-top:none;border-left:none'
                 data-cf="Consumables_Usage.CONU_TOTAL" data-ed="false" data-t="number" data-reload="true"></td>
         </tr>
         <tr style='height:15.0pt'>
@@ -975,7 +982,7 @@
                 data-cf="Binder_Usage.BU_BALANCE" data-ed="false" data-t="number"></td>
             <td class=xl128 style='border-top:none;border-left:none'
                 data-cf="Binder_Usage.BU_DAILY" data-ed="false" data-t="number"></td>
-            <td class=xl136 style='border-top:none;border-left:none; background: red'
+            <td class=xl136 style='border-top:none;border-left:none'
                 data-cf="Binder_Usage.BU_TOTAL" data-ed="false" data-t="number" data-reload="true"></td>
         </tr>
         <tr style='height:15.0pt'>
@@ -1041,10 +1048,10 @@
                       data-submit="true"
                       style="display: none"></span>
             </td>
-            <td class=xl140 style='border-top:none;border-left:none; background: red'
+            <td class=xl140 style='border-top:none;border-left:none'
                 data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER_LBS" data-ed="false" data-t="number"
                 data-reload="true"></td>
-            <td class=xl141 style='border-top:none;border-left:none; background: red'
+            <td class=xl141 style='border-top:none;border-left:none'
                 data-cf="Rig_Month_Report.RMR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
             <td colspan=2 class=xl288 width=148 style='border-right:.5pt solid black; border-left:none;width:111pt'>
                 Cumulative Total
@@ -1114,7 +1121,7 @@
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
                 <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false"
-                      data-t="number"></span>
+                      data-t="number" data-reload="true"></span>
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1142,7 +1149,8 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
+                      data-reload="true"></span>
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1198,7 +1206,8 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+                      data-reload="true"></span>
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1227,7 +1236,7 @@
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
                 <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false"
-                      data-t="number"></span>
+                      data-t="number" data-reload="true"></span>
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1251,7 +1260,8 @@
             </td>
             <td colspan=2 class=xl282 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Month_Report.RMR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"
+                      data-reload="true"></span>
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1358,7 +1368,7 @@
             <td class=xl149>Daily Total All In</td>
             <td colspan=3 class=xl256>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.EQ_TEC_DAILY_TOTAL_IN" data-ed="false" data-t="number"></span>
+                <span data-cf="Dynamic.RT_DAILY_EQTECH" data-ed="false" data-t="number"></span>
             </td>
         </tr>
         </tbody>

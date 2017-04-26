@@ -1,3 +1,33 @@
+@media print {
+    .nonprint {
+        display: none;
+    }
+
+    td {
+        color: black !important;
+        background: white !important;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    table {
+        left: -70px;
+        position: relative;
+        page-break-inside: auto;
+    }
+
+    .xl81, .xl82, .xl90, .xl91, .xl95, .xl99, .xl102, .xl103, .xl104, .xl105, .xl114, .xl115, .xl122, .xl138, .xl143,
+    .xl189, .xl190, .xl191, .xl192, .xl193, .xl194, .xl195, .xl196, .xl197, .xl198, .xl199, .xl200, .xl237, .xl262,
+    .xl263, .xl264, .xl265, .xl266, .xl267, .xl270, .xl271, .xl272, .xl276, .xl284, .xl285, .xl286, .xl287, .xl288,
+    .xl289, .xl290, .xl310, .xl311, .xl312, .xl325, .xl326, .xl327, .xl335, .xl336, .xl342, .xl343, .xl361, .xl362,
+    .xl363 {
+        font-weight: 900 !important;
+    }
+}
+
 .required_error {
     border: 2px solid red !important;
 }
@@ -348,7 +378,8 @@ td {
 }
 
 .xl97 {
-    background: black;
+    background: white;
+    border: 1px solid black;
 }
 
 .xl98 {
@@ -738,7 +769,6 @@ td {
 
 .xl146 {
     color: #00B0F0;
-    font-size: 9.0pt;
     text-align: center;
     vertical-align: middle;
     border: .5pt solid windowtext;
