@@ -522,6 +522,10 @@ function fillCf(cf, value) {
             div.attr('style', cf.editable_style);
         }
 
+        div.on('focus', function () {
+            setActiveCellRowTo($(this).closest('td'));
+        });
+
         if (isLocked) {
             div.tooltip({
                 items: 'div',
@@ -793,6 +797,9 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
+    row.find('td').unbind('click').click(function () {
+        setActiveCellRowTo($(this));
+    });
     return row;
 }
 
@@ -1564,7 +1571,96 @@ function confirmDialog(message, callback, title) {
     });
 }
 
+// Arrow navigation
+var currentRow = 2;
+var currentCell = 1;
+
+function changeCurrentCell(noFocus) {
+    $('.active').removeClass('active').find('div[contenteditable]').blur();
+
+    var rows = $('#content').find('tr');
+    if (currentRow > rows.length - 1) {
+        currentRow = rows.length - 1;
+    }
+
+    var tableRow = rows.eq(currentRow);
+    var cellCount = tableRow.children().length;
+    if (currentCell > cellCount - 1) {
+        currentCell = cellCount - 1;
+    }
+
+    var tableCell = tableRow.children(':eq(' + currentCell + ')');
+
+    if (!noFocus) {
+        var div = tableCell.find('div[contenteditable]').first();
+        if (div.length !== 0) {
+            div.focus();
+        } else {
+            tableCell.focus();
+        }
+    }
+
+    tableCell.addClass('active');
+}
+
+function setActiveCellRowTo(td) {
+    if (td.index() === 0) {
+        return;
+    }
+
+    var row = $('#content').find('tr').index(td.closest('tr'));
+    if (row === 0) {
+        return;
+    }
+
+    currentRow = row;
+    currentCell = td.index();
+    changeCurrentCell(true);
+}
+
+function initArrowNavigation() {
+    changeCurrentCell();
+
+    $('#content').find('td').click(function () {
+        setActiveCellRowTo($(this));
+    });
+
+    $(document).keydown(function (e) {
+        if ($('#content').is(':hidden')) {
+            return true;
+        }
+
+        if (e.keyCode === 37) {
+            if (currentCell === 1) {
+                return false;
+            }
+            currentCell--;
+            changeCurrentCell();
+            return false;
+        }
+        if (e.keyCode === 38) {
+            if (currentRow === 2) {
+                return false;
+            }
+            currentRow--;
+            changeCurrentCell();
+            return false;
+        }
+        if (e.keyCode === 39) {
+            currentCell++;
+            changeCurrentCell();
+            return false;
+        }
+        if (e.keyCode === 40) {
+            currentRow++;
+            changeCurrentCell();
+            return false;
+        }
+    });
+}
+
 $(function () {
     ApiClient.init();
     init();
+    initArrowNavigation();
 });
