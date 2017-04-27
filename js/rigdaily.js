@@ -81,11 +81,6 @@ function getRigMonthIndex(name) {
     }
 }
 
-function RequiredFieldsNotPresentException(focusObj) {
-    this.message = 'Required fields not present!';
-    this.focusObj = focusObj;
-}
-
 // Dynamic calculating cells
 var dynCalculations = {};
 
@@ -471,6 +466,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'name': shortCfName,
             'obj': obj,
             'tIdx': tblIdx,
+            'orig_data': obj.data('orig_data'),
             'forceSubmit': obj.data('submit') + '' === 'true',
             'reload': obj.data('reload') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
@@ -525,6 +521,10 @@ function fillCf(cf, value) {
         if (cf.editable_style) {
             div.attr('style', cf.editable_style);
         }
+
+        div.on('focus', function () {
+            setActiveCellRowTo($(this).closest('td'));
+        });
 
         if (isLocked) {
             div.tooltip({
@@ -585,6 +585,7 @@ function fillCf(cf, value) {
             }
         }
 
+        cf.obj.data('orig_data', div.text());
         cf.obj.empty().append(div);
     }
 
@@ -796,7 +797,15 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
+    row.find('td').unbind('click').click(function () {
+        setActiveCellRowTo($(this));
+    });
     return row;
+}
+
+function RequiredFieldsNotPresentException(focusObj) {
+    this.message = 'Required fields not present!';
+    this.focusObj = focusObj;
 }
 
 function convertEditableCfsToDataObject(cfs) {
@@ -804,11 +813,14 @@ function convertEditableCfsToDataObject(cfs) {
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
             if (cf.editable && !isCfLocked(cf)) {
-                result[cf.name] = cf.obj.children('div[contenteditable]').text();
-
-                if (cf.required && result[cf.name].length === 0) {
+                var val = cf.obj.children('div[contenteditable]').text();
+                if (cf.required && val.length === 0) {
                     var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
                     throw new RequiredFieldsNotPresentException(focusObj);
+                }
+
+                if (cf.orig_data !== val) {
+                    result[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
                 result[cf.name] = cf.obj.text();
@@ -820,7 +832,11 @@ function convertEditableCfsToDataObject(cfs) {
 
 function startSubmitReport() {
     var requestQueue = [];
-    var makeRequests = function (tid, data, cfs) {
+    var makePutRequest = function (tid, data) {
+        if (Object.keys(data).length === 0) {
+            return;
+        }
+
         requestQueue.push({
             type: 'PUT',
             contentType: 'application/json',
@@ -828,29 +844,7 @@ function startSubmitReport() {
             data: JSON.stringify(data),
             dataType: 'json',
             processData: false,
-            successCode: 200,
-            success: function () {
-                var fields = [];
-                $.each(cfs, function (idx, cfObj) {
-                    $.each(cfObj, function (idx, cf) {
-                        if (cf.reload) {
-                            fields.push(cf.name);
-                        }
-                    });
-                });
-
-                if (fields.length !== 0) {
-                    requestQueue.push({
-                        type: 'GET',
-                        contentType: 'application/json',
-                        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
-                        successCode: 200,
-                        success: function (response) {
-                            fillCfs(cfs, response);
-                        }
-                    });
-                }
-            }
+            successCode: 200
         });
     };
 
@@ -869,16 +863,14 @@ function startSubmitReport() {
                             return $(this).data('tid_' + tblIdx) === tid;
                         });
                         if (parent.length !== 0) {
-                            var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
-                            var data = convertEditableCfsToDataObject(cfs);
-                            makeRequests(tid, data, cfs);
+                            var data = convertEditableCfsToDataObject(getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined));
+                            makePutRequest(tid, data);
                         }
                     });
                 });
             } else {
-                var cfs = getConfigFields(ttName);
-                var data = convertEditableCfsToDataObject(cfs);
-                makeRequests(tidObj, data, cfs);
+                var data = convertEditableCfsToDataObject(getConfigFields(ttName));
+                makePutRequest(tidObj, data);
             }
         });
     } catch (e) {
@@ -892,6 +884,8 @@ function startSubmitReport() {
 
     startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
         isReportEdited = false;
+
+        // TODO: start reload queue work
     });
 }
 
@@ -1577,7 +1571,96 @@ function confirmDialog(message, callback, title) {
     });
 }
 
+// Arrow navigation
+var currentRow = 2;
+var currentCell = 1;
+
+function changeCurrentCell(noFocus) {
+    $('.active').removeClass('active').find('div[contenteditable]').blur();
+
+    var rows = $('#content').find('tr');
+    if (currentRow > rows.length - 1) {
+        currentRow = rows.length - 1;
+    }
+
+    var tableRow = rows.eq(currentRow);
+    var cellCount = tableRow.children().length;
+    if (currentCell > cellCount - 1) {
+        currentCell = cellCount - 1;
+    }
+
+    var tableCell = tableRow.children(':eq(' + currentCell + ')');
+
+    if (!noFocus) {
+        var div = tableCell.find('div[contenteditable]').first();
+        if (div.length !== 0) {
+            div.focus();
+        } else {
+            tableCell.focus();
+        }
+    }
+
+    tableCell.addClass('active');
+}
+
+function setActiveCellRowTo(td) {
+    if (td.index() === 0) {
+        return;
+    }
+
+    var row = $('#content').find('tr').index(td.closest('tr'));
+    if (row === 0) {
+        return;
+    }
+
+    currentRow = row;
+    currentCell = td.index();
+    changeCurrentCell(true);
+}
+
+function initArrowNavigation() {
+    changeCurrentCell();
+
+    $('#content').find('td').click(function () {
+        setActiveCellRowTo($(this));
+    });
+
+    $(document).keydown(function (e) {
+        if ($('#content').is(':hidden')) {
+            return true;
+        }
+
+        if (e.keyCode === 37) {
+            if (currentCell === 1) {
+                return false;
+            }
+            currentCell--;
+            changeCurrentCell();
+            return false;
+        }
+        if (e.keyCode === 38) {
+            if (currentRow === 2) {
+                return false;
+            }
+            currentRow--;
+            changeCurrentCell();
+            return false;
+        }
+        if (e.keyCode === 39) {
+            currentCell++;
+            changeCurrentCell();
+            return false;
+        }
+        if (e.keyCode === 40) {
+            currentRow++;
+            changeCurrentCell();
+            return false;
+        }
+    });
+}
+
 $(function () {
     ApiClient.init();
     init();
+    initArrowNavigation();
 });

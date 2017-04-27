@@ -28,6 +28,16 @@
     }
 }
 
+td.active {
+    border: 2px solid black !important;
+    font-weight: bold;
+    box-sizing: border-box;
+}
+
+[contenteditable]:focus {
+    outline: 0 solid transparent;
+}
+
 .required_error {
     border: 2px solid red !important;
 }
