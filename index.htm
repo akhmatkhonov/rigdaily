@@ -32,18 +32,23 @@
     <button class="authorize">Log In</button>
 </div>
 <div id="apiClientErrorDialog" title="Rig Daily Report (Onevizion)" style="display: none">
-    <span>
-        Endpoint: <span class="url"></span>
-    </span>
-    <div class="ui-widget" style="margin-top: 10px">
-        <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
-            <p>
-                <span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
-                <span class="error"></span>
-            </p>
-        </div>
+    <span>Something went wrong...</span>
+    <div style="margin-top: 10px">
+        <table class="error_requests">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>Endpoint URL</th>
+                <th>Code</th>
+                <th>Message</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
     </div>
-    <button class="retry">Retry request</button>
+    <button class="retry">Retry</button>
+    <button class="cancel">Cancel</button>
 </div>
 <div class="apiClientModalLoading">
     <span style="position: relative">Please wait...</span>
@@ -1422,9 +1427,12 @@
         </tr>
         <tr style='height:15.0pt' class="contactInformationBaseRow supplyRequestBaseRow baseRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID" data-ed="false"></td>
-            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME" data-ed="false"></td>
-            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE" data-ed="false"></td>
+            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
             <td class=xl169 style='border-top:none' colspan="2"
                 data-cf="Supply_Request.SR_ITEM_NAME" data-ed="false" data-lockable="true"></td>
             <td class=xl170 style='border-top:none;border-left:none'
@@ -1434,6 +1442,7 @@
         </tr>
         </tbody>
     </table>
+    <div class="nonprint" style="margin-bottom: 100px"></div>
 </div>
 </body>
 </html>
