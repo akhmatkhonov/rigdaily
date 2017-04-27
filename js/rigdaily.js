@@ -466,6 +466,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'name': shortCfName,
             'obj': obj,
             'tIdx': tblIdx,
+            'orig_data': obj.data('orig_data'),
             'forceSubmit': obj.data('submit') + '' === 'true',
             'reload': obj.data('reload') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
@@ -474,11 +475,6 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
         });
-
-        // TODO: remove
-        /*if (obj.data('reload') + '' === 'true') {
-            obj.css('background', 'red');
-        }*/
     });
     return cfs;
 }
@@ -585,6 +581,7 @@ function fillCf(cf, value) {
             }
         }
 
+        cf.obj.data('orig_data', div.text());
         cf.obj.empty().append(div);
     }
 
@@ -809,11 +806,14 @@ function convertEditableCfsToDataObject(cfs) {
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
             if (cf.editable && !isCfLocked(cf)) {
-                result[cf.name] = cf.obj.children('div[contenteditable]').text();
-
-                if (cf.required && result[cf.name].length === 0) {
+                var val = cf.obj.children('div[contenteditable]').text();
+                if (cf.required && val.length === 0) {
                     var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
                     throw new RequiredFieldsNotPresentException(focusObj);
+                }
+
+                if (cf.orig_data !== val) {
+                    result[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
                 result[cf.name] = cf.obj.text();
@@ -826,6 +826,10 @@ function convertEditableCfsToDataObject(cfs) {
 function startSubmitReport() {
     var requestQueue = [];
     var makePutRequest = function (tid, data) {
+        if (Object.keys(data).length === 0) {
+            return;
+        }
+
         requestQueue.push({
             type: 'PUT',
             contentType: 'application/json',
