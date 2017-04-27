@@ -81,6 +81,11 @@ function getRigMonthIndex(name) {
     }
 }
 
+function RequiredFieldsNotPresentException(focusObj) {
+    this.message = 'Required fields not present!';
+    this.focusObj = focusObj;
+}
+
 // Dynamic calculating cells
 var dynCalculations = {};
 
@@ -474,11 +479,6 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
         });
-
-        // TODO: remove
-        /*if (obj.data('reload') + '' === 'true') {
-            obj.css('background', 'red');
-        }*/
     });
     return cfs;
 }
@@ -799,11 +799,6 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
-function RequiredFieldsNotPresentException(focusObj) {
-    this.message = 'Required fields not present!';
-    this.focusObj = focusObj;
-}
-
 function convertEditableCfsToDataObject(cfs) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
@@ -825,7 +820,7 @@ function convertEditableCfsToDataObject(cfs) {
 
 function startSubmitReport() {
     var requestQueue = [];
-    var makePutRequest = function (tid, data) {
+    var makeRequests = function (tid, data, cfs) {
         requestQueue.push({
             type: 'PUT',
             contentType: 'application/json',
@@ -833,7 +828,29 @@ function startSubmitReport() {
             data: JSON.stringify(data),
             dataType: 'json',
             processData: false,
-            successCode: 200
+            successCode: 200,
+            success: function () {
+                var fields = [];
+                $.each(cfs, function (idx, cfObj) {
+                    $.each(cfObj, function (idx, cf) {
+                        if (cf.reload) {
+                            fields.push(cf.name);
+                        }
+                    });
+                });
+
+                if (fields.length !== 0) {
+                    requestQueue.push({
+                        type: 'GET',
+                        contentType: 'application/json',
+                        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
+                        successCode: 200,
+                        success: function (response) {
+                            fillCfs(cfs, response);
+                        }
+                    });
+                }
+            }
         });
     };
 
@@ -852,14 +869,16 @@ function startSubmitReport() {
                             return $(this).data('tid_' + tblIdx) === tid;
                         });
                         if (parent.length !== 0) {
-                            var data = convertEditableCfsToDataObject(getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined));
-                            makePutRequest(tid, data);
+                            var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
+                            var data = convertEditableCfsToDataObject(cfs);
+                            makeRequests(tid, data, cfs);
                         }
                     });
                 });
             } else {
-                var data = convertEditableCfsToDataObject(getConfigFields(ttName));
-                makePutRequest(tidObj, data);
+                var cfs = getConfigFields(ttName);
+                var data = convertEditableCfsToDataObject(cfs);
+                makeRequests(tidObj, data, cfs);
             }
         });
     } catch (e) {
@@ -873,8 +892,6 @@ function startSubmitReport() {
 
     startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
         isReportEdited = false;
-
-        // TODO: start reload queue work
     });
 }
 
