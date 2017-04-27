@@ -522,10 +522,6 @@ function fillCf(cf, value) {
             div.attr('style', cf.editable_style);
         }
 
-        div.on('focus', function () {
-            setActiveCellRowTo($(this).closest('td'));
-        });
-
         if (isLocked) {
             div.tooltip({
                 items: 'div',
