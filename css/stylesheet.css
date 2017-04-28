@@ -20,7 +20,7 @@
     }
 
     td.active {
-        outline: none;
+        outline: none !important;
     }
 
     .xl81, .xl82, .xl90, .xl91, .xl95, .xl99, .xl102, .xl103, .xl104, .xl105, .xl114, .xl115, .xl122, .xl138, .xl143,
