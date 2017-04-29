@@ -473,6 +473,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'tIdx': tblIdx,
             'orig_data': obj.data('orig_data'),
             'reload': obj.data('reload') + '' === 'true',
+            'forceSubmit': obj.data('forceSubmit') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
             'lockable': obj.data('lockable') + '' === 'true', 'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
@@ -796,15 +797,10 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
-    row.find('td').unbind('click').click(function () {
+    row.find('td').unbind('mousedown').mousedown(function () {
         ArrowNavigation.setActiveCellRowTo($(this));
     });
     return row;
-}
-
-function RequiredFieldsNotPresentException(focusObj) {
-    this.message = 'Required fields not present!';
-    this.focusObj = focusObj;
 }
 
 function convertEditableCfsToDataObject(cfs) {
@@ -1663,7 +1659,7 @@ var ArrowNavigation = {
     init: function () {
         ArrowNavigation.updateCell();
 
-        $('#content').find('td').click(function () {
+        $('#content').find('td').mousedown(function () {
             ArrowNavigation.setActiveCellRowTo($(this));
         });
 

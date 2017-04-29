@@ -81,7 +81,7 @@ var ApiClient = {
      * modalLoadingMessage
      * ]
      */
-    doSingleRequest: function (options) {
+    doRequest: function (options) {
         if (ApiClient.credentials.current === null) {
             ApiClient.authDialog.dialog('open');
             ApiClient.authDialog.data('replayOptions', options);
@@ -98,10 +98,10 @@ var ApiClient = {
         var exOptions = $.extend({}, options, {
             url: ApiClient.endpoint + options['url'],
             beforeSend: function (jqXHR) {
-                jqXHR.setRequestHeader('Authorization', 'Basic ' + ApiClient.credentials);
+                jqXHR.setRequestHeader('Authorization', 'Basic ' + ApiClient.credentials.current);
             },
             complete: function (jqXHR, textStatus) {
-                if (ApiClient.authLoggedIn && jqXHR.status !== options['successCode']) {
+                if (ApiClient.authLoggedIn && typeof options['successCode'] !== 'undefined' && jqXHR.status !== options['successCode']) {
                     var msg = 'Resolved ' + jqXHR.status + ' status code, required ' + options['successCode'];
                     if (typeof options['error'] === 'function') {
                         options['error'](jqXHR, null, msg);
@@ -133,7 +133,7 @@ var ApiClient = {
                     }
                     ApiClient.doRequest(options['replayWithOptions']);
                 } else if (isHideModalLoading) {
-                    ApiClient.hideModalLoading();
+                    ApiClient.modalLoading.hide();
                 }
 
                 if (typeof options['success'] === 'function') {
@@ -174,6 +174,11 @@ var ApiClient = {
     init: function () {
         $(window).resize(function () {
             ApiClient.modalLoading.recalcPosition();
+
+            $('.ui-dialog-content:visible').each(function () {
+                var dialog = $(this).data('uiDialog');
+                dialog.option('position', dialog.options.position);
+            });
         });
         ApiClient.modalLoading.handle = $('.apiClientModalLoading');
 
@@ -228,7 +233,7 @@ var ApiClient = {
                 replayOptions = replayOptions['replayWithOptions'];
             }
 
-            ApiClient.doSingleRequest({
+            ApiClient.doRequest({
                 modalLoadingMessage: 'Authorizing...',
                 url: ApiClient.authEndpoint,
                 success: function () {
@@ -244,7 +249,7 @@ var ApiClient = {
         ApiClient.errorDialog.dialog(dlgOptsNoClosable);
         ApiClient.errorDialog.find('button.retry').button().click(function () {
             ApiClient.errorDialog.dialog('close');
-            ApiClient.doSingleRequest(ApiClient.errorDialog.data('replayOptions'));
+            ApiClient.doRequest(ApiClient.errorDialog.data('replayOptions'));
         });
     }
 };
