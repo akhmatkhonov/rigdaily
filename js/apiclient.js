@@ -3,41 +3,39 @@
 var ApiClient = {
     endpoint: null,
 
-    credentials: null,
-    credentialsUn: null,
-    createCredentials: function (username, password) {
-        ApiClient.credentials = btoa(username + ':' + password);
-        ApiClient.credentialsUn = username;
-    },
-    resetCredentials: function () {
-        ApiClient.credentials = null;
-        ApiClient.credentialsUn = null;
-    },
-
-    modalLoading: null,
-    showModalLoading: function (message) {
-        $('body').addClass('loading');
-
-        if (typeof message !== 'undefined') {
-            ApiClient.modalLoading.children('span').empty().append(message);
-        } else {
-            ApiClient.modalLoading.children('span').html('Please wait...');
+    credentials: {
+        current: null,
+        currentUn: null,
+        create: function (username, password) {
+            ApiClient.credentials.current = btoa(username + ':' + password);
+            ApiClient.credentials.currentUn = username;
+        },
+        reset: function () {
+            ApiClient.credentials.current = null;
+            ApiClient.credentials.currentUn = null;
         }
-        ApiClient.recalcModalDiv();
     },
-    hideModalLoading: function () {
-        $('body').removeClass('loading');
-    },
-    recalcModalDiv: function () {
-        ApiClient.modalLoading.children('span').css('top', (Math.round(ApiClient.modalLoading.height() / 2) + 30) + 'px');
-    },
-    setProgressMessage: function (message, percent) {
-        var modalSpan = ApiClient.modalLoading.children('span');
 
-        if (typeof message === 'undefined') {
-            message = 'Progress: ' + percent + '%';
+    modalLoading: {
+        handle: null,
+        show: function (message) {
+            $('body').addClass('loading');
+            if (typeof message === 'undefined') {
+                message = 'Please wait...';
+            }
+
+            ApiClient.modalLoading.handle.children('span').empty().append(message);
+            ApiClient.modalLoading.recalcPosition();
+        },
+        hide: function () {
+            $('body').removeClass('loading');
+        },
+        recalcPosition: function () {
+            ApiClient.modalLoading.handle.children('span').css('top', (Math.round(ApiClient.modalLoading.handle.height() / 2) + 30) + 'px');
+        },
+        setMessage: function (message) {
+            ApiClient.modalLoading.handle.children('span').html(message);
         }
-        modalSpan.html(message);
     },
 
     authDialog: null,
@@ -83,8 +81,8 @@ var ApiClient = {
      * modalLoadingMessage
      * ]
      */
-    doRequest: function (options) {
-        if (ApiClient.credentials === null) {
+    doSingleRequest: function (options) {
+        if (ApiClient.credentials.current === null) {
             ApiClient.authDialog.dialog('open');
             ApiClient.authDialog.data('replayOptions', options);
             return;
@@ -94,7 +92,7 @@ var ApiClient = {
         var isHideModalLoading = typeof options['isHideModalLoading'] !== 'undefined' ? options['isHideModalLoading'] : true;
         var isShowModalLoading = typeof options['isShowModalLoading'] !== 'undefined' ? options['isShowModalLoading'] : true;
         if (isShowModalLoading) {
-            ApiClient.showModalLoading(typeof options['modalLoadingMessage'] !== 'undefined' ? options['modalLoadingMessage'] : undefined);
+            ApiClient.modalLoading.show(typeof options['modalLoadingMessage'] !== 'undefined' ? options['modalLoadingMessage'] : undefined);
         }
 
         var exOptions = $.extend({}, options, {
@@ -103,7 +101,7 @@ var ApiClient = {
                 jqXHR.setRequestHeader('Authorization', 'Basic ' + ApiClient.credentials);
             },
             complete: function (jqXHR, textStatus) {
-                if (ApiClient.authLoggedIn && typeof options['successCode'] !== 'undefined' && jqXHR.status !== options['successCode']) {
+                if (ApiClient.authLoggedIn && jqXHR.status !== options['successCode']) {
                     var msg = 'Resolved ' + jqXHR.status + ' status code, required ' + options['successCode'];
                     if (typeof options['error'] === 'function') {
                         options['error'](jqXHR, null, msg);
@@ -123,13 +121,16 @@ var ApiClient = {
                     ApiClient.authLoggedIn = true;
 
                     if (typeof ApiClient.authSuccessCallback === 'function') {
-                        ApiClient.authSuccessCallback(ApiClient.credentialsUn);
+                        ApiClient.authSuccessCallback(ApiClient.credentials.currentUn);
                     }
                 }
 
                 if (typeof options['replayWithOptions'] !== 'undefined') {
                     isEvalCompleteCallback = false;
                     isHideModalLoading = false;
+                    if (typeof options['replayWithOptions']['beforeReSend'] === 'function') {
+                        options['replayWithOptions']['beforeReSend']();
+                    }
                     ApiClient.doRequest(options['replayWithOptions']);
                 } else if (isHideModalLoading) {
                     ApiClient.hideModalLoading();
@@ -141,20 +142,17 @@ var ApiClient = {
             },
             error: function (jqXHR, ajaxOptions, thrownError) {
                 if (isHideModalLoading) {
-                    ApiClient.hideModalLoading();
+                    ApiClient.modalLoading.hide();
                 }
 
                 if (jqXHR.status === 401) {
-                    isEvalCompleteCallback = false;
                     isHideModalLoading = false;
 
                     ApiClient.showAuthError(jqXHR.responseText);
-                    ApiClient.resetCredentials();
+                    ApiClient.credentials.reset();
                     ApiClient.authLoggedIn = false;
                     ApiClient.doRequest(options);
                 } else if (jqXHR.status === 0) {
-                    isEvalCompleteCallback = false;
-
                     var msg = '(' + jqXHR.status + ') ' + (thrownError !== '' ? thrownError : 'Unknown error, maybe system not allow Origin from this page');
                     if (ApiClient.authLoggedIn) {
                         ApiClient.showRequestError(msg, options['url']);
@@ -172,12 +170,12 @@ var ApiClient = {
         $.ajax(exOptions);
     },
 
+    authEndpoint: '/api/v2/authorize',
     init: function () {
         $(window).resize(function () {
-            ApiClient.recalcModalDiv();
+            ApiClient.modalLoading.recalcPosition();
         });
-
-        ApiClient.modalLoading = $('.apiClientModalLoading');
+        ApiClient.modalLoading.handle = $('.apiClientModalLoading');
 
         var dlgOptsNoClosable = {
             width: 'auto',
@@ -216,7 +214,7 @@ var ApiClient = {
 
             ApiClient.hideAuthError();
             try {
-                ApiClient.createCredentials(username, password);
+                ApiClient.credentials.create(username, password);
             } catch (e) {
                 ApiClient.showAuthError(e.message);
                 return;
@@ -230,9 +228,9 @@ var ApiClient = {
                 replayOptions = replayOptions['replayWithOptions'];
             }
 
-            ApiClient.doRequest({
+            ApiClient.doSingleRequest({
                 modalLoadingMessage: 'Authorizing...',
-                url: '/api/v2/authorize',
+                url: ApiClient.authEndpoint,
                 success: function () {
                     if (typeof(ApiClient.authSuccessCallback) === 'function') {
                         ApiClient.authSuccessCallback(username);
@@ -246,7 +244,7 @@ var ApiClient = {
         ApiClient.errorDialog.dialog(dlgOptsNoClosable);
         ApiClient.errorDialog.find('button.retry').button().click(function () {
             ApiClient.errorDialog.dialog('close');
-            ApiClient.doRequest(ApiClient.errorDialog.data('replayOptions'));
+            ApiClient.doSingleRequest(ApiClient.errorDialog.data('replayOptions'));
         });
     }
 };

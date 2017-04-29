@@ -32,18 +32,23 @@
     <button class="authorize">Log In</button>
 </div>
 <div id="apiClientErrorDialog" title="Rig Daily Report (Onevizion)" style="display: none">
-    <span>
-        Endpoint: <span class="url"></span>
-    </span>
-    <div class="ui-widget" style="margin-top: 10px">
-        <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
-            <p>
-                <span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
-                <span class="error"></span>
-            </p>
-        </div>
+    <span>Something went wrong...</span>
+    <div style="margin-top: 10px">
+        <table class="error_requests">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>Endpoint URL</th>
+                <th>Code</th>
+                <th>Message</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
     </div>
-    <button class="retry">Retry request</button>
+    <button class="retry">Retry</button>
+    <button class="cancel">Cancel</button>
 </div>
 <div class="apiClientModalLoading">
     <span style="position: relative">Please wait...</span>

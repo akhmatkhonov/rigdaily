@@ -44,11 +44,11 @@ td.active {
     border: 2px solid red !important;
 }
 
-table.reports {
-    margin-top: 10px;
+table.reports, table.error_requests {    margin-top: 10px;
 }
 
-table.reports > thead > tr > th, table.reports > tbody > tr > td {
+table.reports > thead > tr > th, table.reports > tbody > tr > td,
+table.error_requests > thead > tr > th, table.error_requests > tbody > tr > td {
     margin: 2px 2px 2px 2px;
 }
 
@@ -61,7 +61,8 @@ table.reports {
     border-collapse: collapse;
 }
 
-table.reports > tbody > tr > td {
+table.reports > tbody > tr > td,
+table.error_requests > tbody > tr > td {
     padding: 4px;
 }
 
