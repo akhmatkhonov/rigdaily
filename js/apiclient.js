@@ -52,22 +52,71 @@ var ApiClient = {
     },
 
     errorDialog: null,
-    showRequestError: function (message, url) {
-        ApiClient.errorDialog.find('span.error').empty().text(message).prepend('<strong>Request error: </strong>');
+    canUserCancelOnError: false,
+    showRequestError: function (message, url, code, requiredCode) {
+        var table = this.errorDialog.find('table.error_requests tbody');
+        if (table.children().length === 0) {
+            ApiClient.errorDialog.dialog('open');
+            ApiClient.errorDialog.dialog('option', 'position', {
+                my: 'center',
+                at: 'center',
+                of: window
+            });
+        }
 
         var urlQueryStringPos = url.indexOf('?');
-        ApiClient.errorDialog.find('span.url').empty().text(urlQueryStringPos !== -1 ? url.substring(0, urlQueryStringPos) : url);
-        ApiClient.errorDialog.dialog('open');
-        ApiClient.errorDialog.dialog('option', 'position', {
-            my: 'center',
-            at: 'center',
-            of: window
-        });
+        var tr = $('<tr />');
+        tr.append($('<td />').text(table.children().length + 1));
+        tr.append($('<td />').text(urlQueryStringPos !== -1 ? url.substring(0, urlQueryStringPos) : url));
+        tr.append($('<td />').text(code + (typeof requiredCode !== 'undefined' ? ' (required ' + requiredCode + ')' : '')));
+        tr.append($('<td />').text(message));
+        table.append(tr);
     },
 
     // Args: username
     authSuccessCallback: null,
     authLoggedIn: false,
+
+    queueProcessing: false,
+    concurrentLimit: 1,
+    startRequestQueueWork: function (requestQueue, message, completeCallback) {
+        // Process queue
+        var requestTotalCount = requestQueue.length;
+        var requestLeft = requestQueue.length;
+        var currentRequest = -1;
+        var callNextRequest = function () {
+            if (requestLeft !== requestQueue.length) {
+                var diff = requestQueue.length - requestLeft;
+                requestLeft += diff;
+                requestTotalCount += diff;
+            }
+
+            var reqOptions = requestQueue.shift();
+            requestLeft--;
+            
+            if (typeof reqOptions === 'undefined') {
+                if (typeof completeCallback === 'function') {
+                    completeCallback();
+                }
+                return;
+            }
+
+            var newOptions = {};
+            if (typeof reqOptions['url'] === 'function') {
+                newOptions['url'] = reqOptions['url']();
+            }
+            newOptions['success'] = function (response, textStatus, jqXHR) {
+                if (typeof reqOptions['success'] === 'function') {
+                    reqOptions['success'](response, textStatus, jqXHR);
+                }
+                callNextRequest();
+            };
+            newOptions['modalLoadingMessage'] = message + ' ' + parseInt(100 * ++currentRequest / requestTotalCount) + '%';
+
+            ApiClient.doRequest($.extend({}, reqOptions, newOptions));
+        };
+        callNextRequest();
+    },
 
     /*
      * options args: [
@@ -82,9 +131,9 @@ var ApiClient = {
      * ]
      */
     doRequest: function (options) {
-        if (ApiClient.credentials.current === null) {
-            ApiClient.authDialog.dialog('open');
-            ApiClient.authDialog.data('replayOptions', options);
+        if (this.credentials.current === null) {
+            this.authDialog.dialog('open');
+            this.authDialog.data('replayOptions', options);
             return;
         }
 
@@ -92,11 +141,11 @@ var ApiClient = {
         var isHideModalLoading = typeof options['isHideModalLoading'] !== 'undefined' ? options['isHideModalLoading'] : true;
         var isShowModalLoading = typeof options['isShowModalLoading'] !== 'undefined' ? options['isShowModalLoading'] : true;
         if (isShowModalLoading) {
-            ApiClient.modalLoading.show(typeof options['modalLoadingMessage'] !== 'undefined' ? options['modalLoadingMessage'] : undefined);
+            this.modalLoading.show(typeof options['modalLoadingMessage'] !== 'undefined' ? options['modalLoadingMessage'] : undefined);
         }
 
         var exOptions = $.extend({}, options, {
-            url: ApiClient.endpoint + options['url'],
+            url: this.endpoint + options['url'],
             beforeSend: function (jqXHR) {
                 jqXHR.setRequestHeader('Authorization', 'Basic ' + ApiClient.credentials.current);
             },

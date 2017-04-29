@@ -26,7 +26,8 @@ var config = {
     equipmentUsageTT: 'Equipment_Usage',
     techniciansUsageTT: 'Technicians_Usage',
     supplyRequestTT: 'Supply_Request',
-    safeNotesTT: 'Safe_Notes',
+    projectTT: 'Project',
+    projectManagementTT: 'Project_Management',
 
     // For dynamic calculations
     dynTT: 'Dynamic'
@@ -44,7 +45,7 @@ configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
 configTblIdxs[config.equipmentUsageTT] = 'equ';
 configTblIdxs[config.techniciansUsageTT] = 'tecu';
 configTblIdxs[config.supplyRequestTT] = 'sr';
-configTblIdxs[config.safeNotesTT] = 'sn';
+configTblIdxs[config.projectManagementTT] = 'pm';
 
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
 
@@ -375,7 +376,7 @@ function getCfValue(name, tid, tblIdx) {
     }
 
     var dataType = cfs.data('t');
-    var value = cfs.text().trim();
+    var value = cfs[0].innerText.trim();
     return dataType === 'number' ? parseFloat(value) : value;
 }
 
@@ -423,36 +424,6 @@ function saveTid(ttName, tid, isSingle) {
             tids[ttName] = [tid];
         }
     }
-}
-
-function startRequestQueueWork(requestQueue, message, callback) {
-    // Process queue
-    var requestTotalCount = requestQueue.length;
-    var currentRequest = -1;
-    var callNextRequest = function () {
-        var reqOptions = requestQueue.shift();
-        if (typeof reqOptions === 'undefined') {
-            if (typeof callback === 'function') {
-                callback();
-            }
-            return;
-        }
-
-        var newOptions = {};
-        if (typeof reqOptions['url'] === 'function') {
-            newOptions['url'] = reqOptions['url']();
-        }
-        newOptions['success'] = function (response, textStatus, jqXHR) {
-            if (typeof reqOptions['success'] === 'function') {
-                reqOptions['success'](response, textStatus, jqXHR);
-            }
-            callNextRequest();
-        };
-        newOptions['modalLoadingMessage'] = message + ' ' + parseInt(100 * ++currentRequest / requestTotalCount) + '%';
-
-        ApiClient.doRequest($.extend({}, reqOptions, newOptions));
-    };
-    callNextRequest();
 }
 
 function getConfigFields(ttName, parent, tblIdx, prependTtName) {
@@ -510,9 +481,13 @@ function fillCf(cf, value) {
         if (isNaN(value)) {
             value = 0;
         }
-    }
 
-    cf.obj.text(value);
+        cf.obj.text(value);
+    } else if (cf.type === 'memo') {
+        cf.obj.html(value.replace("\n", '<br>'));
+    } else {
+        cf.obj.text(value);
+    }
 
     var subscribeObj = cf.obj;
     if (cf.editable) {
@@ -533,15 +508,14 @@ function fillCf(cf, value) {
             });
         } else {
             // Init editable
-            div.keypress(function (e) {
-                return e.which !== 13;
-            }).on('blur keyup paste', function () {
-                if (!isReportEdited) {
+            div.on('blur keyup paste', function () {
+                if (!isReportEdited && cf.orig_data !== div.text()) {
+                    isReportEdited = true;
+
                     $(window).on('beforeunload', function () {
                         return loseDataMessage;
                     });
                 }
-                isReportEdited = true;
 
                 var triggerChange = true;
                 if (div.text().trim().length === 0) {
@@ -559,6 +533,14 @@ function fillCf(cf, value) {
                     div.trigger('change');
                 }
             });
+
+            if (cf.type !== 'memo') {
+                div.keypress(function (e) {
+                    // Prevent to create new lines
+                    return e.which !== 13;
+                });
+            }
+
             switch (cf.type) {
                 case 'number': {
                     // Deny input not number chars
@@ -581,6 +563,11 @@ function fillCf(cf, value) {
                     if (value === null || value === '') {
                         div.text('0');
                     }
+                    break;
+                }
+                case 'memo': {
+                    cf.obj.css('vertical-align', 'middle');
+                    break;
                 }
             }
         }
@@ -797,9 +784,7 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
-    row.find('td').unbind('mousedown').mousedown(function () {
-        ArrowNavigation.setActiveCellRowTo($(this));
-    });
+    ArrowNavigation.initCells(row.find('td'));
     return row;
 }
 
@@ -809,7 +794,7 @@ function convertEditableCfsToDataObject(cfs) {
         $.each(cfObj, function (idx, cf) {
 
             if (cf.editable && !isCfLocked(cf)) {
-                var val = cf.obj.children('div[contenteditable]').text();
+                var val = cf.obj.children('div[contenteditable]')[0].innerText;
                 if (cf.required && val.length === 0) {
                     var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
                     throw new RequiredFieldsNotPresentException(focusObj);
@@ -902,9 +887,13 @@ function startSubmitReport() {
         }
     }
 
-    startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
-        isReportEdited = false;
-    });
+    if (requestQueue.length !== 0) {
+        ApiClient.startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
+            isReportEdited = false;
+        });
+    } else {
+        alertDialog('Nothing to submit');
+    }
 }
 
 function loadReport(tid) {
@@ -916,6 +905,7 @@ function loadReport(tid) {
     var clientKey;
     var managerKey;
     var contractorKey;
+    var projectKey;
 
     // rigDaily
     var rigDailyCfs = getConfigFields(config.rigDailyReportTT);
@@ -923,7 +913,8 @@ function loadReport(tid) {
     var rigYearCfs = getConfigFields(config.rigYearReportTT, undefined, undefined, true);
     var fields = [
         'TRACKOR_KEY',
-        config.rigSiteTT + '.TRACKOR_KEY'
+        config.rigSiteTT + '.TRACKOR_KEY',
+        config.projectTT + '.TRACKOR_KEY'
     ];
     fields = fields.concat(Object.keys(rigDailyCfs));
     fields = fields.concat(Object.keys(rigMonthCfs));
@@ -935,13 +926,39 @@ function loadReport(tid) {
         success: function (response) {
             rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
             key = response['TRACKOR_KEY'];
+            projectKey = response[config.projectTT + '.TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
 
             pushRigSiteLoad();
             pushOtherLoad();
+            pushProjectManagementLoad();
         }
     });
+
+    // projectManagement
+    var pushProjectManagementLoad = function () {
+        var contactInformationProjectManagementBaseRow = $('tr.contactInformationProjectManagementBaseRow').first();
+        var contactInformationProjectManagementBaseRowCfs = getConfigFields(config.projectManagementTT, contactInformationProjectManagementBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(contactInformationProjectManagementBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.projectTT + '.TRACKOR_KEY=' + encodeURIComponent(projectKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(config.projectManagementTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.projectManagementTT], 1, 6, contactInformationProjectManagementBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.projectManagementTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        });
+    };
 
     // rigSite
     var pushRigSiteLoad = function () {
@@ -1388,31 +1405,9 @@ function loadReport(tid) {
                 }
             });
         };
-
-        // safeNotesTT
-        var safeNotesBaseRow = $('tr.safeNotesBaseRow');
-        var safeNotesBaseRowCfs = getConfigFields(config.safeNotesTT, safeNotesBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(safeNotesBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.safeNotesTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 7), function (idx, elem) {
-                    saveTid(config.safeNotesTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.safeNotesTT], 7, 11, safeNotesBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.safeNotesTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
     };
 
-    startRequestQueueWork(requestQueue, 'Loading report data...', function () {
+    ApiClient.startRequestQueueWork(requestQueue, 'Loading report data...', function () {
         subscribeChangeDynCfs();
         $('#content').show();
     });
@@ -1615,33 +1610,24 @@ var ArrowNavigation = {
     currentCell: 1,
     isCtrlPressed: false,
 
-    updateCell: function () {
+    updateCell: function (direction) {
         $('.active').removeClass('active').find('div[contenteditable]').blur();
 
         var rows = $('#content').find('tr');
-        if (ArrowNavigation.currentRow > rows.length - 1) {
-            ArrowNavigation.currentRow = rows.length - 1;
+        if (this.currentRow > rows.length - 1) {
+            this.currentRow = rows.length - 1;
         }
 
-        var tableRow = rows.eq(ArrowNavigation.currentRow);
+        var tableRow = rows.eq(this.currentRow);
         var cellCount = tableRow.children().length;
-        if (ArrowNavigation.currentCell > cellCount - 1) {
-            ArrowNavigation.currentCell = cellCount - 1;
+        if (this.currentCell > cellCount - 1) {
+            this.currentCell = cellCount - 1;
         }
 
-        var tableCell = tableRow.children(':eq(' + ArrowNavigation.currentCell + ')');
-
-        /*var div = tableCell.find('div[contenteditable]').first();
-         if (div.length !== 0) {
-         div.focus();
-         } else {
-
-         }*/
-
+        var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
         tableCell.focus();
         tableCell.addClass('active');
     },
-
     setActiveCellRowTo: function (td) {
         if (td.index() === 0) {
             return;
@@ -1656,12 +1642,20 @@ var ArrowNavigation = {
         ArrowNavigation.currentCell = td.index();
         ArrowNavigation.updateCell();
     },
+    initCells: function (td) {
+        td.unbind('mousedown').mousedown(function () {
+            ArrowNavigation.setActiveCellRowTo($(this));
+        }).unbind('dblclick').dblclick(function () {
+            var div = $(this).find('div[contenteditable]:first');
+            if (div.length !== 0) {
+                div.focus();
+            }
+        });
+    },
     init: function () {
         ArrowNavigation.updateCell();
 
-        $('#content').find('td').mousedown(function () {
-            ArrowNavigation.setActiveCellRowTo($(this));
-        });
+        this.initCells($('#content').find('td'));
 
         $(document).keydown(function (e) {
             if (e.which === 17) {
@@ -1684,22 +1678,22 @@ var ArrowNavigation = {
                     return false;
                 }
                 ArrowNavigation.currentCell--;
-                ArrowNavigation.updateCell();
+                ArrowNavigation.updateCell('left');
                 return false;
             } else if (e.keyCode === 38) {
                 if (ArrowNavigation.currentRow === 2) {
                     return false;
                 }
                 ArrowNavigation.currentRow--;
-                ArrowNavigation.updateCell();
+                ArrowNavigation.updateCell('up');
                 return false;
             } else if (e.keyCode === 39) {
                 ArrowNavigation.currentCell++;
-                ArrowNavigation.updateCell();
+                ArrowNavigation.updateCell('right');
                 return false;
             } else if (e.keyCode === 40 || e.keyCode === 13) {
                 ArrowNavigation.currentRow++;
-                ArrowNavigation.updateCell();
+                ArrowNavigation.updateCell('down');
                 return false;
             }
         }).keyup(function (e) {
