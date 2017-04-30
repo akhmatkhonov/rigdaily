@@ -943,6 +943,7 @@ td {
     border: .5pt solid windowtext;
     border-left-width: 1.0pt;
     background: white;
+    text-align: center;
 }
 
 .xl170 {

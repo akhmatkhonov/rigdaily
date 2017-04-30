@@ -340,6 +340,10 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = dynCalculations[
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
     var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
         (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'));
+    if (number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY) {
+        number = 0;
+    }
+
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
@@ -506,7 +510,10 @@ function fillCf(cf, value) {
                 items: 'div',
                 content: 'Locked'
             });
+            cf.obj.empty().append(div);
         } else {
+            cf.obj.empty().append(div);
+
             // Init editable
             div.on('blur keyup paste', function () {
                 if (!isReportEdited && cf.orig_data !== div.text()) {
@@ -569,11 +576,27 @@ function fillCf(cf, value) {
                     cf.obj.css('vertical-align', 'middle');
                     break;
                 }
+                case 'date': {
+                    var input = $('<input />');
+                    input
+                        .attr('type', 'hidden')
+                        .datepicker({
+                            dateFormat: 'dd/mm/yy',
+                            onSelect: function (dateText) {
+                                div.empty().text(dateText);
+                            }
+                        });
+                    input.insertAfter(div);
+                    div.prop('contenteditable', false);
+                    cf.obj.click(function () {
+                        input.datepicker('show');
+                    });
+                    break;
+                }
             }
         }
 
         cf.obj.data('orig_data', div.text());
-        cf.obj.empty().append(div);
     }
 
     // Subscribe events
@@ -924,11 +947,13 @@ function loadReport(tid) {
         url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
         successCode: 200,
         success: function (response) {
-            rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
             key = response['TRACKOR_KEY'];
+            rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
             projectKey = response[config.projectTT + '.TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
+            fillCfs(rigMonthCfs, response);
+            fillCfs(rigYearCfs, response);
 
             pushRigSiteLoad();
             pushOtherLoad();
@@ -1611,7 +1636,7 @@ var ArrowNavigation = {
     isCtrlPressed: false,
 
     updateCell: function (direction) {
-        $('.active').removeClass('active').find('div[contenteditable]').blur();
+        $('td.active').removeClass('active').find('div[contenteditable]').blur();
 
         var rows = $('#content').find('tr');
         if (this.currentRow > rows.length - 1) {
@@ -1699,12 +1724,25 @@ var ArrowNavigation = {
         }).keyup(function (e) {
             if (e.which === 17) {
                 ArrowNavigation.isCtrlPressed = false;
+            } else if (e.which === 8 || e.which === 46) {
+                var tableCell = $('td.active');
+                tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
             }
         });
     }
 };
 
 $(function () {
+    // http://stackoverflow.com/a/24693866
+    $.datepicker._findPos = function (obj) {
+        var position;
+        if (obj.type === 'hidden') {
+            obj = $(obj).closest('td');
+        }
+        position = $(obj).offset();
+        return [position.left, position.top];
+    };
+
     ApiClient.init();
     ArrowNavigation.init();
     init();

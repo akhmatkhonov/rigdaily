@@ -39,52 +39,62 @@ var ApiClient = {
     },
 
     authDialog: null,
-    showAuthError: function (message) {
-        ApiClient.authDialog.find('span.error').html(message).closest('div.ui-widget').show();
-        ApiClient.authDialog.dialog('option', 'position', {
+    showAuthError: function (message, replayOptions) {
+        this.authDialog.find('span.error').html(message).closest('div.ui-widget').show();
+        this.authDialog.dialog('option', 'position', {
             my: 'center',
             at: 'center',
             of: window
         });
+        this.authDialog.dialog('open');
+        if (typeof replayOptions !== 'undefined') {
+            this.authDialog.data('replayOptions', replayOptions);
+        }
     },
     hideAuthError: function () {
-        ApiClient.authDialog.find('span.error').closest('div.ui-widget').hide();
+        this.authDialog.find('span.error').closest('div.ui-widget').hide();
     },
 
     errorDialog: null,
-    canUserCancelOnError: false,
-    showRequestError: function (message, url, code, requiredCode) {
+    showRequestError: function (message, code, replayOptions) {
         var table = this.errorDialog.find('table.error_requests tbody');
         if (table.children().length === 0) {
-            ApiClient.errorDialog.dialog('open');
-            ApiClient.errorDialog.dialog('option', 'position', {
-                my: 'center',
-                at: 'center',
-                of: window
-            });
+            this.errorDialog.dialog('open');
         }
 
+        var url = replayOptions['url'];
         var urlQueryStringPos = url.indexOf('?');
         var tr = $('<tr />');
+        tr.data('replayOptions', replayOptions);
         tr.append($('<td />').text(table.children().length + 1));
         tr.append($('<td />').text(urlQueryStringPos !== -1 ? url.substring(0, urlQueryStringPos) : url));
-        tr.append($('<td />').text(code + (typeof requiredCode !== 'undefined' ? ' (required ' + requiredCode + ')' : '')));
+        tr.append($('<td />').text(code + (typeof replayOptions['successCode'] !== 'undefined' ? ' (required ' + replayOptions['successCode'] + ')' : '')));
         tr.append($('<td />').text(message));
         table.append(tr);
+
+        this.errorDialog.dialog('option', 'position', {
+            my: 'center',
+            at: 'center',
+            of: window
+        });
     },
 
     // Args: username
     authSuccessCallback: null,
     authLoggedIn: false,
 
-    queueProcessing: false,
     concurrentLimit: 1,
+    queueRef: null,
     startRequestQueueWork: function (requestQueue, message, completeCallback) {
+        this.queueRef = requestQueue;
+
         // Process queue
         var requestTotalCount = requestQueue.length;
         var requestLeft = requestQueue.length;
         var currentRequest = -1;
+
         var callNextRequest = function () {
+            // Check if queue changed
             if (requestLeft !== requestQueue.length) {
                 var diff = requestQueue.length - requestLeft;
                 requestLeft += diff;
@@ -93,8 +103,9 @@ var ApiClient = {
 
             var reqOptions = requestQueue.shift();
             requestLeft--;
-            
+
             if (typeof reqOptions === 'undefined') {
+                ApiClient.queueRef = null;
                 if (typeof completeCallback === 'function') {
                     completeCallback();
                 }
@@ -156,8 +167,7 @@ var ApiClient = {
                         options['error'](jqXHR, null, msg);
                     }
 
-                    ApiClient.showRequestError(msg, options['url']);
-                    ApiClient.errorDialog.data('replayOptions', options);
+                    ApiClient.showRequestError(msg, jqXHR.status, options);
                     return;
                 }
 
@@ -204,12 +214,9 @@ var ApiClient = {
                 } else if (jqXHR.status === 0) {
                     var msg = '(' + jqXHR.status + ') ' + (thrownError !== '' ? thrownError : 'Unknown error, maybe system not allow Origin from this page');
                     if (ApiClient.authLoggedIn) {
-                        ApiClient.showRequestError(msg, options['url']);
-                        ApiClient.errorDialog.data('replayOptions', options);
+                        ApiClient.showRequestError(msg, 0, options);
                     } else {
-                        ApiClient.showAuthError('<strong>Request error </strong> ' + msg);
-                        ApiClient.authDialog.dialog('open');
-                        ApiClient.authDialog.data('replayOptions', options);
+                        ApiClient.showAuthError('<strong>Request error </strong> ' + msg, options);
                     }
                 } else if (typeof options['error'] === 'function') {
                     options['error'](jqXHR, ajaxOptions, thrownError);
@@ -298,7 +305,14 @@ var ApiClient = {
         ApiClient.errorDialog.dialog(dlgOptsNoClosable);
         ApiClient.errorDialog.find('button.retry').button().click(function () {
             ApiClient.errorDialog.dialog('close');
-            ApiClient.doRequest(ApiClient.errorDialog.data('replayOptions'));
+            var table = ApiClient.errorDialog.find('table.error_requests tbody');
+            table.children().each(function (idx, tr) {
+                if (ApiClient.queueRef !== null) {
+                    ApiClient.queueRef.push($(tr).data('replayOptions'));
+                } else {
+                    ApiClient.doRequest($(tr).data('replayOptions'));
+                }
+            });
         });
     }
 };
