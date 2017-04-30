@@ -85,29 +85,27 @@ var ApiClient = {
 
     concurrentLimit: 1,
     queueRef: null,
-    startRequestQueueWork: function (requestQueue, message, completeCallback) {
-        this.queueRef = requestQueue;
-
-        // Process queue
-        var requestTotalCount = requestQueue.length;
-        var requestLeft = requestQueue.length;
-        var currentRequest = -1;
-
-        var callNextRequest = function () {
+    queue: {
+        requestTotalCount: 0,
+        requestLeft: 0,
+        currentRequest: 0,
+        completeCallback: null,
+        message: '',
+        sendNextRequest: function () {
             // Check if queue changed
-            if (requestLeft !== requestQueue.length) {
-                var diff = requestQueue.length - requestLeft;
-                requestLeft += diff;
-                requestTotalCount += diff;
+            if (this.requestLeft !== ApiClient.queueRef.length) {
+                var diff = ApiClient.queueRef.length - this.requestLeft;
+                this.requestLeft += diff;
+                this.requestTotalCount += diff;
             }
 
-            var reqOptions = requestQueue.shift();
-            requestLeft--;
+            var reqOptions = ApiClient.queueRef.shift();
+            this.requestLeft--;
 
             if (typeof reqOptions === 'undefined') {
                 ApiClient.queueRef = null;
-                if (typeof completeCallback === 'function') {
-                    completeCallback();
+                if (typeof this.completeCallback === 'function') {
+                    this.completeCallback();
                 }
                 return;
             }
@@ -116,17 +114,31 @@ var ApiClient = {
             if (typeof reqOptions['url'] === 'function') {
                 newOptions['url'] = reqOptions['url']();
             }
+            newOptions['error'] = function () {
+                ApiClient.queue.currentRequest--;
+            };
+            newOptions['beforeSend'] = function () {
+                ApiClient.queue.currentRequest--;
+            };
             newOptions['success'] = function (response, textStatus, jqXHR) {
                 if (typeof reqOptions['success'] === 'function') {
                     reqOptions['success'](response, textStatus, jqXHR);
                 }
-                callNextRequest();
+                ApiClient.queue.sendNextRequest();
             };
-            newOptions['modalLoadingMessage'] = message + ' ' + parseInt(100 * ++currentRequest / requestTotalCount) + '%';
+            newOptions['modalLoadingMessage'] = this.message + ' ' + parseInt(100 * ++this.currentRequest / this.requestTotalCount) + '%';
 
             ApiClient.doRequest($.extend({}, reqOptions, newOptions));
-        };
-        callNextRequest();
+        }
+    },
+    startRequestQueueWork: function (requestQueue, message, completeCallback) {
+        this.queueRef = requestQueue;
+        this.queue.requestTotalCount = requestQueue.length;
+        this.queue.requestLeft = requestQueue.length;
+        this.queue.currentRequest = -1;
+        this.queue.message = message;
+        this.queue.completeCallback = completeCallback;
+        this.queue.sendNextRequest();
     },
 
     /*
@@ -313,6 +325,11 @@ var ApiClient = {
                     ApiClient.doRequest($(tr).data('replayOptions'));
                 }
             });
+            table.empty();
+
+            if (ApiClient.queueRef !== null) {
+                ApiClient.queue.sendNextRequest();
+            }
         });
     }
 };

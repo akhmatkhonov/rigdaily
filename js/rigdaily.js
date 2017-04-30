@@ -581,14 +581,14 @@ function fillCf(cf, value) {
                     input
                         .attr('type', 'hidden')
                         .datepicker({
-                            dateFormat: 'dd/mm/yy',
+                            dateFormat: 'mm/dd/yy',
                             onSelect: function (dateText) {
                                 div.empty().text(dateText);
                             }
                         });
                     input.insertAfter(div);
-                    div.prop('contenteditable', false);
-                    cf.obj.click(function () {
+                    div.prop('contenteditable', false).text(fromRemoteDate(div.text()));
+                    cf.obj.unbind('click').click(function () {
                         input.datepicker('show');
                     });
                     break;
@@ -811,11 +811,28 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
+function toRemoteDate(dateStr) {
+    if (dateStr === null || dateStr.length === 0) {
+        return null;
+    }
+
+    var parts = dateStr.split('/');
+    return $.datepicker.formatDate('yy-mm-dd', new Date(parts[2], parts[0] - 1, parts[1]));
+}
+
+function fromRemoteDate(dateStr) {
+    if (dateStr === null || dateStr.length === 0) {
+        return '';
+    }
+
+    var parts = dateStr.split('-');
+    return $.datepicker.formatDate('mm/dd/yy', new Date(parts[0], parts[1] - 1, parts[2]));
+}
+
 function convertEditableCfsToDataObject(cfs) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
-
             if (cf.editable && !isCfLocked(cf)) {
                 var val = cf.obj.children('div[contenteditable]')[0].innerText;
                 if (cf.required && val.length === 0) {
@@ -824,6 +841,11 @@ function convertEditableCfsToDataObject(cfs) {
                 }
 
                 if (cf.orig_data !== val) {
+                    if (cf.type === 'date') {
+                        // Reformat date
+                        val = toRemoteDate(val);
+                    }
+
                     result[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
