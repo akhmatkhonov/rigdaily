@@ -3,41 +3,39 @@
 var ApiClient = {
     endpoint: null,
 
-    credentials: null,
-    credentialsUn: null,
-    createCredentials: function (username, password) {
-        ApiClient.credentials = btoa(username + ':' + password);
-        ApiClient.credentialsUn = username;
-    },
-    resetCredentials: function () {
-        ApiClient.credentials = null;
-        ApiClient.credentialsUn = null;
-    },
-
-    modalLoading: null,
-    showModalLoading: function (message) {
-        $('body').addClass('loading');
-
-        if (typeof message !== 'undefined') {
-            ApiClient.modalLoading.children('span').empty().append(message);
-        } else {
-            ApiClient.modalLoading.children('span').html('Please wait...');
+    credentials: {
+        current: null,
+        currentUn: null,
+        create: function (username, password) {
+            ApiClient.credentials.current = btoa(username + ':' + password);
+            ApiClient.credentials.currentUn = username;
+        },
+        reset: function () {
+            ApiClient.credentials.current = null;
+            ApiClient.credentials.currentUn = null;
         }
-        ApiClient.recalcModalDiv();
     },
-    hideModalLoading: function () {
-        $('body').removeClass('loading');
-    },
-    recalcModalDiv: function () {
-        ApiClient.modalLoading.children('span').css('top', (Math.round(ApiClient.modalLoading.height() / 2) + 30) + 'px');
-    },
-    setProgressMessage: function (message, percent) {
-        var modalSpan = ApiClient.modalLoading.children('span');
 
-        if (typeof message === 'undefined') {
-            message = 'Progress: ' + percent + '%';
+    modalLoading: {
+        handle: null,
+        show: function (message) {
+            $('body').addClass('loading');
+            if (typeof message === 'undefined') {
+                message = 'Please wait...';
+            }
+
+            ApiClient.modalLoading.handle.children('span').empty().append(message);
+            ApiClient.modalLoading.recalcPosition();
+        },
+        hide: function () {
+            $('body').removeClass('loading');
+        },
+        recalcPosition: function () {
+            ApiClient.modalLoading.handle.children('span').css('top', (Math.round(ApiClient.modalLoading.handle.height() / 2) + 30) + 'px');
+        },
+        setMessage: function (message) {
+            ApiClient.modalLoading.handle.children('span').html(message);
         }
-        modalSpan.html(message);
     },
 
     authDialog: null,
@@ -54,22 +52,71 @@ var ApiClient = {
     },
 
     errorDialog: null,
-    showRequestError: function (message, url) {
-        ApiClient.errorDialog.find('span.error').empty().text(message).prepend('<strong>Request error: </strong>');
+    canUserCancelOnError: false,
+    showRequestError: function (message, url, code, requiredCode) {
+        var table = this.errorDialog.find('table.error_requests tbody');
+        if (table.children().length === 0) {
+            ApiClient.errorDialog.dialog('open');
+            ApiClient.errorDialog.dialog('option', 'position', {
+                my: 'center',
+                at: 'center',
+                of: window
+            });
+        }
 
         var urlQueryStringPos = url.indexOf('?');
-        ApiClient.errorDialog.find('span.url').empty().text(urlQueryStringPos !== -1 ? url.substring(0, urlQueryStringPos) : url);
-        ApiClient.errorDialog.dialog('open');
-        ApiClient.errorDialog.dialog('option', 'position', {
-            my: 'center',
-            at: 'center',
-            of: window
-        });
+        var tr = $('<tr />');
+        tr.append($('<td />').text(table.children().length + 1));
+        tr.append($('<td />').text(urlQueryStringPos !== -1 ? url.substring(0, urlQueryStringPos) : url));
+        tr.append($('<td />').text(code + (typeof requiredCode !== 'undefined' ? ' (required ' + requiredCode + ')' : '')));
+        tr.append($('<td />').text(message));
+        table.append(tr);
     },
 
     // Args: username
     authSuccessCallback: null,
     authLoggedIn: false,
+
+    queueProcessing: false,
+    concurrentLimit: 1,
+    startRequestQueueWork: function (requestQueue, message, completeCallback) {
+        // Process queue
+        var requestTotalCount = requestQueue.length;
+        var requestLeft = requestQueue.length;
+        var currentRequest = -1;
+        var callNextRequest = function () {
+            if (requestLeft !== requestQueue.length) {
+                var diff = requestQueue.length - requestLeft;
+                requestLeft += diff;
+                requestTotalCount += diff;
+            }
+
+            var reqOptions = requestQueue.shift();
+            requestLeft--;
+            
+            if (typeof reqOptions === 'undefined') {
+                if (typeof completeCallback === 'function') {
+                    completeCallback();
+                }
+                return;
+            }
+
+            var newOptions = {};
+            if (typeof reqOptions['url'] === 'function') {
+                newOptions['url'] = reqOptions['url']();
+            }
+            newOptions['success'] = function (response, textStatus, jqXHR) {
+                if (typeof reqOptions['success'] === 'function') {
+                    reqOptions['success'](response, textStatus, jqXHR);
+                }
+                callNextRequest();
+            };
+            newOptions['modalLoadingMessage'] = message + ' ' + parseInt(100 * ++currentRequest / requestTotalCount) + '%';
+
+            ApiClient.doRequest($.extend({}, reqOptions, newOptions));
+        };
+        callNextRequest();
+    },
 
     /*
      * options args: [
@@ -84,9 +131,9 @@ var ApiClient = {
      * ]
      */
     doRequest: function (options) {
-        if (ApiClient.credentials === null) {
-            ApiClient.authDialog.dialog('open');
-            ApiClient.authDialog.data('replayOptions', options);
+        if (this.credentials.current === null) {
+            this.authDialog.dialog('open');
+            this.authDialog.data('replayOptions', options);
             return;
         }
 
@@ -94,13 +141,13 @@ var ApiClient = {
         var isHideModalLoading = typeof options['isHideModalLoading'] !== 'undefined' ? options['isHideModalLoading'] : true;
         var isShowModalLoading = typeof options['isShowModalLoading'] !== 'undefined' ? options['isShowModalLoading'] : true;
         if (isShowModalLoading) {
-            ApiClient.showModalLoading(typeof options['modalLoadingMessage'] !== 'undefined' ? options['modalLoadingMessage'] : undefined);
+            this.modalLoading.show(typeof options['modalLoadingMessage'] !== 'undefined' ? options['modalLoadingMessage'] : undefined);
         }
 
         var exOptions = $.extend({}, options, {
-            url: ApiClient.endpoint + options['url'],
+            url: this.endpoint + options['url'],
             beforeSend: function (jqXHR) {
-                jqXHR.setRequestHeader('Authorization', 'Basic ' + ApiClient.credentials);
+                jqXHR.setRequestHeader('Authorization', 'Basic ' + ApiClient.credentials.current);
             },
             complete: function (jqXHR, textStatus) {
                 if (ApiClient.authLoggedIn && typeof options['successCode'] !== 'undefined' && jqXHR.status !== options['successCode']) {
@@ -123,16 +170,19 @@ var ApiClient = {
                     ApiClient.authLoggedIn = true;
 
                     if (typeof ApiClient.authSuccessCallback === 'function') {
-                        ApiClient.authSuccessCallback(ApiClient.credentialsUn);
+                        ApiClient.authSuccessCallback(ApiClient.credentials.currentUn);
                     }
                 }
 
                 if (typeof options['replayWithOptions'] !== 'undefined') {
                     isEvalCompleteCallback = false;
                     isHideModalLoading = false;
+                    if (typeof options['replayWithOptions']['beforeReSend'] === 'function') {
+                        options['replayWithOptions']['beforeReSend']();
+                    }
                     ApiClient.doRequest(options['replayWithOptions']);
                 } else if (isHideModalLoading) {
-                    ApiClient.hideModalLoading();
+                    ApiClient.modalLoading.hide();
                 }
 
                 if (typeof options['success'] === 'function') {
@@ -141,20 +191,17 @@ var ApiClient = {
             },
             error: function (jqXHR, ajaxOptions, thrownError) {
                 if (isHideModalLoading) {
-                    ApiClient.hideModalLoading();
+                    ApiClient.modalLoading.hide();
                 }
 
                 if (jqXHR.status === 401) {
-                    isEvalCompleteCallback = false;
                     isHideModalLoading = false;
 
                     ApiClient.showAuthError(jqXHR.responseText);
-                    ApiClient.resetCredentials();
+                    ApiClient.credentials.reset();
                     ApiClient.authLoggedIn = false;
                     ApiClient.doRequest(options);
                 } else if (jqXHR.status === 0) {
-                    isEvalCompleteCallback = false;
-
                     var msg = '(' + jqXHR.status + ') ' + (thrownError !== '' ? thrownError : 'Unknown error, maybe system not allow Origin from this page');
                     if (ApiClient.authLoggedIn) {
                         ApiClient.showRequestError(msg, options['url']);
@@ -172,12 +219,17 @@ var ApiClient = {
         $.ajax(exOptions);
     },
 
+    authEndpoint: '/api/v2/authorize',
     init: function () {
         $(window).resize(function () {
-            ApiClient.recalcModalDiv();
-        });
+            ApiClient.modalLoading.recalcPosition();
 
-        ApiClient.modalLoading = $('.apiClientModalLoading');
+            $('.ui-dialog-content:visible').each(function () {
+                var dialog = $(this).data('uiDialog');
+                dialog.option('position', dialog.options.position);
+            });
+        });
+        ApiClient.modalLoading.handle = $('.apiClientModalLoading');
 
         var dlgOptsNoClosable = {
             width: 'auto',
@@ -216,7 +268,7 @@ var ApiClient = {
 
             ApiClient.hideAuthError();
             try {
-                ApiClient.createCredentials(username, password);
+                ApiClient.credentials.create(username, password);
             } catch (e) {
                 ApiClient.showAuthError(e.message);
                 return;
@@ -232,7 +284,7 @@ var ApiClient = {
 
             ApiClient.doRequest({
                 modalLoadingMessage: 'Authorizing...',
-                url: '/api/v2/authorize',
+                url: ApiClient.authEndpoint,
                 success: function () {
                     if (typeof(ApiClient.authSuccessCallback) === 'function') {
                         ApiClient.authSuccessCallback(username);

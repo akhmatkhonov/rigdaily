@@ -26,7 +26,8 @@ var config = {
     equipmentUsageTT: 'Equipment_Usage',
     techniciansUsageTT: 'Technicians_Usage',
     supplyRequestTT: 'Supply_Request',
-    safeNotesTT: 'Safe_Notes',
+    projectTT: 'Project',
+    projectManagementTT: 'Project_Management',
 
     // For dynamic calculations
     dynTT: 'Dynamic'
@@ -44,7 +45,7 @@ configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
 configTblIdxs[config.equipmentUsageTT] = 'equ';
 configTblIdxs[config.techniciansUsageTT] = 'tecu';
 configTblIdxs[config.supplyRequestTT] = 'sr';
-configTblIdxs[config.safeNotesTT] = 'sn';
+configTblIdxs[config.projectManagementTT] = 'pm';
 
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
 
@@ -79,6 +80,11 @@ function getRigMonthIndex(name) {
         case 'December':
             return 12;
     }
+}
+
+function RequiredFieldsNotPresentException(focusObj) {
+    this.message = 'Required fields not present!';
+    this.focusObj = focusObj;
 }
 
 // Dynamic calculating cells
@@ -370,7 +376,7 @@ function getCfValue(name, tid, tblIdx) {
     }
 
     var dataType = cfs.data('t');
-    var value = cfs.text().trim();
+    var value = cfs[0].innerText.trim();
     return dataType === 'number' ? parseFloat(value) : value;
 }
 
@@ -420,36 +426,6 @@ function saveTid(ttName, tid, isSingle) {
     }
 }
 
-function startRequestQueueWork(requestQueue, message, callback) {
-    // Process queue
-    var requestTotalCount = requestQueue.length;
-    var currentRequest = -1;
-    var callNextRequest = function () {
-        var reqOptions = requestQueue.shift();
-        if (typeof reqOptions === 'undefined') {
-            if (typeof callback === 'function') {
-                callback();
-            }
-            return;
-        }
-
-        var newOptions = {};
-        if (typeof reqOptions['url'] === 'function') {
-            newOptions['url'] = reqOptions['url']();
-        }
-        newOptions['success'] = function (response, textStatus, jqXHR) {
-            if (typeof reqOptions['success'] === 'function') {
-                reqOptions['success'](response, textStatus, jqXHR);
-            }
-            callNextRequest();
-        };
-        newOptions['modalLoadingMessage'] = message + ' ' + parseInt(100 * ++currentRequest / requestTotalCount) + '%';
-
-        ApiClient.doRequest($.extend({}, reqOptions, newOptions));
-    };
-    callNextRequest();
-}
-
 function getConfigFields(ttName, parent, tblIdx, prependTtName) {
     var cfs = {};
     $('[data-cf^="' + ttName + '."]' + (typeof tblIdx !== 'undefined' ? '[data-tIdx="' + tblIdx + '"]' : ''), parent).each(function (idx, elem) {
@@ -467,11 +443,10 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'obj': obj,
             'tIdx': tblIdx,
             'orig_data': obj.data('orig_data'),
-            'forceSubmit': obj.data('submit') + '' === 'true',
             'reload': obj.data('reload') + '' === 'true',
+            'forceSubmit': obj.data('forceSubmit') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
-            'lockable': obj.data('lockable') + '' === 'true',
-            'type': obj.data('t'),
+            'lockable': obj.data('lockable') + '' === 'true', 'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
         });
@@ -506,9 +481,13 @@ function fillCf(cf, value) {
         if (isNaN(value)) {
             value = 0;
         }
-    }
 
-    cf.obj.text(value);
+        cf.obj.text(value);
+    } else if (cf.type === 'memo') {
+        cf.obj.html(value.replace("\n", '<br>'));
+    } else {
+        cf.obj.text(value);
+    }
 
     var subscribeObj = cf.obj;
     if (cf.editable) {
@@ -529,15 +508,14 @@ function fillCf(cf, value) {
             });
         } else {
             // Init editable
-            div.keypress(function (e) {
-                return e.which !== 13;
-            }).on('blur keyup paste', function () {
-                if (!isReportEdited) {
+            div.on('blur keyup paste', function () {
+                if (!isReportEdited && cf.orig_data !== div.text()) {
+                    isReportEdited = true;
+
                     $(window).on('beforeunload', function () {
                         return loseDataMessage;
                     });
                 }
-                isReportEdited = true;
 
                 var triggerChange = true;
                 if (div.text().trim().length === 0) {
@@ -555,6 +533,14 @@ function fillCf(cf, value) {
                     div.trigger('change');
                 }
             });
+
+            if (cf.type !== 'memo') {
+                div.keypress(function (e) {
+                    // Prevent to create new lines
+                    return e.which !== 13;
+                });
+            }
+
             switch (cf.type) {
                 case 'number': {
                     // Deny input not number chars
@@ -577,6 +563,11 @@ function fillCf(cf, value) {
                     if (value === null || value === '') {
                         div.text('0');
                     }
+                    break;
+                }
+                case 'memo': {
+                    cf.obj.css('vertical-align', 'middle');
+                    break;
                 }
             }
         }
@@ -793,23 +784,17 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
-    row.find('td').unbind('click').click(function () {
-        setActiveCellRowTo($(this));
-    });
+    ArrowNavigation.initCells(row.find('td'));
     return row;
-}
-
-function RequiredFieldsNotPresentException(focusObj) {
-    this.message = 'Required fields not present!';
-    this.focusObj = focusObj;
 }
 
 function convertEditableCfsToDataObject(cfs) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
+
             if (cf.editable && !isCfLocked(cf)) {
-                var val = cf.obj.children('div[contenteditable]').text();
+                var val = cf.obj.children('div[contenteditable]')[0].innerText;
                 if (cf.required && val.length === 0) {
                     var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
                     throw new RequiredFieldsNotPresentException(focusObj);
@@ -828,7 +813,7 @@ function convertEditableCfsToDataObject(cfs) {
 
 function startSubmitReport() {
     var requestQueue = [];
-    var makePutRequest = function (tid, data) {
+    var makeRequests = function (tid, data, cfs) {
         if (Object.keys(data).length === 0) {
             return;
         }
@@ -840,7 +825,29 @@ function startSubmitReport() {
             data: JSON.stringify(data),
             dataType: 'json',
             processData: false,
-            successCode: 200
+            successCode: 200,
+            success: function () {
+                var fields = [];
+                $.each(cfs, function (idx, cfObj) {
+                    $.each(cfObj, function (idx, cf) {
+                        if (cf.reload) {
+                            fields.push(cf.name);
+                        }
+                    });
+                });
+
+                if (fields.length !== 0) {
+                    requestQueue.push({
+                        type: 'GET',
+                        contentType: 'application/json',
+                        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
+                        successCode: 200,
+                        success: function (response) {
+                            fillCfs(cfs, response);
+                        }
+                    });
+                }
+            }
         });
     };
 
@@ -859,14 +866,16 @@ function startSubmitReport() {
                             return $(this).data('tid_' + tblIdx) === tid;
                         });
                         if (parent.length !== 0) {
-                            var data = convertEditableCfsToDataObject(getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined));
-                            makePutRequest(tid, data);
+                            var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
+                            var data = convertEditableCfsToDataObject(cfs);
+                            makeRequests(tid, data, cfs);
                         }
                     });
                 });
             } else {
-                var data = convertEditableCfsToDataObject(getConfigFields(ttName));
-                makePutRequest(tidObj, data);
+                var cfs = getConfigFields(ttName);
+                var data = convertEditableCfsToDataObject(cfs);
+                makeRequests(tidObj, data, cfs);
             }
         });
     } catch (e) {
@@ -878,11 +887,13 @@ function startSubmitReport() {
         }
     }
 
-    startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
-        isReportEdited = false;
-
-        // TODO: start reload queue work
-    });
+    if (requestQueue.length !== 0) {
+        ApiClient.startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
+            isReportEdited = false;
+        });
+    } else {
+        alertDialog('Nothing to submit');
+    }
 }
 
 function loadReport(tid) {
@@ -894,6 +905,7 @@ function loadReport(tid) {
     var clientKey;
     var managerKey;
     var contractorKey;
+    var projectKey;
 
     // rigDaily
     var rigDailyCfs = getConfigFields(config.rigDailyReportTT);
@@ -901,7 +913,8 @@ function loadReport(tid) {
     var rigYearCfs = getConfigFields(config.rigYearReportTT, undefined, undefined, true);
     var fields = [
         'TRACKOR_KEY',
-        config.rigSiteTT + '.TRACKOR_KEY'
+        config.rigSiteTT + '.TRACKOR_KEY',
+        config.projectTT + '.TRACKOR_KEY'
     ];
     fields = fields.concat(Object.keys(rigDailyCfs));
     fields = fields.concat(Object.keys(rigMonthCfs));
@@ -913,464 +926,488 @@ function loadReport(tid) {
         success: function (response) {
             rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
             key = response['TRACKOR_KEY'];
+            projectKey = response[config.projectTT + '.TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
-            fillCfs(rigMonthCfs, response);
-            fillCfs(rigYearCfs, response);
+
+            pushRigSiteLoad();
+            pushOtherLoad();
+            pushProjectManagementLoad();
         }
     });
 
-    // rigSite
-    var rigSiteCfs = getConfigFields(config.rigSiteTT);
-    requestQueue.push({
-        url: function () {
-            var fields = [
-                'RS_CLIENT',
-                'RS_RIG_MANAGER',
-                'RS_RIG_CONTRACTOR'
-            ];
-            fields = fields.concat(Object.keys(rigSiteCfs));
+    // projectManagement
+    var pushProjectManagementLoad = function () {
+        var contactInformationProjectManagementBaseRow = $('tr.contactInformationProjectManagementBaseRow').first();
+        var contactInformationProjectManagementBaseRowCfs = getConfigFields(config.projectManagementTT, contactInformationProjectManagementBaseRow);
 
-            return '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
-        },
-        successCode: 200,
-        success: function (response) {
-            response = response[0];
-            clientKey = response['RS_CLIENT'];
-            managerKey = response['RS_RIG_MANAGER'];
-            contractorKey = response['RS_RIG_CONTRACTOR'];
-            fillCfs(rigSiteCfs, response);
-        }
-    });
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(contactInformationProjectManagementBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.projectTT + '.TRACKOR_KEY=' + encodeURIComponent(projectKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(config.projectManagementTT, elem['TRACKOR_ID'], false);
 
-    // client
-    var clientsCfs = getConfigFields(config.clientsTT);
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(clientsCfs);
-
-            return '/api/v3/trackor_types/' + config.clientsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&TRACKOR_KEY=' + encodeURIComponent(clientKey);
-        },
-        successCode: 200,
-        success: function (response) {
-            response = response[0];
-            fillCfs(clientsCfs, response);
-        }
-    });
-
-    // manager
-    var workersCfs = getConfigFields(config.workersTT);
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(workersCfs);
-            return '/api/v3/trackor_types/' + config.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&TRACKOR_KEY=' + encodeURIComponent(managerKey);
-        },
-        successCode: 200,
-        success: function (response) {
-            response = response[0];
-            fillCfs(workersCfs, response);
-        }
-    });
-
-    // contractor
-    var contractorCfs = getConfigFields(config.contractorsTT);
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(contractorCfs);
-            return '/api/v3/trackor_types/' + config.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&TRACKOR_KEY=' + encodeURIComponent(contractorKey);
-        },
-        successCode: 200,
-        success: function (response) {
-            response = response[0];
-            fillCfs(contractorCfs, response);
-        }
-    });
-
-    // holeDesignAndVolume
-    var holeDesignAndVolumeBaseRow = $('tr.holeDesignAndVolumeBaseRow');
-    var holeDesignAndVolumeCfs = getConfigFields(config.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(holeDesignAndVolumeCfs);
-            return '/api/v3/trackor_types/' + config.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response.splice(0, 4), function (idx, elem) {
-                saveTid(config.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.holeDesignAndVolumeTT, row);
-                fillCfs(rowCfs, elem);
-            });
-
-            dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, configTblIdxs[config.holeDesignAndVolumeTT]);
-        }
-    });
-
-    // labTesting
-    var labTestingBaseRow = $('tr.labTestingBaseRow');
-    var labTestingBaseRowCfs = getConfigFields(config.labTestingTT, labTestingBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(labTestingBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response.splice(0, 4), function (idx, elem) {
-                saveTid(config.labTestingTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.labTestingTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    // apiScreenSize
-    var apiScreenSizeBaseRow = $('tr.apiScreenSizeBaseRow');
-    var apiScreenSizeBaseRowCfs = getConfigFields(config.apiScreenSizeTT, apiScreenSizeBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(apiScreenSizeBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            var startIdx = 7;
-            var endIdx = 11;
-
-            $.each(response.splice(0, 3), function (idx, elem) {
-                saveTid(config.apiScreenSizeTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.apiScreenSizeTT, row);
-                fillCfs(rowCfs, elem);
-
-                if (startIdx === 7) {
-                    startIdx = 6;
-                    endIdx = 10;
-                }
-            });
-        }
-    });
-
-    // fieldTesting
-    var fieldTestingBaseRow = $('tr.fieldTestingBaseRow');
-    var fieldTestingBaseRowCfs = getConfigFields(config.fieldTestingTT, fieldTestingBaseRow, configTblIdxs[config.fieldTestingTT][0]);
-
-    requestQueue.push({
-        url: function () {
-            var fields = [
-                'FT_SHIFT'
-            ];
-            fields = fields.concat(Object.keys(fieldTestingBaseRowCfs));
-
-            return '/api/v3/trackor_types/' + config.fieldTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            var groups = {};
-
-            // Group by FT_TESTING_NAME
-            $.each(response, function (idx, elem) {
-                if (elem['FT_SHIFT'].length === 0) {
-                    return true;
-                }
-
-                saveTid(config.fieldTestingTT, elem['TRACKOR_ID'], false);
-                if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
-                    groups[elem['FT_TESTING_NAME']] = [];
-                }
-                groups[elem['FT_TESTING_NAME']].push(elem);
-            });
-
-            // Sort by FT_SHIFT
-            $.each(groups, function (groupName, elem) {
-                var sortedGroup = elem.sort(function (a, b) {
-                    return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
-                });
-
-                var grepAM = $.grep(sortedGroup, function (elem) {
-                    return elem['FT_SHIFT'] === 'AM';
-                });
-                var grepPM = $.grep(sortedGroup, function (elem) {
-                    return elem['FT_SHIFT'] === 'PM';
-                });
-                if (grepAM.length === 0) {
-                    sortedGroup.unshift({
-                        'FT_TESTING_NAME': groupName,
-                        'FT_SHIFT': 'AM'
-                    });
-                }
-                if (grepPM.length === 0) {
-                    sortedGroup.push({
-                        'FT_SHIFT': 'PM'
-                    });
-                }
-
-                $.each(sortedGroup, function (idx, elem) {
-                    var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
-                    var startIdx = tblIdxIdx === 0 ? 4 : 8;
-                    var endIdx = tblIdxIdx === 0 ? 7 : 11;
-
-                    var row = appendSubtableRow(configTblIdxs[config.fieldTestingTT][tblIdxIdx],
-                        startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.fieldTestingTT, row, configTblIdxs[config.fieldTestingTT][tblIdxIdx]);
+                    var row = appendSubtableRow(configTblIdxs[config.projectManagementTT], 1, 6, contactInformationProjectManagementBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.projectManagementTT, row);
                     fillCfs(rowCfs, elem);
                 });
-            });
-        }
-    });
+            }
+        });
+    };
 
-    // retorts
-    var retortsBaseRow = $('tr.retortsBaseRow');
-    var retortsBaseRowCfs = getConfigFields(config.retortsTT, retortsBaseRow);
+    // rigSite
+    var pushRigSiteLoad = function () {
+        var rigSiteCfs = getConfigFields(config.rigSiteTT);
+        requestQueue.push({
+            url: function () {
+                var fields = [
+                    'RS_CLIENT',
+                    'RS_RIG_MANAGER',
+                    'RS_RIG_CONTRACTOR'
+                ];
+                fields = fields.concat(Object.keys(rigSiteCfs));
 
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(retortsBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, elem) {
-                saveTid(config.retortsTT, elem['TRACKOR_ID'], false);
+                return '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                clientKey = response['RS_CLIENT'];
+                managerKey = response['RS_RIG_MANAGER'];
+                contractorKey = response['RS_RIG_CONTRACTOR'];
+                fillCfs(rigSiteCfs, response);
 
-                var row = appendSubtableRow(configTblIdxs[config.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.retortsTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
+                pushClientLoad();
+                pushManagerLoad();
+                pushContractorLoad();
+            }
+        });
+    };
 
-    // wasteHaulOffUsage
-    var wasteHaulOffUsageBaseRow = $('tr.wasteHaulOffUsageBaseRow');
-    var wasteHaulOffUsageBaseRowCfs = getConfigFields(config.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
+    // client
+    var pushClientLoad = function () {
+        var clientsCfs = getConfigFields(config.clientsTT);
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(clientsCfs);
 
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(wasteHaulOffUsageBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, elem) {
-                saveTid(config.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
+                return '/api/v3/trackor_types/' + config.clientsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(clientKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                fillCfs(clientsCfs, response);
+            }
+        });
+    };
 
-                var tblIdxIdx;
-                var startIdx;
-                var endIdx;
+    // manager
+    var pushManagerLoad = function () {
+        var workersCfs = getConfigFields(config.workersTT);
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(workersCfs);
+                return '/api/v3/trackor_types/' + config.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(managerKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                fillCfs(workersCfs, response);
+            }
+        });
+    };
 
-                if (idx >= 0 && idx <= 6) {
-                    tblIdxIdx = 0;
-                    startIdx = 4;
-                    endIdx = 5;
-                } else if (idx >= 7 && idx <= 14) {
-                    tblIdxIdx = 1;
-                    startIdx = 6;
-                    endIdx = 7;
-                } else {
-                    tblIdxIdx = 2;
-                    startIdx = 8;
-                    endIdx = 9;
+    // contractor
+    var pushContractorLoad = function () {
+        var contractorCfs = getConfigFields(config.contractorsTT);
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(contractorCfs);
+                return '/api/v3/trackor_types/' + config.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(contractorKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                fillCfs(contractorCfs, response);
+            }
+        });
+    };
+
+    var pushOtherLoad = function () {
+        // holeDesignAndVolume
+        var holeDesignAndVolumeBaseRow = $('tr.holeDesignAndVolumeBaseRow');
+        var holeDesignAndVolumeCfs = getConfigFields(config.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(holeDesignAndVolumeCfs);
+                return '/api/v3/trackor_types/' + config.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(config.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.holeDesignAndVolumeTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+
+                dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, configTblIdxs[config.holeDesignAndVolumeTT]);
+            }
+        });
+
+        // labTesting
+        var labTestingBaseRow = $('tr.labTestingBaseRow');
+        var labTestingBaseRowCfs = getConfigFields(config.labTestingTT, labTestingBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(labTestingBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(config.labTestingTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.labTestingTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        });
+
+        // apiScreenSize
+        var apiScreenSizeBaseRow = $('tr.apiScreenSizeBaseRow');
+        var apiScreenSizeBaseRowCfs = getConfigFields(config.apiScreenSizeTT, apiScreenSizeBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(apiScreenSizeBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                var startIdx = 7;
+                var endIdx = 11;
+
+                $.each(response.splice(0, 3), function (idx, elem) {
+                    saveTid(config.apiScreenSizeTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.apiScreenSizeTT, row);
+                    fillCfs(rowCfs, elem);
+
+                    if (startIdx === 7) {
+                        startIdx = 6;
+                        endIdx = 10;
+                    }
+                });
+            }
+        });
+
+        // fieldTesting
+        var fieldTestingBaseRow = $('tr.fieldTestingBaseRow');
+        var fieldTestingBaseRowCfs = getConfigFields(config.fieldTestingTT, fieldTestingBaseRow, configTblIdxs[config.fieldTestingTT][0]);
+
+        requestQueue.push({
+            url: function () {
+                var fields = [
+                    'FT_SHIFT'
+                ];
+                fields = fields.concat(Object.keys(fieldTestingBaseRowCfs));
+
+                return '/api/v3/trackor_types/' + config.fieldTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                var groups = {};
+
+                // Group by FT_TESTING_NAME
+                $.each(response, function (idx, elem) {
+                    if (elem['FT_SHIFT'].length === 0) {
+                        return true;
+                    }
+
+                    saveTid(config.fieldTestingTT, elem['TRACKOR_ID'], false);
+                    if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
+                        groups[elem['FT_TESTING_NAME']] = [];
+                    }
+                    groups[elem['FT_TESTING_NAME']].push(elem);
+                });
+
+                // Sort by FT_SHIFT
+                $.each(groups, function (groupName, elem) {
+                    var sortedGroup = elem.sort(function (a, b) {
+                        return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
+                    });
+
+                    var grepAM = $.grep(sortedGroup, function (elem) {
+                        return elem['FT_SHIFT'] === 'AM';
+                    });
+                    var grepPM = $.grep(sortedGroup, function (elem) {
+                        return elem['FT_SHIFT'] === 'PM';
+                    });
+                    if (grepAM.length === 0) {
+                        sortedGroup.unshift({
+                            'FT_TESTING_NAME': groupName,
+                            'FT_SHIFT': 'AM'
+                        });
+                    }
+                    if (grepPM.length === 0) {
+                        sortedGroup.push({
+                            'FT_SHIFT': 'PM'
+                        });
+                    }
+
+                    $.each(sortedGroup, function (idx, elem) {
+                        var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
+                        var startIdx = tblIdxIdx === 0 ? 4 : 8;
+                        var endIdx = tblIdxIdx === 0 ? 7 : 11;
+
+                        var row = appendSubtableRow(configTblIdxs[config.fieldTestingTT][tblIdxIdx],
+                            startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(config.fieldTestingTT, row, configTblIdxs[config.fieldTestingTT][tblIdxIdx]);
+                        fillCfs(rowCfs, elem);
+                    });
+                });
+            }
+        });
+
+        // retorts
+        var retortsBaseRow = $('tr.retortsBaseRow');
+        var retortsBaseRowCfs = getConfigFields(config.retortsTT, retortsBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(retortsBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    saveTid(config.retortsTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.retortsTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        });
+
+        // wasteHaulOffUsage
+        var wasteHaulOffUsageBaseRow = $('tr.wasteHaulOffUsageBaseRow');
+        var wasteHaulOffUsageBaseRowCfs = getConfigFields(config.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(wasteHaulOffUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    saveTid(config.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
+
+                    var tblIdxIdx;
+                    var startIdx;
+                    var endIdx;
+
+                    if (idx >= 0 && idx <= 6) {
+                        tblIdxIdx = 0;
+                        startIdx = 4;
+                        endIdx = 5;
+                    } else if (idx >= 7 && idx <= 14) {
+                        tblIdxIdx = 1;
+                        startIdx = 6;
+                        endIdx = 7;
+                    } else {
+                        tblIdxIdx = 2;
+                        startIdx = 8;
+                        endIdx = 9;
+                    }
+
+                    var row = appendSubtableRow(configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
+                        wasteHaulOffUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.wasteHaulOffUsageTT, row, configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx]);
+                    fillCfs(rowCfs, elem);
+                });
+
+                dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS']();
+            }
+        });
+
+        // consumablesUsageTT
+        var consumablesUsageBaseRow = $('tr.consumablesUsageBaseRow');
+        var consumablesUsageBaseRowCfs = getConfigFields(config.consumablesUsageTT, consumablesUsageBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(consumablesUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    saveTid(config.consumablesUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.consumablesUsageTT], 1, 10, consumablesUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.consumablesUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        });
+
+        // binderUsageTT
+        var binderUsageBaseRow = $('tr.binderUsageBaseRow');
+        var binderUsageBaseRowCfs = getConfigFields(config.binderUsageTT, binderUsageBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(binderUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    saveTid(config.binderUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.binderUsageTT], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.binderUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        });
+
+        // binderUsageTT
+        // binderLbsUsedTT
+        var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
+        var binderLbsUsedBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderLbsUsedTT][0]);
+        var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
+        var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderLbsUsedTT][0]);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(binderLbsUsedBaseRowCfs).concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
+                return '/api/v3/trackor_types/' + config.binderLbsUsedTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(config.binderLbsUsedTT, elem['TRACKOR_ID'], false);
+                    saveTid(config.dynTT, elem['TRACKOR_ID'], false);
+
+                    var tblIdx = configTblIdxs[config.binderLbsUsedTT][idx];
+                    var tdIdxs = 2 + idx;
+
+                    var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
+                    var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
+                    var row1Cfs = getConfigFields(config.binderLbsUsedTT, row1, tblIdx);
+                    var row2Cfs = getConfigFields(config.binderLbsUsedTT, row2, tblIdx);
+
+                    fillCfs(row1Cfs, elem);
+                    fillCfs(row2Cfs, elem);
+                });
+            }
+        });
+
+        // equipmentUsageTT
+        var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
+        var equipmentUsageBaseRowCfs = getConfigFields(config.equipmentUsageTT, equipmentUsageBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(equipmentUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + config.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 9), function (idx, elem) {
+                    saveTid(config.equipmentUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.equipmentUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        });
+
+        // techniciansUsageTT, contactInformation
+        var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
+        var techniciansUsageBaseRowCfs = getConfigFields(config.techniciansUsageTT, techniciansUsageBaseRow);
+        var contactInformationBaseRow = $('tr.contactInformationBaseRow');
+        var contactInformationBaseRowCfs = getConfigFields(config.techniciansUsageTT, contactInformationBaseRow);
+
+        requestQueue.push({
+            url: function () {
+                var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
+                return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 3), function (idx, elem) {
+                    saveTid(config.techniciansUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                    fillCfs(rowCfs, elem);
+
+                    row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
+                    rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+
+                pushSupplyRequestLoad();
+            }
+        });
+
+        var pushSupplyRequestLoad = function () {
+            // supplyRequestTT
+            var supplyRequestBaseRow = $('tr.supplyRequestBaseRow').first();
+            var supplyRequestBaseRowCfs = getConfigFields(config.supplyRequestTT, supplyRequestBaseRow);
+
+            requestQueue.push({
+                url: function () {
+                    var fields = Object.keys(supplyRequestBaseRowCfs);
+                    return '/api/v3/trackor_types/' + config.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                        '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                },
+                successCode: 200,
+                success: function (response) {
+                    $.each(response, function (idx, elem) {
+                        saveTid(config.supplyRequestTT, elem['TRACKOR_ID'], false);
+
+                        var row = appendSubtableRow(configTblIdxs[config.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(config.supplyRequestTT, row);
+                        fillCfs(rowCfs, elem);
+                    });
                 }
-
-                var row = appendSubtableRow(configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
-                    wasteHaulOffUsageBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.wasteHaulOffUsageTT, row, configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx]);
-                fillCfs(rowCfs, elem);
             });
+        };
+    };
 
-            dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS']();
-        }
-    });
-
-    // consumablesUsageTT
-    var consumablesUsageBaseRow = $('tr.consumablesUsageBaseRow');
-    var consumablesUsageBaseRowCfs = getConfigFields(config.consumablesUsageTT, consumablesUsageBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(consumablesUsageBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, elem) {
-                saveTid(config.consumablesUsageTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.consumablesUsageTT], 1, 10, consumablesUsageBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.consumablesUsageTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    // binderUsageTT
-    var binderUsageBaseRow = $('tr.binderUsageBaseRow');
-    var binderUsageBaseRowCfs = getConfigFields(config.binderUsageTT, binderUsageBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(binderUsageBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, elem) {
-                saveTid(config.binderUsageTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.binderUsageTT], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.binderUsageTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    // binderLbsUsedTT
-    var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
-    var binderLbsUsedBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderLbsUsedTT][0]);
-    var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
-    var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderLbsUsedTT][0]);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(binderLbsUsedBaseRowCfs).concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
-            return '/api/v3/trackor_types/' + config.binderLbsUsedTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response.splice(0, 4), function (idx, elem) {
-                saveTid(config.binderLbsUsedTT, elem['TRACKOR_ID'], false);
-                saveTid(config.dynTT, elem['TRACKOR_ID'], false);
-
-                var tblIdx = configTblIdxs[config.binderLbsUsedTT][idx];
-                var tdIdxs = 2 + idx;
-
-                var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
-                var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
-                var row1Cfs = getConfigFields(config.binderLbsUsedTT, row1, tblIdx);
-                var row2Cfs = getConfigFields(config.binderLbsUsedTT, row2, tblIdx);
-
-                fillCfs(row1Cfs, elem);
-                fillCfs(row2Cfs, elem);
-            });
-        }
-    });
-
-    // equipmentUsageTT
-    var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
-    var equipmentUsageBaseRowCfs = getConfigFields(config.equipmentUsageTT, equipmentUsageBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(equipmentUsageBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response.splice(0, 9), function (idx, elem) {
-                saveTid(config.equipmentUsageTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.equipmentUsageTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    // techniciansUsageTT, contactInformation
-    var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
-    var techniciansUsageBaseRowCfs = getConfigFields(config.techniciansUsageTT, techniciansUsageBaseRow);
-    var contactInformationBaseRow = $('tr.contactInformationBaseRow');
-    var contactInformationBaseRowCfs = getConfigFields(config.techniciansUsageTT, contactInformationBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
-            return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response.splice(0, 3), function (idx, elem) {
-                saveTid(config.techniciansUsageTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.techniciansUsageTT, row);
-                fillCfs(rowCfs, elem);
-
-                row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
-                rowCfs = getConfigFields(config.techniciansUsageTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    // supplyRequestTT
-    var supplyRequestBaseRow = $('tr.supplyRequestBaseRow');
-    var supplyRequestBaseRowCfs = getConfigFields(config.supplyRequestTT, supplyRequestBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(supplyRequestBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, elem) {
-                saveTid(config.supplyRequestTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.supplyRequestTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    // safeNotesTT
-    var safeNotesBaseRow = $('tr.safeNotesBaseRow');
-    var safeNotesBaseRowCfs = getConfigFields(config.safeNotesTT, safeNotesBaseRow);
-
-    requestQueue.push({
-        url: function () {
-            var fields = Object.keys(safeNotesBaseRowCfs);
-            return '/api/v3/trackor_types/' + config.safeNotesTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-        },
-        successCode: 200,
-        success: function (response) {
-            $.each(response.splice(0, 7), function (idx, elem) {
-                saveTid(config.safeNotesTT, elem['TRACKOR_ID'], false);
-
-                var row = appendSubtableRow(configTblIdxs[config.safeNotesTT], 7, 11, safeNotesBaseRow, elem['TRACKOR_ID']);
-                var rowCfs = getConfigFields(config.safeNotesTT, row);
-                fillCfs(rowCfs, elem);
-            });
-        }
-    });
-
-    startRequestQueueWork(requestQueue, 'Loading report data...', function () {
+    ApiClient.startRequestQueueWork(requestQueue, 'Loading report data...', function () {
         subscribeChangeDynCfs();
         $('#content').show();
     });
@@ -1567,96 +1604,108 @@ function confirmDialog(message, callback, title) {
     });
 }
 
-// Arrow navigation
-var currentRow = 2;
-var currentCell = 1;
+// Arrow navigation related
+var ArrowNavigation = {
+    currentRow: 2,
+    currentCell: 1,
+    isCtrlPressed: false,
 
-function changeCurrentCell(noFocus) {
-    $('.active').removeClass('active').find('div[contenteditable]').blur();
+    updateCell: function (direction) {
+        $('.active').removeClass('active').find('div[contenteditable]').blur();
 
-    var rows = $('#content').find('tr');
-    if (currentRow > rows.length - 1) {
-        currentRow = rows.length - 1;
-    }
-
-    var tableRow = rows.eq(currentRow);
-    var cellCount = tableRow.children().length;
-    if (currentCell > cellCount - 1) {
-        currentCell = cellCount - 1;
-    }
-
-    var tableCell = tableRow.children(':eq(' + currentCell + ')');
-
-    if (!noFocus) {
-        var div = tableCell.find('div[contenteditable]').first();
-        if (div.length !== 0) {
-            div.focus();
-        } else {
-            tableCell.focus();
-        }
-    }
-
-    tableCell.addClass('active');
-}
-
-function setActiveCellRowTo(td) {
-    if (td.index() === 0) {
-        return;
-    }
-
-    var row = $('#content').find('tr').index(td.closest('tr'));
-    if (row === 0) {
-        return;
-    }
-
-    currentRow = row;
-    currentCell = td.index();
-    changeCurrentCell(true);
-}
-
-function initArrowNavigation() {
-    changeCurrentCell();
-
-    $('#content').find('td').click(function () {
-        setActiveCellRowTo($(this));
-    });
-
-    $(document).keydown(function (e) {
-        if ($('#content').is(':hidden')) {
-            return true;
+        var rows = $('#content').find('tr');
+        if (this.currentRow > rows.length - 1) {
+            this.currentRow = rows.length - 1;
         }
 
-        if (e.keyCode === 37) {
-            if (currentCell === 1) {
+        var tableRow = rows.eq(this.currentRow);
+        var cellCount = tableRow.children().length;
+        if (this.currentCell > cellCount - 1) {
+            this.currentCell = cellCount - 1;
+        }
+
+        var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
+        tableCell.focus();
+        tableCell.addClass('active');
+    },
+    setActiveCellRowTo: function (td) {
+        if (td.index() === 0) {
+            return;
+        }
+
+        var row = $('#content').find('tr').index(td.closest('tr'));
+        if (row === 0) {
+            return;
+        }
+
+        ArrowNavigation.currentRow = row;
+        ArrowNavigation.currentCell = td.index();
+        ArrowNavigation.updateCell();
+    },
+    initCells: function (td) {
+        td.unbind('mousedown').mousedown(function () {
+            ArrowNavigation.setActiveCellRowTo($(this));
+        }).unbind('dblclick').dblclick(function () {
+            var div = $(this).find('div[contenteditable]:first');
+            if (div.length !== 0) {
+                div.focus();
+            }
+        });
+    },
+    init: function () {
+        ArrowNavigation.updateCell();
+
+        this.initCells($('#content').find('td'));
+
+        $(document).keydown(function (e) {
+            if (e.which === 17) {
+                ArrowNavigation.isCtrlPressed = true;
+            }
+
+            var focusedDiv = $('div[contenteditable]:focus');
+
+            if (e.shiftKey || ArrowNavigation.isCtrlPressed ||
+                $('#content').is(':hidden') || focusedDiv.length !== 0) {
+
+                if (e.keyCode === 27 && focusedDiv.length !== 0) {
+                    focusedDiv.blur();
+                }
+                return true;
+            }
+
+            if (e.keyCode === 37) {
+                if (ArrowNavigation.currentCell === 1) {
+                    return false;
+                }
+                ArrowNavigation.currentCell--;
+                ArrowNavigation.updateCell('left');
+                return false;
+            } else if (e.keyCode === 38) {
+                if (ArrowNavigation.currentRow === 2) {
+                    return false;
+                }
+                ArrowNavigation.currentRow--;
+                ArrowNavigation.updateCell('up');
+                return false;
+            } else if (e.keyCode === 39) {
+                ArrowNavigation.currentCell++;
+                ArrowNavigation.updateCell('right');
+                return false;
+            } else if (e.keyCode === 40 || e.keyCode === 13) {
+                ArrowNavigation.currentRow++;
+                ArrowNavigation.updateCell('down');
                 return false;
             }
-            currentCell--;
-            changeCurrentCell();
-            return false;
-        }
-        if (e.keyCode === 38) {
-            if (currentRow === 2) {
-                return false;
+        }).keyup(function (e) {
+            if (e.which === 17) {
+                ArrowNavigation.isCtrlPressed = false;
             }
-            currentRow--;
-            changeCurrentCell();
-            return false;
-        }
-        if (e.keyCode === 39) {
-            currentCell++;
-            changeCurrentCell();
-            return false;
-        }
-        if (e.keyCode === 40) {
-            currentRow++;
-            changeCurrentCell();
-            return false;
-        }
-    });
-}
+        });
+    }
+};
 
 $(function () {
     ApiClient.init();
+    ArrowNavigation.init();
     init();
-    initArrowNavigation();
 });

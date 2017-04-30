@@ -19,6 +19,10 @@
         page-break-inside: auto;
     }
 
+    td.active {
+        outline: none !important;
+    }
+
     .xl81, .xl82, .xl90, .xl91, .xl95, .xl99, .xl102, .xl103, .xl104, .xl105, .xl114, .xl115, .xl122, .xl138, .xl143,
     .xl189, .xl190, .xl191, .xl192, .xl193, .xl194, .xl195, .xl196, .xl197, .xl198, .xl199, .xl200, .xl237, .xl262,
     .xl263, .xl264, .xl265, .xl266, .xl267, .xl270, .xl271, .xl272, .xl276, .xl284, .xl285, .xl286, .xl287, .xl288,
@@ -29,9 +33,7 @@
 }
 
 td.active {
-    border: 2px solid black !important;
-    font-weight: bold;
-    box-sizing: border-box;
+    outline: 2px solid black;
 }
 
 [contenteditable]:focus {
@@ -42,11 +44,11 @@ td.active {
     border: 2px solid red !important;
 }
 
-table.reports {
-    margin-top: 10px;
+table.reports, table.error_requests {    margin-top: 10px;
 }
 
-table.reports > thead > tr > th, table.reports > tbody > tr > td {
+table.reports > thead > tr > th, table.reports > tbody > tr > td,
+table.error_requests > thead > tr > th, table.error_requests > tbody > tr > td {
     margin: 2px 2px 2px 2px;
 }
 
@@ -59,7 +61,8 @@ table.reports {
     border-collapse: collapse;
 }
 
-table.reports > tbody > tr > td {
+table.reports > tbody > tr > td,
+table.error_requests > tbody > tr > td {
     padding: 4px;
 }
 
