@@ -101,13 +101,20 @@ dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = fu
         getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
         getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
 };
+dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = function () {
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+};
+
+// Rig pumps
 dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
     setCfValue(config.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
         getCfValue(config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
         getCfValue(config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'));
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'] = dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'];
-
 
 // labTestingTT
 dynCalculations[config.labTestingTT + '.LABT_WATER'] = function (tid, tblIdx) {
@@ -201,7 +208,6 @@ dynCalculations[config.consumablesUsageTT + '.CONU_DAILY'] = function (tid, tblI
     });
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES', summ);
 };
-//
 
 // binderUsageTT
 dynCalculations[config.binderUsageTT + '.BU_INITIAL'] = function (tid, tblIdx) {
@@ -260,15 +266,6 @@ dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
     });
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
 };
-//
-
-// binderLbls
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
-        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL');
-    setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
-};
-//
 
 // binderLbsUsedTT
 dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'] = function (tid, tblIdx) {
@@ -277,7 +274,6 @@ dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'] = function (tid, tblIdx) {
     setCfValue(config.dynTT + '.BLU_USED_UNIT', number, tid, tblIdx);
 };
 dynCalculations[config.binderLbsUsedTT + '.BLU_USED'] = dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'];
-//
 
 // equipmentUsageTT
 dynCalculations[config.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
@@ -302,17 +298,6 @@ dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
     setCfValue(config.dynTT + '.RT_DAILY_EQTECH', dailyTotalEquip + dailyTotalTech);
 };
 
-dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
-    dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT']();
-
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
-};
-//
-
 // techniciansUsageTT
 dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, tblIdx) {
     var number = getCfValue(config.techniciansUsageTT + '.TECU_QUANTITY', tid, tblIdx) *
@@ -320,10 +305,55 @@ dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, t
     setCfValue(config.techniciansUsageTT + '.TECU_TOTAL', number, tid, tblIdx);
 };
 dynCalculations[config.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'];
-//
 
-// Other
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'];
+// Running totals
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(config.dynTT + '.RT_PREV_CONSUMABLES', number);
+
+    number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') +
+        getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER');
+    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+};
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_BINDER');
+    setCfValue(config.dynTT + '.RT_PREV_BINDER', number);
+
+    number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') +
+        getCfValue(config.rigMonthReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+};
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
+        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL');
+    setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
+};
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
+    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+
+    number -= getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.dynTT + '.RT_PREV_EQTECH', number);
+};
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(config.dynTT + '.RT_PREV_WHLOFF', number);
+};
+
+dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(config.dynTT + '.RT_PREV', number);
+};
+
+// Daily running totals
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
     var number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
         (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
@@ -334,29 +364,54 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = func
         + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
         + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+
+    number = getCfValue(config.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(config.dynTT + '.RT_TOTAL_CONSUMABLES', number);
 };
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'];
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
+    var number = getCfValue(config.dynTT + '.RT_PREV_BINDER') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(config.dynTT + '.RT_TOTAL_BINDER', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+};
+
+dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+
+    number = getCfValue(config.dynTT + '.RT_PREV_EQTECH') + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+};
+
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.dynTT + '.RT_PREV_WHLOFF') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(config.dynTT + '.RT_TOTAL_WHLOFF', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+};
 
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
     var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
         (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'));
+    if (number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY) {
+        number = 0;
+    }
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
-};
-dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
-dynCalculations[config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'];
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER');
-    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+    number = getCfValue(config.dynTT + '.RT_PREV') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(config.dynTT + '.RT_TOTAL', number);
 };
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'];
-
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
-    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
-};
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
 //
 
 function getCfValue(name, tid, tblIdx) {
@@ -506,7 +561,10 @@ function fillCf(cf, value) {
                 items: 'div',
                 content: 'Locked'
             });
+            cf.obj.empty().append(div);
         } else {
+            cf.obj.empty().append(div);
+
             // Init editable
             div.on('blur keyup paste', function () {
                 if (!isReportEdited && cf.orig_data !== div.text()) {
@@ -569,11 +627,27 @@ function fillCf(cf, value) {
                     cf.obj.css('vertical-align', 'middle');
                     break;
                 }
+                case 'date': {
+                    var input = $('<input />');
+                    input
+                        .attr('type', 'hidden')
+                        .datepicker({
+                            dateFormat: 'mm/dd/yy',
+                            onSelect: function (dateText) {
+                                div.empty().text(dateText);
+                            }
+                        });
+                    input.insertAfter(div);
+                    div.prop('contenteditable', false).text(fromRemoteDate(div.text()));
+                    cf.obj.unbind('click').click(function () {
+                        input.datepicker('show');
+                    });
+                    break;
+                }
             }
         }
 
         cf.obj.data('orig_data', div.text());
-        cf.obj.empty().append(div);
     }
 
     // Subscribe events
@@ -788,11 +862,28 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
+function toRemoteDate(dateStr) {
+    if (dateStr === null || dateStr.length === 0) {
+        return null;
+    }
+
+    var parts = dateStr.split('/');
+    return $.datepicker.formatDate('yy-mm-dd', new Date(parts[2], parts[0] - 1, parts[1]));
+}
+
+function fromRemoteDate(dateStr) {
+    if (dateStr === null || dateStr.length === 0) {
+        return '';
+    }
+
+    var parts = dateStr.split('-');
+    return $.datepicker.formatDate('mm/dd/yy', new Date(parts[0], parts[1] - 1, parts[2]));
+}
+
 function convertEditableCfsToDataObject(cfs) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
-
             if (cf.editable && !isCfLocked(cf)) {
                 var val = cf.obj.children('div[contenteditable]')[0].innerText;
                 if (cf.required && val.length === 0) {
@@ -801,6 +892,11 @@ function convertEditableCfsToDataObject(cfs) {
                 }
 
                 if (cf.orig_data !== val) {
+                    if (cf.type === 'date') {
+                        // Reformat date
+                        val = toRemoteDate(val);
+                    }
+
                     result[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
@@ -924,11 +1020,13 @@ function loadReport(tid) {
         url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
         successCode: 200,
         success: function (response) {
-            rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
             key = response['TRACKOR_KEY'];
+            rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
             projectKey = response[config.projectTT + '.TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
+            fillCfs(rigMonthCfs, response);
+            fillCfs(rigYearCfs, response);
 
             pushRigSiteLoad();
             pushOtherLoad();
@@ -1611,7 +1709,7 @@ var ArrowNavigation = {
     isCtrlPressed: false,
 
     updateCell: function (direction) {
-        $('.active').removeClass('active').find('div[contenteditable]').blur();
+        $('td.active').removeClass('active').find('div[contenteditable]').blur();
 
         var rows = $('#content').find('tr');
         if (this.currentRow > rows.length - 1) {
@@ -1699,12 +1797,25 @@ var ArrowNavigation = {
         }).keyup(function (e) {
             if (e.which === 17) {
                 ArrowNavigation.isCtrlPressed = false;
+            } else if (e.which === 8 || e.which === 46) {
+                var tableCell = $('td.active');
+                tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
             }
         });
     }
 };
 
 $(function () {
+    // http://stackoverflow.com/a/24693866
+    $.datepicker._findPos = function (obj) {
+        var position;
+        if (obj.type === 'hidden') {
+            obj = $(obj).closest('td');
+        }
+        position = $(obj).offset();
+        return [position.left, position.top];
+    };
+
     ApiClient.init();
     ArrowNavigation.init();
     init();
