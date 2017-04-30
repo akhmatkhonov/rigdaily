@@ -100,14 +100,24 @@
 
         <!-- Hidden cfs -->
         <div style="display: none;">
-            <!-- Equipment & Technicians Daily + Cumulative Total -->
+            <!-- Equipment & Technicians Daily -->
             <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
                   data-reload="true"></span>
             <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
                   data-reload="true"></span>
+
+            <!-- Running totals (Month) -->
+            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
+                  data-reload="true"></span>
             <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
                   data-reload="true"></span>
             <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"
                   data-reload="true"></span>
         </div>
     </div>
@@ -1120,7 +1130,7 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false"
+                <span data-cf="Dynamic.RT_TOTAL_CONSUMABLES" data-ed="false"
                       data-t="number" data-reload="true"></span>
             </td>
         </tr>
@@ -1149,7 +1159,7 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
+                <span data-cf="Dynamic.RT_TOTAL_BINDER" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1206,7 +1216,7 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+                <span data-cf="Dynamic.RT_TOTAL_WHLOFF" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1235,7 +1245,7 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false"
+                <span data-cf="Dynamic.RT_TOTAL" data-ed="false"
                       data-t="number" data-reload="true"></span>
             </td>
         </tr>
