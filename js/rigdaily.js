@@ -100,6 +100,8 @@ dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = fu
     setCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED',
         getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
         getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
+
+    dynCalculations[config.dynTT + '.RT_TOTAL']();
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
     dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
@@ -174,6 +176,18 @@ dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
     });
 
     setCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
+};
+
+dynCalculations[config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL') -
+        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
+};
+
+dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
+    var number = getCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
+        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(config.dynTT + '.WHL_TOTAL_TONNAGE', number);
 };
 
 // consumablesUsageTT
@@ -312,23 +326,27 @@ dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] =
         getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
     setCfValue(config.dynTT + '.RT_PREV_CONSUMABLES', number);
 
-    number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') +
-        getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER');
-    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+    number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(config.dynTT + '.PREV', number);
+
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = function () {
     var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_BINDER');
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
     setCfValue(config.dynTT + '.RT_PREV_BINDER', number);
 
-    number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') +
-        getCfValue(config.rigMonthReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+    number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(config.dynTT + '.PREV', number);
+
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 
 dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
-        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL');
+    var number = checkInfinity(getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
+        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'));
     setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
 };
 
@@ -355,11 +373,7 @@ dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL']
 
 // Daily running totals
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
-    var number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(config.dynTT + '.PREV', number);
-
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
         + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
         + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
         + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
@@ -367,6 +381,10 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = func
 
     number = getCfValue(config.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
     setCfValue(config.dynTT + '.RT_TOTAL_CONSUMABLES', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') +
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
     var number = getCfValue(config.dynTT + '.RT_PREV_BINDER') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
@@ -377,6 +395,8 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { //
         + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
         + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 
 dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
@@ -402,17 +422,24 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = funct
 };
 
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
-        (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'));
-    if (number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY) {
-        number = 0;
-    }
+    var number = checkInfinity(getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
+        (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
 
     number = getCfValue(config.dynTT + '.RT_PREV') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
     setCfValue(config.dynTT + '.RT_TOTAL', number);
 };
+
+dynCalculations[config.dynTT + '.RT_TOTAL'] = function () {
+    var number = checkInfinity(getCfValue(config.dynTT + '.RT_TOTAL') /
+        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
+    setCfValue(config.rigMonthReportTT + '.RMR_TOTAL_EST_COST__FT', number);
+};
 //
+
+function checkInfinity(number) {
+    return number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY ? 0 : number;
+}
 
 function getCfValue(name, tid, tblIdx) {
     var cfs = $('[data-cf="' + name + '"]');
@@ -499,7 +526,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'tIdx': tblIdx,
             'orig_data': obj.data('orig_data'),
             'reload': obj.data('reload') + '' === 'true',
-            'forceSubmit': obj.data('forceSubmit') + '' === 'true',
+            'forceSubmit': obj.data('submit') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
             'lockable': obj.data('lockable') + '' === 'true', 'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
@@ -539,7 +566,7 @@ function fillCf(cf, value) {
 
         cf.obj.text(value);
     } else if (cf.type === 'memo') {
-        cf.obj.html(value.replace("\n", '<br>'));
+        cf.obj.html(value !== null ? value.replace("\n", '<br>') : '');
     } else {
         cf.obj.text(value);
     }
@@ -726,6 +753,10 @@ function init() {
         });
         $('[data-cf]').empty();
         $('#content').hide();
+
+        ArrowNavigation.currentRow = 2;
+        ArrowNavigation.currentCell = 1;
+        ArrowNavigation.updateCell();
 
         selectReportLoadPage(selectReportDialog, 1);
     };
@@ -984,8 +1015,9 @@ function startSubmitReport() {
     }
 
     if (requestQueue.length !== 0) {
-        ApiClient.startRequestQueueWork(requestQueue, 'Submitting report data...', function () {
+        ApiClient.startRequestQueueWork(requestQueue, requestQueue.length, 'Submitting report data...', function () {
             isReportEdited = false;
+            // TODO: When submit completed, we should update orig_data values
         });
     } else {
         alertDialog('Nothing to submit');
@@ -1027,6 +1059,9 @@ function loadReport(tid) {
             fillCfs(rigDailyCfs, response);
             fillCfs(rigMonthCfs, response);
             fillCfs(rigYearCfs, response);
+
+            dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
+            dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
 
             pushRigSiteLoad();
             pushOtherLoad();
@@ -1505,7 +1540,9 @@ function loadReport(tid) {
         };
     };
 
-    ApiClient.startRequestQueueWork(requestQueue, 'Loading report data...', function () {
+    ApiClient.startRequestQueueWork(requestQueue, 18, 'Loading report data...', function () {
+        ApiClient.concurrentLimit = 1;
+
         subscribeChangeDynCfs();
         $('#content').show();
     });
