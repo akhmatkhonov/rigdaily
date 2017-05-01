@@ -119,6 +119,11 @@
                   data-reload="true"></span>
             <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"
                   data-reload="true"></span>
+
+            <!-- Waste haul off tonnages -->
+            <span data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Dynamic.PREV_WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></span>
         </div>
     </div>
 
@@ -201,9 +206,9 @@
                 data-cf="Clients.CL_CLIENT_REPRESENTATIVES_CELL" data-ed="false"></td>
             <td colspan=3 class=xl197 style='border-left:none'>Footage Drilled</td>
             <td class=xl89 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_AM_FOOTAGE_DRILLED" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_AM_FOOTAGE_DRILLED" data-ed="false" data-reload="true"></td>
             <td class=xl88 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_PM_FOOTAGE_DRILLED" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_PM_FOOTAGE_DRILLED" data-ed="false" data-reload="true"></td>
         </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
@@ -777,7 +782,7 @@
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-reload="true"></td>
+                data-cf="Dynamic.WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>

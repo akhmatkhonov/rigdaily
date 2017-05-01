@@ -89,6 +89,7 @@ var ApiClient = {
         requestTotalCount: 0,
         requestLeft: 0,
         currentRequest: 0,
+        currentRequestInProgress: 0,
         completeCallback: null,
         message: '',
         sendNextRequest: function () {
@@ -96,18 +97,31 @@ var ApiClient = {
             if (this.requestLeft !== ApiClient.queueRef.length) {
                 var diff = ApiClient.queueRef.length - this.requestLeft;
                 this.requestLeft += diff;
-                this.requestTotalCount += diff;
+                if (diff > this.requestTotalCount) {
+                    this.requestTotalCount = diff;
+                }
             }
 
             var reqOptions = ApiClient.queueRef.shift();
+            if (typeof reqOptions === 'undefined') {
+                if (this.requestLeft === 0 && this.currentRequestInProgress === 0 && !ApiClient.errorDialog.dialog('isOpen')) {
+                    ApiClient.modalLoading.hide();
+                    ApiClient.queueRef = null;
+                    if (typeof this.completeCallback === 'function') {
+                        this.completeCallback();
+                    }
+                }
+
+                return;
+            }
+
+            this.currentRequest++;
+            this.currentRequestInProgress++;
             this.requestLeft--;
 
-            if (typeof reqOptions === 'undefined') {
-                ApiClient.queueRef = null;
-                if (typeof this.completeCallback === 'function') {
-                    this.completeCallback();
-                }
-                return;
+            // Show modal loading if error dialog is not open
+            if (!ApiClient.errorDialog.dialog('isOpen')) {
+                ApiClient.modalLoading.show(this.message + ' ' + parseInt(100 * this.currentRequest / this.requestTotalCount) + '%');
             }
 
             var newOptions = {};
@@ -115,27 +129,36 @@ var ApiClient = {
                 newOptions['url'] = reqOptions['url']();
             }
             newOptions['error'] = function () {
+                // Hide modal loading
+                ApiClient.modalLoading.hide();
                 ApiClient.queue.currentRequest--;
-            };
-            newOptions['beforeSend'] = function () {
-                ApiClient.queue.currentRequest--;
+                ApiClient.currentRequestInProgress--;
             };
             newOptions['success'] = function (response, textStatus, jqXHR) {
                 if (typeof reqOptions['success'] === 'function') {
                     reqOptions['success'](response, textStatus, jqXHR);
                 }
+
+                ApiClient.queue.currentRequestInProgress--;
                 ApiClient.queue.sendNextRequest();
             };
-            newOptions['modalLoadingMessage'] = this.message + ' ' + parseInt(100 * ++this.currentRequest / this.requestTotalCount) + '%';
+            newOptions['isShowModalLoading'] = false;
+            newOptions['isHideModalLoading'] = false;
 
             ApiClient.doRequest($.extend({}, reqOptions, newOptions));
+
+            if (this.currentRequestInProgress < ApiClient.concurrentLimit) {
+                console.log('Starting parallel request');
+                this.sendNextRequest();
+            }
         }
     },
-    startRequestQueueWork: function (requestQueue, message, completeCallback) {
+    startRequestQueueWork: function (requestQueue, requestTotalCount, message, completeCallback) {
         this.queueRef = requestQueue;
-        this.queue.requestTotalCount = requestQueue.length;
+        this.queue.requestTotalCount = requestTotalCount;
         this.queue.requestLeft = requestQueue.length;
         this.queue.currentRequest = -1;
+        this.queue.currentRequestInProgress = 0;
         this.queue.message = message;
         this.queue.completeCallback = completeCallback;
         this.queue.sendNextRequest();
