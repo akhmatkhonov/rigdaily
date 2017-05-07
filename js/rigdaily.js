@@ -1558,9 +1558,9 @@ function selectReportLoadPage(selectReportDialog, page) {
     ];
     var sort = [
         config.rigSiteTT + '.TRACKOR_KEY:desc',
-        'RDR_REPORT_DAY:desc',
+        config.rigYearReportTT + '.RYR_REPORT_YEAR:desc',
         config.rigMonthReportTT + '.RMR_REPORT_MONTH:desc',
-        config.rigYearReportTT + '.RYR_REPORT_YEAR:desc'
+        'RDR_REPORT_DAY:desc'
     ];
 
     var siteFilter = selectReportDialog.find('select.site');
