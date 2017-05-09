@@ -184,7 +184,11 @@ dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
     });
 
     setCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
+    newValue *= getCfValue(config.rigDailyReportTT + '.RDR_WHOU_COST_TON');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL', newValue);
 };
+
+dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'];
 
 dynCalculations[config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
     var number = getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL') -
