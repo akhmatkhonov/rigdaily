@@ -1230,7 +1230,7 @@ function loadReport(tid) {
             url: function () {
                 var fields = Object.keys(holeDesignAndVolumeCfs);
                 return '/api/v3/trackor_types/' + config.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                    '&' + config.rigSiteTT + '.TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
             },
             successCode: 200,
             success: function (response) {
