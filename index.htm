@@ -123,7 +123,6 @@
             <!-- Waste haul off tonnages -->
             <span data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Dynamic.PREV_WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></span>
         </div>
     </div>
 
@@ -745,7 +744,7 @@
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td class=xl226 style='border-top:none;border-left:none'>Daily</td>
             <td class=xl227 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_DAILY_TOTAL_TONNAGE" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_DAILY_TOTAL_TONNAGE" data-t="number" data-ed="false"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -782,7 +781,7 @@
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Dynamic.WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></td>
+                data-cf="Dynamic.PREV_WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -819,7 +818,7 @@
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl293 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number" data-ed="false" data-submit="true"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -865,15 +864,17 @@
             <td class=xl165 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DRILING_FLUID_MUD" data-t="number"></td>
             <td class=xl237 style='border-top:none;border-left:none'>Cost / Ton</td>
-            <td class=xl238 style='border-top:none;border-left:none'>
+            <td class=xl168 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
                 <span style="float: right; margin-right: 5px"
                       data-cf="Rig_Daily_Report.RDR_WHOU_COST_TON" data-t="number"></span>
             </td>
-            <td class=xl163 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2"></td>
-            <td class=xl163 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
+            <td class=xl168 style='border-top:none;border-left:none'></td>
+            <td class=xl168 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span style="float: right; margin-right: 5px"
+                      data-cf="Dynamic.WHL_DAILY_TOTAL" data-t="number" data-ed="false"></span>
+            </td>
             <td class=xl163 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3"></td>
             <td class=xl163 style='border-top:none;border-left:none'

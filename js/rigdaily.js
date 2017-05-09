@@ -199,7 +199,7 @@ dynCalculations[config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'] = fun
 dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
     var number = getCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
         getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(config.dynTT + '.WHL_TOTAL_TONNAGE', number);
+    setCfValue(config.rigDailyReportTT + '.RDR_WHOU_TOTAL_LOADS_TO_DATE', number);
 };
 
 // consumablesUsageTT
@@ -423,7 +423,10 @@ dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
 };
 
 dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.dynTT + '.RT_PREV_WHLOFF') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(config.dynTT + '.WHL_DAILY_TOTAL', number);
+
+    number += getCfValue(config.dynTT + '.RT_PREV_WHLOFF');
     setCfValue(config.dynTT + '.RT_TOTAL_WHLOFF', number);
 
     number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
@@ -1398,7 +1401,7 @@ function loadReport(tid) {
             },
             successCode: 200,
             success: function (response) {
-                $.each(response, function (idx, elem) {
+                $.each(response.splice(0, 22), function (idx, elem) {
                     saveTid(config.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
 
                     var tblIdxIdx;
@@ -1409,7 +1412,7 @@ function loadReport(tid) {
                         tblIdxIdx = 0;
                         startIdx = 4;
                         endIdx = 5;
-                    } else if (idx >= 7 && idx <= 14) {
+                    } else if (idx >= 7 && idx <= 13) {
                         tblIdxIdx = 1;
                         startIdx = 6;
                         endIdx = 7;
