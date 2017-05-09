@@ -41,7 +41,7 @@ td.active {
 }
 
 .required_error {
-    border: 2px solid red !important;
+    outline: 2px solid red !important;
 }
 
 table.reports, table.error_requests {    margin-top: 10px;

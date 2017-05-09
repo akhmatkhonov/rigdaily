@@ -87,6 +87,11 @@ function RequiredFieldsNotPresentException(focusObj) {
     this.focusObj = focusObj;
 }
 
+function FieldValidateFailedException(message, name, tid, tblIdx) {
+    this.message = message;
+    this.focusObj = findCf(name, tid, tblIdx).children('div[contenteditable]');
+}
+
 // Dynamic calculating cells
 var dynCalculations = {};
 
@@ -95,6 +100,9 @@ dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = fu
     setCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED',
         getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH') -
         getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH'));
+
+    setCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH',
+        getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'));
 };
 dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
     setCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED',
@@ -437,19 +445,41 @@ dynCalculations[config.dynTT + '.RT_TOTAL'] = function () {
 };
 //
 
+// Field validators
+var fieldValidators = {};
+fieldValidators[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
+    var prevDepth = getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH');
+    var currentDepth = getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
+    if (prevDepth > currentDepth) {
+        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
+    }
+};
+fieldValidators[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
+    var prevDepth = getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH');
+    var currentDepth = getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+    if (prevDepth > currentDepth) {
+        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+    }
+};
+//
+
 function checkInfinity(number) {
     return number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY ? 0 : number;
 }
 
-function getCfValue(name, tid, tblIdx) {
+function findCf(name, tid, tblIdx) {
     var cfs = $('[data-cf="' + name + '"]');
-
     if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
         cfs = cfs.filter(function () {
             var cf = $(this);
             return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
         });
     }
+    return cfs;
+}
+
+function getCfValue(name, tid, tblIdx) {
+    var cfs = findCf(name, tid, tblIdx);
 
     if (cfs.length === 0) {
         return null;
@@ -463,14 +493,7 @@ function getCfValue(name, tid, tblIdx) {
 }
 
 function setCfValue(name, value, tid, tblIdx) {
-    var cfs = $('[data-cf="' + name + '"]');
-
-    if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
-        cfs = cfs.filter(function () {
-            var cf = $(this);
-            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
-        });
-    }
+    var cfs = findCf(name, tid, tblIdx);
 
     var dataType = cfs.data('t');
     if (dataType === 'number') {
@@ -911,7 +934,7 @@ function fromRemoteDate(dateStr) {
     return $.datepicker.formatDate('mm/dd/yy', new Date(parts[0], parts[1] - 1, parts[2]));
 }
 
-function convertEditableCfsToDataObject(cfs) {
+function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
@@ -920,6 +943,10 @@ function convertEditableCfsToDataObject(cfs) {
                 if (cf.required && val.length === 0) {
                     var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
                     throw new RequiredFieldsNotPresentException(focusObj);
+                }
+
+                if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
+                    fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
                 }
 
                 if (cf.orig_data !== val) {
@@ -994,7 +1021,7 @@ function startSubmitReport() {
                         });
                         if (parent.length !== 0) {
                             var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
-                            var data = convertEditableCfsToDataObject(cfs);
+                            var data = convertEditableCfsToDataObject(cfs, tid, isTblIdxObject ? tblIdx : undefined);
                             makeRequests(tid, data, cfs);
                         }
                     });
@@ -1006,11 +1033,23 @@ function startSubmitReport() {
             }
         });
     } catch (e) {
-        if (e instanceof RequiredFieldsNotPresentException) {
-            alertDialog(e.message, function () {
-                e.focusObj.focus();
-            });
+        if (e instanceof RequiredFieldsNotPresentException || e instanceof FieldValidateFailedException) {
+            ArrowNavigation.setActiveCellRowTo(e.focusObj.closest('td'));
+            e.focusObj.focus().tooltip({
+                items: 'div',
+                content: e.message,
+                open: function (event, ui) {
+                    $(ui.tooltip).mousemove(function () {
+                        e.focusObj.tooltip('close');
+                    });
+                },
+                close: function () {
+                    e.focusObj.tooltip('destroy');
+                }
+            }).trigger('mouseover');
             return;
+        } else {
+            throw e;
         }
     }
 
