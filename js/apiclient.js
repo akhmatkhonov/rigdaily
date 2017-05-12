@@ -1,6 +1,30 @@
 'use strict';
 
 var ApiClient = {
+    DateUtils: {
+        monthNames: ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'],
+        remoteDateToObj: function (remoteDateStr) {
+            if (remoteDateStr === null || remoteDateStr.length === 0) {
+                return null;
+            }
+
+            var parts = remoteDateStr.split('-');
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        },
+        formatDate: function (dateObj) {
+            return dateObj !== null ? $.datepicker.formatDate('mm/dd/yy', dateObj) : '';
+        },
+        objToRemoteDate: function (dateObj) {
+            if (dateObj === null) {
+                return null;
+            }
+            return $.datepicker.formatDate('yy-mm-dd', dateObj);
+        },
+        objGetMonthName: function (dateObj) {
+            return this.monthNames[dateObj.getMonth()];
+        }
+    },
     endpoint: null,
 
     credentials: {

@@ -4,8 +4,6 @@ ApiClient.endpoint = 'https://energy.onevizion.com';
 
 var config = {
     rigDailyReportTT: 'Rig_Daily_Report',
-    rigMonthReportTT: 'Rig_Month_Report',
-    rigYearReportTT: 'Rig_Year_Report',
     rigSiteTT: 'Rig_Site',
     clientsTT: 'Clients',
     workersTT: 'Workers',
@@ -15,13 +13,11 @@ var config = {
     apiScreenSizeTT: 'Api_Screen_Size',
     fieldTestingTT: 'Field_Testing',
     retortsTT: 'Retorts',
-    wasteHaulOffTT: 'Waste_Haul_Off',
     wasteHaulOffUsageTT: 'Waste_Haul_Off_Usage',
     consumablesUsageTT: 'Consumables_Usage',
     consumablesTT: 'Consumables',
     binderTT: 'Binder',
     binderUsageTT: 'Binder_Usage',
-    binderLbsUsedTT: 'Binder_Lbs_Used',
     equipmentTT: 'Equipment',
     equipmentUsageTT: 'Equipment_Usage',
     techniciansUsageTT: 'Technicians_Usage',
@@ -52,35 +48,6 @@ var loseDataMessage = 'You will lose any unsaved data. Continue?';
 var isReportEdited = false;
 var tids = {};
 var locks = {};
-
-function getRigMonthIndex(name) {
-    switch (name) {
-        case 'January':
-            return 1;
-        case 'February':
-            return 2;
-        case 'March':
-            return 3;
-        case 'April':
-            return 4;
-        case 'May':
-            return 5;
-        case 'June':
-            return 6;
-        case 'July':
-            return 7;
-        case 'August':
-            return 8;
-        case 'September':
-            return 9;
-        case 'October':
-            return 10;
-        case 'November':
-            return 11;
-        case 'December':
-            return 12;
-    }
-}
 
 function RequiredFieldsNotPresentException(focusObj) {
     this.message = 'Required fields not present!';
@@ -923,24 +890,6 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
-function toRemoteDate(dateStr) {
-    if (dateStr === null || dateStr.length === 0) {
-        return null;
-    }
-
-    var parts = dateStr.split('/');
-    return $.datepicker.formatDate('yy-mm-dd', new Date(parts[2], parts[0] - 1, parts[1]));
-}
-
-function fromRemoteDate(dateStr) {
-    if (dateStr === null || dateStr.length === 0) {
-        return '';
-    }
-
-    var parts = dateStr.split('-');
-    return $.datepicker.formatDate('mm/dd/yy', new Date(parts[0], parts[1] - 1, parts[2]));
-}
-
 function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
@@ -1598,15 +1547,11 @@ function selectReportLoadPage(selectReportDialog, page) {
     var fields = [
         'TRACKOR_KEY',
         config.rigSiteTT + '.TRACKOR_KEY',
-        'RDR_REPORT_DAY',
-        config.rigMonthReportTT + '.RMR_REPORT_MONTH',
-        config.rigYearReportTT + '.RYR_REPORT_YEAR'
+        'RDR_REPORT_DATE'
     ];
     var sort = [
         config.rigSiteTT + '.TRACKOR_KEY:desc',
-        config.rigYearReportTT + '.RYR_REPORT_YEAR:desc',
-        config.rigMonthReportTT + '.RMR_REPORT_MONTH:desc',
-        'RDR_REPORT_DAY:desc'
+        'RDR_REPORT_DATE:desc'
     ];
 
     var siteFilter = selectReportDialog.find('select.site');
@@ -1638,19 +1583,15 @@ function selectReportLoadPage(selectReportDialog, page) {
                 tr.click(function () {
                     $('span.site').empty().text(obj[config.rigSiteTT + '.TRACKOR_KEY']);
 
-                    setCfValue(config.dynTT + '.REPORT_DATE',
-                        getRigMonthIndex(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']) + '/' +
-                        obj['RDR_REPORT_DAY'] + '/' +
-                        obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']);
-
                     selectReportDialog.dialog('close');
                     loadReport(tid);
                 });
 
                 $('<td></td>').text(obj[config.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
-                $('<td></td>').text(obj['RDR_REPORT_DAY']).appendTo(tr);
-                $('<td></td>').text(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']).appendTo(tr);
-                $('<td></td>').text(obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']).appendTo(tr);
+                var reportDate = ApiClient.DateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
+                $('<td></td>').text(reportDate.getUTCDate() + 1).appendTo(tr);
+                $('<td></td>').text(ApiClient.DateUtils.objGetMonthName(reportDate)).appendTo(tr);
+                $('<td></td>').text(reportDate.getUTCFullYear()).appendTo(tr);
 
                 var link = $('<a>Open</a>').attr('href', 'javascript:void(0)');
                 $('<td></td>').append(link).appendTo(tr);
