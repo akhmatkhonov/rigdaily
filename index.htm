@@ -107,21 +107,21 @@
                   data-reload="true"></span>
 
             <!-- Running totals (Month) -->
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"
                   data-reload="true"></span>
 
             <!-- Waste haul off tonnages -->
-            <span data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-t="number"
                   data-reload="true"></span>
         </div>
     </div>
@@ -152,7 +152,7 @@
             <td style='height:15.0pt'></td>
             <td class=xl85 style='border-top:none'>Date</td>
             <td colspan=2 class=xl360 style='border-left:none'
-                data-cf="Dynamic.REPORT_DATE" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_REPORT_DATE" data-ed="false"></td>
             <td colspan=5 rowspan=2 class=xl361
                 style='border-bottom:.5pt solid black;font-size: 17pt;letter-spacing: 5px;color: white; font-weight: normal'>
                 RIG DAILY
@@ -165,7 +165,7 @@
             <td colspan=2 class=xl367 style='border-left:none'
                 data-cf="Rig_Daily_Report.RDR_TIME_OF_CREATION" data-ed="false"></td>
             <td colspan=2 class=xl372 style='border-right:1.0pt solid black'
-                data-cf="Rig_Daily_Report.RDR_REPORT_DAY" data-ed="false"></td>
+                data-cf="Dynamic.REPORT_DAY" data-ed="false"></td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
@@ -987,7 +987,7 @@
                       data-cf="Binder_Usage.Binder.BIND_COST" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl166 style='border-top:none;border-left:none'
-                data-cf="Binder_Usage.BU_INITIAL" data-t="number"></td>
+                data-cf="Binder_Usage.BU_INITIAL" data-t="number" data-ed="false"></td>
             <td class=xl167 style='border-top:none;border-left:none'
                 data-cf="Binder_Usage.BU_DELIVERED" data-t="number"></td>
             <td class=xl126 style='border-top:none;border-left:none'
@@ -1012,13 +1012,13 @@
             <td style='height:15.0pt'></td>
             <td class=xl196 style='border-top:none'>Binder Lbs Used</td>
             <td class=xl96 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu1"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu1"></td>
             <td class=xl96 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu2"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu2"></td>
             <td class=xl96 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu3"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu3"></td>
             <td class=xl188 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu4"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu4"></td>
             <td class=xl193 style='border-top:none;border-left:none'>Cumulative Total Lbs</td>
             <td class=xl138 style='border-top:none;border-left:none'>Lbs / Ton</td>
             <td colspan=2 class=xl193 style='border-left:none'>Previous</td>
@@ -1028,47 +1028,23 @@
         <tr style='height:15.0pt' class="binderLbsUsedUnitBaseRow baseRow">
             <td style='height:15.0pt'></td>
             <td class=xl139 style='border-top:none'></td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu1"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu1"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu1"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu1">
             </td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu2"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu2"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu2"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu2">
             </td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu3"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu3"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu3"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu3">
             </td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu4"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu4"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu4"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu4">
             </td>
             <td class=xl140 style='border-top:none;border-left:none'
-                data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER_LBS" data-ed="false" data-t="number"
+                data-cf="Project.PR_CUMULATIVE_TOTAL_BINDER_LBS" data-ed="false" data-t="number"
                 data-reload="true"></td>
             <td class=xl141 style='border-top:none;border-left:none'
-                data-cf="Rig_Month_Report.RMR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
+                data-cf="Project.PR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
             <td colspan=2 class=xl288 width=148 style='border-right:.5pt solid black; border-left:none;width:111pt'>
                 Cumulative Total
             </td>
@@ -1276,7 +1252,7 @@
             </td>
             <td colspan=2 class=xl282 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"
+                <span data-cf="Project.PR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>

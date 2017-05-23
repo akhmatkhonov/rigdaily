@@ -36,8 +36,7 @@ configTblIdxs[config.fieldTestingTT] = ['ftam', 'ftpm'];
 configTblIdxs[config.retortsTT] = 'rtrs';
 configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
 configTblIdxs[config.consumablesUsageTT] = 'cu';
-configTblIdxs[config.binderUsageTT] = 'bu';
-configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
+configTblIdxs[config.binderUsageTT] = ['bu', 'blu1', 'blu2', 'blu3', 'blu4'];
 configTblIdxs[config.equipmentUsageTT] = 'equ';
 configTblIdxs[config.techniciansUsageTT] = 'tecu';
 configTblIdxs[config.supplyRequestTT] = 'sr';
@@ -157,8 +156,8 @@ dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
 
 dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'];
 
-dynCalculations[config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL') -
+dynCalculations[config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL') -
         getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
     setCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
 };
@@ -238,9 +237,9 @@ dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
     var binderLbsUsedTid;
     var binderLbsUsedTblIdx;
 
-    $.each(configTblIdxs[config.binderLbsUsedTT], function (idx, tblIdx) {
+    $.each(configTblIdxs[config.binderUsageTT].slice(1), function (idx, tblIdx) {
         var tblIdxTid = baseRowData['tid_' + tblIdx];
-        if (getCfValue(config.binderLbsUsedTT + '.' + config.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
+        if (getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
             binderLbsUsedTid = tblIdxTid;
             binderLbsUsedTblIdx = tblIdx;
             return false;
@@ -248,8 +247,8 @@ dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
     });
 
     if (binderLbsUsedTid && binderLbsUsedTblIdx) {
-        setCfValue(config.binderLbsUsedTT + '.BLU_UNIT', unit, binderLbsUsedTid, binderLbsUsedTblIdx);
-        setCfValue(config.binderLbsUsedTT + '.BLU_USED', used, binderLbsUsedTid, binderLbsUsedTblIdx);
+        var number = used * unit;
+        setCfValue(config.binderUsageTT + '.BU_BINDER_LBS_USED', number, binderLbsUsedTid, binderLbsUsedTblIdx);
     }
 };
 dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
@@ -259,14 +258,6 @@ dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
     });
     setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
 };
-
-// binderLbsUsedTT
-dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'] = function (tid, tblIdx) {
-    var number = getCfValue(config.binderLbsUsedTT + '.BLU_UNIT', tid, tblIdx) +
-        getCfValue(config.binderLbsUsedTT + '.BLU_USED', tid, tblIdx);
-    setCfValue(config.dynTT + '.BLU_USED_UNIT', number, tid, tblIdx);
-};
-dynCalculations[config.binderLbsUsedTT + '.BLU_USED'] = dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'];
 
 // equipmentUsageTT
 dynCalculations[config.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
@@ -300,52 +291,52 @@ dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, t
 dynCalculations[config.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'];
 
 // Running totals
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') -
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') -
         getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
     setCfValue(config.dynTT + '.RT_PREV_CONSUMABLES', number);
 
-    number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
+    number = (getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
         (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
     setCfValue(config.dynTT + '.PREV', number);
 
     dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER') -
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER') -
         getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
     setCfValue(config.dynTT + '.RT_PREV_BINDER', number);
 
-    number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
+    number = (getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
         (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
     setCfValue(config.dynTT + '.PREV', number);
 
     dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
-    var number = checkInfinity(getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
-        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'));
-    setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
+    var number = checkInfinity(getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS') /
+        getCfValue(config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'));
+    setCfValue(config.projectTT + '.PR_LBS__TONS', number);
 };
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS');
     setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
 
     number -= getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
     setCfValue(config.dynTT + '.RT_PREV_EQTECH', number);
 };
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'];
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL') -
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL') -
         getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
     setCfValue(config.dynTT + '.RT_PREV_WHLOFF', number);
 };
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
         getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
     setCfValue(config.dynTT + '.RT_PREV', number);
 };
@@ -415,7 +406,7 @@ dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = fu
 dynCalculations[config.dynTT + '.RT_TOTAL'] = function () {
     var number = checkInfinity(getCfValue(config.dynTT + '.RT_TOTAL') /
         getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
-    setCfValue(config.rigMonthReportTT + '.RMR_TOTAL_EST_COST__FT', number);
+    setCfValue(config.projectTT + '.PR_TOTAL_EST_COST__FT', number);
 };
 //
 
@@ -463,7 +454,13 @@ function getCfValue(name, tid, tblIdx) {
 
     var dataType = cfs.data('t');
     var value = cfs[0].innerText.trim();
-    return dataType === 'number' ? parseFloat(value) : value;
+    if (dataType === 'number') {
+        value = parseFloat(value);
+        if (isNaN(value)) {
+            value = 0;
+        }
+    }
+    return value;
 }
 
 function setCfValue(name, value, tid, tblIdx) {
@@ -662,7 +659,7 @@ function fillCf(cf, value) {
                             }
                         });
                     input.insertAfter(div);
-                    div.prop('contenteditable', false).text(fromRemoteDate(div.text()));
+                    div.prop('contenteditable', false).text(ApiClient.DateUtils.remoteDateFormat(div.text()));
                     cf.obj.unbind('click').click(function () {
                         input.datepicker('show');
                     });
@@ -908,7 +905,8 @@ function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
                 if (cf.orig_data !== val) {
                     if (cf.type === 'date') {
                         // Reformat date
-                        val = toRemoteDate(val);
+                        var dateObj = ApiClient.DateUtils.localDateToObj(val);
+                        val = ApiClient.DateUtils.objToRemoteDate(dateObj);
                     }
 
                     result[cf.name] = val;
@@ -1032,16 +1030,12 @@ function loadReport(tid) {
 
     // rigDaily
     var rigDailyCfs = getConfigFields(config.rigDailyReportTT);
-    var rigMonthCfs = getConfigFields(config.rigMonthReportTT, undefined, undefined, true);
-    var rigYearCfs = getConfigFields(config.rigYearReportTT, undefined, undefined, true);
     var fields = [
         'TRACKOR_KEY',
         config.rigSiteTT + '.TRACKOR_KEY',
         config.projectTT + '.TRACKOR_KEY'
     ];
     fields = fields.concat(Object.keys(rigDailyCfs));
-    fields = fields.concat(Object.keys(rigMonthCfs));
-    fields = fields.concat(Object.keys(rigYearCfs));
 
     requestQueue.push({
         url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
@@ -1052,8 +1046,6 @@ function loadReport(tid) {
             projectKey = response[config.projectTT + '.TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
-            fillCfs(rigMonthCfs, response);
-            fillCfs(rigYearCfs, response);
 
             dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
             dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
@@ -1406,51 +1398,37 @@ function loadReport(tid) {
         // binderUsageTT
         var binderUsageBaseRow = $('tr.binderUsageBaseRow');
         var binderUsageBaseRowCfs = getConfigFields(config.binderUsageTT, binderUsageBaseRow);
+        var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
+        var binderLbsUsedBaseRowCfs = getConfigFields(config.binderUsageTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderUsageTT][1]);
+        var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
+        var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderUsageTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderUsageTT][1]);
 
         requestQueue.push({
             url: function () {
                 var fields = Object.keys(binderUsageBaseRowCfs);
+                fields = fields.concat(Object.keys(binderLbsUsedBaseRowCfs));
+                fields = fields.concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
+
                 return '/api/v3/trackor_types/' + config.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
                     '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
-                $.each(response, function (idx, elem) {
+                $.each(response.splice(0, 4), function (idx, elem) {
                     saveTid(config.binderUsageTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.binderUsageTT], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
+                    var row = appendSubtableRow(configTblIdxs[config.binderUsageTT][0], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
                     var rowCfs = getConfigFields(config.binderUsageTT, row);
                     fillCfs(rowCfs, elem);
-                });
-            }
-        });
 
-        // binderUsageTT
-        // binderLbsUsedTT
-        var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
-        var binderLbsUsedBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderLbsUsedTT][0]);
-        var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
-        var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderLbsUsedTT][0]);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(binderLbsUsedBaseRowCfs).concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
-                return '/api/v3/trackor_types/' + config.binderLbsUsedTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.binderLbsUsedTT, elem['TRACKOR_ID'], false);
-                    saveTid(config.dynTT, elem['TRACKOR_ID'], false);
-
-                    var tblIdx = configTblIdxs[config.binderLbsUsedTT][idx];
+                    // binderLbs
+                    var tblIdx = configTblIdxs[config.binderUsageTT].slice(1)[idx];
                     var tdIdxs = 2 + idx;
 
                     var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
                     var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
-                    var row1Cfs = getConfigFields(config.binderLbsUsedTT, row1, tblIdx);
-                    var row2Cfs = getConfigFields(config.binderLbsUsedTT, row2, tblIdx);
+                    var row1Cfs = getConfigFields(config.binderUsageTT, row1, tblIdx);
+                    var row2Cfs = getConfigFields(config.binderUsageTT, row2, tblIdx);
 
                     fillCfs(row1Cfs, elem);
                     fillCfs(row2Cfs, elem);
