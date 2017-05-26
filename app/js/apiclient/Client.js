@@ -1,7 +1,9 @@
 function ApiClient(endpoint) {
     this.loadingUi = new ApiClientLoadingUI();
-    this.authUi = new ApiClientAuthUI(this, this.setCredentials, endpoint);
-    this.errorQueueUi = new ApiClientErrorQueueUI();
+    this.authUi = new ApiClientAuthUI(this, (function (username, password) {
+        this.setCredentials(username, password);
+    }).bind(this), endpoint);
+    this.errorQueueUi = new ApiClientErrorQueueUI(this);
     this.credentials = {
         username: null,
         encoded: null
@@ -22,13 +24,17 @@ ApiClient.prototype.resetCredentials = function () {
     this.credentials.username = null;
     this.credentials.encoded = null;
 };
+ApiClient.prototype.isEmptyCredentials = function () {
+    return this.credentials.username === null;
+};
 ApiClient.prototype.request = function (options) {
-    if (this.credentials.username === null) {
+    if (this.isEmptyCredentials()) {
         this.handleUnauthorized(options);
         return;
     }
-    var exOptions = $.extend({}, options.getProperties(), {
+    var responseData, exOptions = $.extend({}, options.getProperties(), {
         url: this.endpoint + options.getUrl(),
+        async: true,
         beforeSend: (function (jqXHR) {
             jqXHR.setRequestHeader('Authorization', 'Basic ' + this.credentials.encoded);
 
@@ -36,19 +42,30 @@ ApiClient.prototype.request = function (options) {
                 this.loadingUi.showLoading(options.modalLoadingMessage);
             }
         }).bind(this),
+        success: function (data) {
+            responseData = data;
+        },
         complete: (function () {
             if (options.autoModalLoadingControl) {
                 this.loadingUi.hideLoading();
             }
+
             if (!this.handleUnauthorized(options) && !this.handleNotSuccessCode(options)) {
-                options.requestSuccess();
+                options.requestSuccess(responseData);
+            }
+
+            if (typeof options.complete === 'function') {
+                options.complete();
             }
         }).bind(this)
     });
-    options.setXHR($.ajax(exOptions));
+
+    var xhr = $.ajax(exOptions);
+    options.setXHR(xhr);
+    return xhr;
 };
 ApiClient.prototype.handleUnauthorized = function (options) {
-    if (options.getXHR() === null || options.getXHR().status === 401) {
+    if (this.authUi.canShow && (options.getXHR() === null || options.getXHR().status === 401)) {
         this.resetCredentials();
 
         this.authUi.push(options);

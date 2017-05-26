@@ -1,22 +1,27 @@
-function ApiClientErrorQueueUI() {
-    this.queue = [];
-
+function ApiClientErrorQueueUI(client) {
     // Init error dialog
     this.handle = $('#apiClientErrorDialog');
     this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
     this.handle.find('button.retry').button().click((function () {
         this.handle.dialog('close');
         this.tbodyHandle.children().each(function (idx, tr) {
-            // TODO: replay all
-            //$(tr).data('requestOptions')
+            var options = $(tr).data('requestOptions');
+            if (options.queue !== null) {
+                options.queue.push(options);
+                options.queue.erroredRequests--;
+                options.queue.processNext();
+            } else {
+                client.request(options);
+            }
         });
-        this.tbodyHandle.empty();
+        this.tbodyHandle.children().remove();
     }).bind(this));
     this.tbodyHandle = this.handle.find('table.error_requests tbody');
-    this.progressHandle = this.handle.find('span.progress');
 }
 ApiClientErrorQueueUI.prototype.push = function (options) {
-    this.queue.push(options);
+    if (options.queue !== null) {
+        options.queue.erroredRequests++;
+    }
 
     var fullUrl = options.getUrl();
     var shortUrlPos = fullUrl.indexOf('?');
@@ -28,18 +33,21 @@ ApiClientErrorQueueUI.prototype.push = function (options) {
     var span = $('<span></span>').text(shortUrl);
     span.tooltip({
         items: 'span',
-        content: 'Full URL: ' + fullUrl
+        content: 'Full URL: ' + fullUrl,
+        tooltipClass: 'errorTooltip'
     });
     tr.append($('<td />').append(span));
     tr.append($('<td />').text(options.getXHR().status));
 
+    var xhrMessage = typeof options.getXHR().responseText !== 'undefined' ? options.getXHR().responseText : 'No content';
     var message = 'Resolved ' + options.getXHR().status + ' code, required ' + options.successCode;
     var messageSpan = $('<span></span>').text(message);
     messageSpan.tooltip({
         items: 'span',
-        content: options.getXHR().responseText
+        content: xhrMessage,
+        tooltipClass: 'errorTooltip'
     });
-    tr.append($('<td />').text(messageSpan));
+    tr.append($('<td />').append(messageSpan));
     this.tbodyHandle.append(tr);
 
     if (!this.handle.dialog('isOpen')) {

@@ -22,5 +22,5 @@ requirejs(['jquery', 'jquery-ui.min', 'apiclient', 'rigdaily'], function () {
     });
 
     console.log('Rig Daily init start');
-    var rigDaily = new RigDaily();
+    window.rigDaily = new RigDaily();
 });

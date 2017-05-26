@@ -1,5 +1,7 @@
 function ApiClientLoadingUI() {
-    $(window).resize(this.recalcPosition);
+    $(window).resize((function () {
+        this.recalcPosition();
+    }).bind(this));
     this.handle = $('.apiClientModalLoading');
 }
 ApiClientLoadingUI.prototype.hideLoading = function () {
@@ -19,4 +21,7 @@ ApiClientLoadingUI.prototype.recalcPosition = function () {
 };
 ApiClientLoadingUI.prototype.setMessage = function (message) {
     this.handle.children('span').html(message);
+};
+ApiClientLoadingUI.prototype.isShown = function () {
+    return $('body').hasClass('loading');
 };

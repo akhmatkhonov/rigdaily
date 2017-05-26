@@ -4,7 +4,9 @@ function ApiClientRequestQueue(client, message, totalRequests, showPercentComple
     this.totalRequests = totalRequests;
     this.showPercentComplete = showPercentComplete;
     this.queue = [];
-    this.inProgress = false;
+    this.inProgressRequests = 0;
+    this.erroredRequests = 0;
+    this.completeRequests = 0;
     this.successCallback = null;
     this.concurrentLimit = concurrentLimit;
     this.xhr = null;
@@ -17,6 +19,66 @@ ApiClientRequestQueue.prototype.push = function (options) {
     this.queue.push(options);
     return this;
 };
+ApiClientRequestQueue.prototype.isEmpty = function () {
+    return this.queue.length === 0;
+};
 ApiClientRequestQueue.prototype.start = function () {
-    // TODO: start processing queue
+    this.inProgressRequests = 0;
+    this.erroredRequests = 0;
+    this.completeRequests = 0;
+    this.processNext();
+};
+ApiClientRequestQueue.prototype.processNext = function () {
+    var options = this.queue.shift();
+    if (typeof options === 'undefined') {
+        if (typeof this.successCallback === 'function' &&
+            this.inProgressRequests === 0 && this.erroredRequests === 0) {
+            this.client.loadingUi.hideLoading();
+            try {
+                this.successCallback();
+            } catch (e) {
+                console.error(e.message);
+            }
+        }
+        return;
+    }
+
+    this.inProgressRequests++;
+
+    if (!this.client.errorQueueUi.isOpen() && !this.client.loadingUi.isShown()) {
+        this.client.loadingUi.showLoading(this.message);
+    }
+
+    options.complete = (function () {
+        if (this.erroredRequests !== 0) {
+            this.client.loadingUi.hideLoading();
+        }
+
+        this.inProgressRequests--;
+        this.processNext();
+    }).bind(this);
+    if (!options.queueSuccessCallbackSet) {
+        options.queueSuccessCallbackSet = true;
+        var successCallback = options.success;
+        options.success = (function (data) {
+            this.completeRequests++;
+            if (this.showPercentComplete && this.client.loadingUi.isShown()) {
+                var percent = parseInt(this.completeRequests / this.totalRequests * 100);
+                if (percent > 100) {
+                    percent = 100;
+                }
+                this.client.loadingUi.showLoading(this.message + ' ' + percent + '%');
+            }
+            console.log('Queue request success (' + this.completeRequests + ' of ' + this.totalRequests + ' assumed)');
+            if (typeof successCallback === 'function') {
+                successCallback(data);
+            }
+        }).bind(this);
+    }
+
+    this.client.request(options);
+
+    if (this.inProgressRequests < this.concurrentLimit) {
+        this.processNext();
+    }
 };

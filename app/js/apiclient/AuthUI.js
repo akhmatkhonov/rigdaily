@@ -1,7 +1,8 @@
 function ApiClientAuthUI(client, credentialsCallback, endpoint) {
     this.queue = [];
     this.credentialsCallback = credentialsCallback;
-    this.firstRun = true;
+    this.client = client;
+    this.canShow = true;
 
     // Init auth dialog
     this.handle = $('#apiClientAuthDialog');
@@ -10,9 +11,7 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
             this.handle.find('button.authorize').trigger('click');
         }
     }).bind(this));
-    this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable).on('dialogclose', (function () {
-        this.firstRun = false;
-    }).bind(this));
+    this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
     this.handle.find('span.endpoint').text(endpoint);
 
     this.handle.find('button.authorize').button().click((function () {
@@ -27,7 +26,7 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
 
         this.hideErrorMessage();
         try {
-            this.credentialsCallback.apply(client, [username, password]);
+            this.credentialsCallback(username, password);
         } catch (e) {
             this.setErrorMessage(e.message);
             return;
@@ -36,8 +35,27 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
         passwordField.val('');
         this.handle.dialog('close');
 
-        // TODO
-        new ApiClientAuthRequestQueue().success().start();
+        new ApiClientAuthRequestQueue(client).success((function () {
+            if (client.isEmptyCredentials()) {
+                this.queue = [];
+                return;
+            }
+
+            while (this.queue.length !== 0) {
+                var options = this.queue.shift();
+                if (options.queue !== null) {
+                    if (options.queue instanceof ApiClientAuthRequestQueue) {
+                        continue;
+                    }
+
+                    options.queue.push(options);
+                    options.queue.erroredRequests--;
+                    options.queue.processNext();
+                } else {
+                    client.request(options);
+                }
+            }
+        }).bind(this)).start();
     }).bind(this));
 }
 ApiClientAuthUI.prototype.setErrorMessage = function (message) {
@@ -52,20 +70,21 @@ ApiClientAuthUI.prototype.hideErrorMessage = function () {
     this.handle.find('div.error').hide();
 };
 ApiClientAuthUI.prototype.push = function (options) {
+    if (options.queue !== null) {
+        options.queue.erroredRequests++;
+    }
+
     this.queue.push(options);
 };
 ApiClientAuthUI.prototype.show = function () {
     if (!this.handle.dialog('isOpen')) {
         this.handle.dialog('open');
-        if (this.firstRun) {
-            this.hideErrorMessage();
+        var xhr = this.queue.slice(-1)[0].getXHR();
+        if (xhr !== null) {
+            var message = xhr.responseText.trim();
+            this.setErrorMessage(message);
         } else {
-            if (this.queue[0].getXHR() !== null) {
-                var message = this.queue[0].getXHR().responseText.trim();
-                this.setErrorMessage(message);
-            } else {
-                this.hideErrorMessage();
-            }
+            this.hideErrorMessage();
         }
     }
 };

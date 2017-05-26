@@ -410,7 +410,7 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
-    ArrowNavigation.initCells(row.find('td'));
+    rigDaily.arrowNavigation.initCells(row.find('td'));
     return row;
 }
 

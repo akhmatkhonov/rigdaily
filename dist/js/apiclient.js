@@ -2,21 +2,24 @@ function ApiClientAuthRequestQueue(client) {
     ApiClientRequestQueue.apply(this, [client, 'Authorizing...', 1, false, 1]);
 
     this.push(new ApiClientQueueRequestOptions({
-        url: '/v3/user_settings',
-        queue: this
-    })).success((function (data) {
-        this.client.userSettings = data;
-        if (typeof this.client.authSuccessCallback === 'function') {
-            this.client.authSuccessCallback(this.client.credentials.username);
-        }
-    }).bind(this));
+        url: '/api/v3/user_settings',
+        queue: this,
+        success: (function (data) {
+            this.client.userSettings = data;
+            this.client.authUi.canShow = false;
+            if (typeof this.client.authSuccessCallback === 'function') {
+                this.client.authSuccessCallback(this.client.credentials.username);
+            }
+        }).bind(this)
+    }));
 }
 ApiClientAuthRequestQueue.prototype = Object.create(ApiClientRequestQueue.prototype);
 
 function ApiClientAuthUI(client, credentialsCallback, endpoint) {
     this.queue = [];
     this.credentialsCallback = credentialsCallback;
-    this.firstRun = true;
+    this.client = client;
+    this.canShow = true;
 
     // Init auth dialog
     this.handle = $('#apiClientAuthDialog');
@@ -25,9 +28,7 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
             this.handle.find('button.authorize').trigger('click');
         }
     }).bind(this));
-    this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable).on('dialogclose', (function () {
-        this.firstRun = false;
-    }).bind(this));
+    this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
     this.handle.find('span.endpoint').text(endpoint);
 
     this.handle.find('button.authorize').button().click((function () {
@@ -42,7 +43,7 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
 
         this.hideErrorMessage();
         try {
-            this.credentialsCallback.apply(client, [username, password]);
+            this.credentialsCallback(username, password);
         } catch (e) {
             this.setErrorMessage(e.message);
             return;
@@ -51,8 +52,27 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
         passwordField.val('');
         this.handle.dialog('close');
 
-        // TODO
-        new ApiClientAuthRequestQueue().success().start();
+        new ApiClientAuthRequestQueue(client).success((function () {
+            if (client.isEmptyCredentials()) {
+                this.queue = [];
+                return;
+            }
+
+            while (this.queue.length !== 0) {
+                var options = this.queue.shift();
+                if (options.queue !== null) {
+                    if (options.queue instanceof ApiClientAuthRequestQueue) {
+                        continue;
+                    }
+
+                    options.queue.push(options);
+                    options.queue.erroredRequests--;
+                    options.queue.processNext();
+                } else {
+                    client.request(options);
+                }
+            }
+        }).bind(this)).start();
     }).bind(this));
 }
 ApiClientAuthUI.prototype.setErrorMessage = function (message) {
@@ -67,20 +87,21 @@ ApiClientAuthUI.prototype.hideErrorMessage = function () {
     this.handle.find('div.error').hide();
 };
 ApiClientAuthUI.prototype.push = function (options) {
+    if (options.queue !== null) {
+        options.queue.erroredRequests++;
+    }
+
     this.queue.push(options);
 };
 ApiClientAuthUI.prototype.show = function () {
     if (!this.handle.dialog('isOpen')) {
         this.handle.dialog('open');
-        if (this.firstRun) {
-            this.hideErrorMessage();
+        var xhr = this.queue.slice(-1)[0].getXHR();
+        if (xhr !== null) {
+            var message = xhr.responseText.trim();
+            this.setErrorMessage(message);
         } else {
-            if (this.queue[0].getXHR() !== null) {
-                var message = this.queue[0].getXHR().responseText.trim();
-                this.setErrorMessage(message);
-            } else {
-                this.hideErrorMessage();
-            }
+            this.hideErrorMessage();
         }
     }
 };
@@ -104,8 +125,10 @@ ApiClientAuthUI.dlgOptsNoClosable = {
 
 function ApiClient(endpoint) {
     this.loadingUi = new ApiClientLoadingUI();
-    this.authUi = new ApiClientAuthUI(this, this.setCredentials, endpoint);
-    this.errorQueueUi = new ApiClientErrorQueueUI();
+    this.authUi = new ApiClientAuthUI(this, (function (username, password) {
+        this.setCredentials(username, password);
+    }).bind(this), endpoint);
+    this.errorQueueUi = new ApiClientErrorQueueUI(this);
     this.credentials = {
         username: null,
         encoded: null
@@ -126,13 +149,17 @@ ApiClient.prototype.resetCredentials = function () {
     this.credentials.username = null;
     this.credentials.encoded = null;
 };
+ApiClient.prototype.isEmptyCredentials = function () {
+    return this.credentials.username === null;
+};
 ApiClient.prototype.request = function (options) {
-    if (this.credentials.username === null) {
+    if (this.isEmptyCredentials()) {
         this.handleUnauthorized(options);
         return;
     }
-    var exOptions = $.extend({}, options.getProperties(), {
+    var responseData, exOptions = $.extend({}, options.getProperties(), {
         url: this.endpoint + options.getUrl(),
+        async: true,
         beforeSend: (function (jqXHR) {
             jqXHR.setRequestHeader('Authorization', 'Basic ' + this.credentials.encoded);
 
@@ -140,19 +167,30 @@ ApiClient.prototype.request = function (options) {
                 this.loadingUi.showLoading(options.modalLoadingMessage);
             }
         }).bind(this),
+        success: function (data) {
+            responseData = data;
+        },
         complete: (function () {
             if (options.autoModalLoadingControl) {
                 this.loadingUi.hideLoading();
             }
+
             if (!this.handleUnauthorized(options) && !this.handleNotSuccessCode(options)) {
-                options.requestSuccess();
+                options.requestSuccess(responseData);
+            }
+
+            if (typeof options.complete === 'function') {
+                options.complete();
             }
         }).bind(this)
     });
-    options.setXHR($.ajax(exOptions));
+
+    var xhr = $.ajax(exOptions);
+    options.setXHR(xhr);
+    return xhr;
 };
 ApiClient.prototype.handleUnauthorized = function (options) {
-    if (options.getXHR() === null || options.getXHR().status === 401) {
+    if (this.authUi.canShow && (options.getXHR() === null || options.getXHR().status === 401)) {
         this.resetCredentials();
 
         this.authUi.push(options);
@@ -205,25 +243,30 @@ ApiDateUtils.prototype.objGetMonthName = function (dateObj) {
     return this.monthNames[dateObj.getMonth()];
 };
 
-function ApiClientErrorQueueUI() {
-    this.queue = [];
-
+function ApiClientErrorQueueUI(client) {
     // Init error dialog
     this.handle = $('#apiClientErrorDialog');
     this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
     this.handle.find('button.retry').button().click((function () {
         this.handle.dialog('close');
         this.tbodyHandle.children().each(function (idx, tr) {
-            // TODO: replay all
-            //$(tr).data('requestOptions')
+            var options = $(tr).data('requestOptions');
+            if (options.queue !== null) {
+                options.queue.push(options);
+                options.queue.erroredRequests--;
+                options.queue.processNext();
+            } else {
+                client.request(options);
+            }
         });
-        this.tbodyHandle.empty();
+        this.tbodyHandle.children().remove();
     }).bind(this));
     this.tbodyHandle = this.handle.find('table.error_requests tbody');
-    this.progressHandle = this.handle.find('span.progress');
 }
 ApiClientErrorQueueUI.prototype.push = function (options) {
-    this.queue.push(options);
+    if (options.queue !== null) {
+        options.queue.erroredRequests++;
+    }
 
     var fullUrl = options.getUrl();
     var shortUrlPos = fullUrl.indexOf('?');
@@ -235,18 +278,21 @@ ApiClientErrorQueueUI.prototype.push = function (options) {
     var span = $('<span></span>').text(shortUrl);
     span.tooltip({
         items: 'span',
-        content: 'Full URL: ' + fullUrl
+        content: 'Full URL: ' + fullUrl,
+        tooltipClass: 'errorTooltip'
     });
     tr.append($('<td />').append(span));
     tr.append($('<td />').text(options.getXHR().status));
 
+    var xhrMessage = typeof options.getXHR().responseText !== 'undefined' ? options.getXHR().responseText : 'No content';
     var message = 'Resolved ' + options.getXHR().status + ' code, required ' + options.successCode;
     var messageSpan = $('<span></span>').text(message);
     messageSpan.tooltip({
         items: 'span',
-        content: options.getXHR().responseText
+        content: xhrMessage,
+        tooltipClass: 'errorTooltip'
     });
-    tr.append($('<td />').text(messageSpan));
+    tr.append($('<td />').append(messageSpan));
     this.tbodyHandle.append(tr);
 
     if (!this.handle.dialog('isOpen')) {
@@ -265,7 +311,9 @@ ApiClientErrorQueueUI.prototype.isOpen = function () {
 };
 
 function ApiClientLoadingUI() {
-    $(window).resize(this.recalcPosition);
+    $(window).resize((function () {
+        this.recalcPosition();
+    }).bind(this));
     this.handle = $('.apiClientModalLoading');
 }
 ApiClientLoadingUI.prototype.hideLoading = function () {
@@ -286,6 +334,9 @@ ApiClientLoadingUI.prototype.recalcPosition = function () {
 ApiClientLoadingUI.prototype.setMessage = function (message) {
     this.handle.children('span').html(message);
 };
+ApiClientLoadingUI.prototype.isShown = function () {
+    return $('body').hasClass('loading');
+};
 
 function ApiClientQueueRequestOptions(initial) {
     var newOptions = {
@@ -298,35 +349,45 @@ ApiClientQueueRequestOptions.prototype = Object.create(ApiClientRequestOptions.p
 
 function ApiClientRequestOptions(initial) {
     this.propNames = [];
-    this.initProperty('autoModalLoadingControl', initial.autoModalLoadingControl || true);
+    this.initProperty('autoModalLoadingControl', initial.autoModalLoadingControl, true);
     this.initProperty('modalLoadingMessage', initial.modalLoadingMessage);
-    this.initProperty('successCode', initial.successCode || 200);
-    this.initProperty('success', initial.success || null);
-    this.initProperty('url', initial.url || null);
+    this.initProperty('successCode', initial.successCode, 200);
+    this.initProperty('success', initial.success, null);
+    this.initProperty('url', initial.url, null);
+    this.initProperty('queue', initial.queue, null);
+    this.initProperty('data', initial.data, undefined);
+    this.initProperty('type', initial.type, 'GET');
+    this.initProperty('complete', initial.complete, undefined);
+    this.initProperty('contentType', initial.contentType, undefined);
+    this.initProperty('dataType', initial.dataType, undefined);
+    this.initProperty('processData', initial.processData, undefined);
+    this.initProperty('queueSuccessCallbackSet', undefined, false);
 
-    this.urlCallback = initial.urlCallback || null;
     this.xhr = null;
 }
-ApiClientRequestOptions.prototype.initProperty = function (name, value) {
+ApiClientRequestOptions.prototype.initProperty = function (name, value, defaultValue) {
     this.propNames.push(name);
-    this[name] = value;
+    this[name] = typeof value !== 'undefined' ? value : defaultValue;
 };
 ApiClientRequestOptions.prototype.getUrl = function () {
-    if (typeof this.urlCallback === 'function') {
-        this.url = this.urlCallback();
+    if (typeof this.url === 'function') {
+        this.url = this.url();
     }
     return this.url;
 };
-ApiClientRequestOptions.prototype.requestSuccess = function () {
+ApiClientRequestOptions.prototype.requestSuccess = function (data) {
     if (typeof this.success === 'function') {
-        this.success();
+        this.success(data);
     }
 };
 ApiClientRequestOptions.prototype.getProperties = function () {
+    this.getUrl();
     var obj = {};
     for (var key in this.propNames) {
         var name = this.propNames[key];
-        obj[name] = this[name];
+        if (typeof this[name] !== 'undefined') {
+            obj[name] = this[name];
+        }
     }
     return obj;
 };
@@ -343,7 +404,9 @@ function ApiClientRequestQueue(client, message, totalRequests, showPercentComple
     this.totalRequests = totalRequests;
     this.showPercentComplete = showPercentComplete;
     this.queue = [];
-    this.inProgress = false;
+    this.inProgressRequests = 0;
+    this.erroredRequests = 0;
+    this.completeRequests = 0;
     this.successCallback = null;
     this.concurrentLimit = concurrentLimit;
     this.xhr = null;
@@ -356,8 +419,68 @@ ApiClientRequestQueue.prototype.push = function (options) {
     this.queue.push(options);
     return this;
 };
+ApiClientRequestQueue.prototype.isEmpty = function () {
+    return this.queue.length === 0;
+};
 ApiClientRequestQueue.prototype.start = function () {
-    // TODO: start processing queue
+    this.inProgressRequests = 0;
+    this.erroredRequests = 0;
+    this.completeRequests = 0;
+    this.processNext();
+};
+ApiClientRequestQueue.prototype.processNext = function () {
+    var options = this.queue.shift();
+    if (typeof options === 'undefined') {
+        if (typeof this.successCallback === 'function' &&
+            this.inProgressRequests === 0 && this.erroredRequests === 0) {
+            this.client.loadingUi.hideLoading();
+            try {
+                this.successCallback();
+            } catch (e) {
+                console.error(e.message);
+            }
+        }
+        return;
+    }
+
+    this.inProgressRequests++;
+
+    if (!this.client.errorQueueUi.isOpen() && !this.client.loadingUi.isShown()) {
+        this.client.loadingUi.showLoading(this.message);
+    }
+
+    options.complete = (function () {
+        if (this.erroredRequests !== 0) {
+            this.client.loadingUi.hideLoading();
+        }
+
+        this.inProgressRequests--;
+        this.processNext();
+    }).bind(this);
+    if (!options.queueSuccessCallbackSet) {
+        options.queueSuccessCallbackSet = true;
+        var successCallback = options.success;
+        options.success = (function (data) {
+            this.completeRequests++;
+            if (this.showPercentComplete && this.client.loadingUi.isShown()) {
+                var percent = parseInt(this.completeRequests / this.totalRequests * 100);
+                if (percent > 100) {
+                    percent = 100;
+                }
+                this.client.loadingUi.showLoading(this.message + ' ' + percent + '%');
+            }
+            console.log('Queue request success (' + this.completeRequests + ' of ' + this.totalRequests + ' assumed)');
+            if (typeof successCallback === 'function') {
+                successCallback(data);
+            }
+        }).bind(this);
+    }
+
+    this.client.request(options);
+
+    if (this.inProgressRequests < this.concurrentLimit) {
+        this.processNext();
+    }
 };
 
 //# sourceMappingURL=../maps/js/apiclient.js.map

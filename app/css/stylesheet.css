@@ -44,7 +44,8 @@ td.active {
     outline: 2px solid red !important;
 }
 
-table.reports, table.error_requests {    margin-top: 10px;
+table.reports, table.error_requests {
+    margin-top: 10px;
 }
 
 table.reports > thead > tr > th, table.reports > tbody > tr > td,
@@ -99,6 +100,10 @@ td {
     width: 100%;
     background: rgba(255, 255, 255, .8) url('images/ajax-loader.gif') 50% 50% no-repeat;
     text-align: center;
+}
+
+.errorTooltip {
+    max-width: none !important;
 }
 
 body.loading {

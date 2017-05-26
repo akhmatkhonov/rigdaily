@@ -1,34 +1,44 @@
 function ApiClientRequestOptions(initial) {
     this.propNames = [];
-    this.initProperty('autoModalLoadingControl', initial.autoModalLoadingControl || true);
+    this.initProperty('autoModalLoadingControl', initial.autoModalLoadingControl, true);
     this.initProperty('modalLoadingMessage', initial.modalLoadingMessage);
-    this.initProperty('successCode', initial.successCode || 200);
-    this.initProperty('success', initial.success || null);
-    this.initProperty('url', initial.url || null);
+    this.initProperty('successCode', initial.successCode, 200);
+    this.initProperty('success', initial.success, null);
+    this.initProperty('url', initial.url, null);
+    this.initProperty('queue', initial.queue, null);
+    this.initProperty('data', initial.data, undefined);
+    this.initProperty('type', initial.type, 'GET');
+    this.initProperty('complete', initial.complete, undefined);
+    this.initProperty('contentType', initial.contentType, undefined);
+    this.initProperty('dataType', initial.dataType, undefined);
+    this.initProperty('processData', initial.processData, undefined);
+    this.initProperty('queueSuccessCallbackSet', undefined, false);
 
-    this.urlCallback = initial.urlCallback || null;
     this.xhr = null;
 }
-ApiClientRequestOptions.prototype.initProperty = function (name, value) {
+ApiClientRequestOptions.prototype.initProperty = function (name, value, defaultValue) {
     this.propNames.push(name);
-    this[name] = value;
+    this[name] = typeof value !== 'undefined' ? value : defaultValue;
 };
 ApiClientRequestOptions.prototype.getUrl = function () {
-    if (typeof this.urlCallback === 'function') {
-        this.url = this.urlCallback();
+    if (typeof this.url === 'function') {
+        this.url = this.url();
     }
     return this.url;
 };
-ApiClientRequestOptions.prototype.requestSuccess = function () {
+ApiClientRequestOptions.prototype.requestSuccess = function (data) {
     if (typeof this.success === 'function') {
-        this.success();
+        this.success(data);
     }
 };
 ApiClientRequestOptions.prototype.getProperties = function () {
+    this.getUrl();
     var obj = {};
     for (var key in this.propNames) {
         var name = this.propNames[key];
-        obj[name] = this[name];
+        if (typeof this[name] !== 'undefined') {
+            obj[name] = this[name];
+        }
     }
     return obj;
 };

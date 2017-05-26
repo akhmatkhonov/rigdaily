@@ -70,13 +70,18 @@ RigDaily.prototype.changeReport = function () {
     this.selectReportLoadPage(this.selectReportDialog, 1);
 };
 RigDaily.prototype.startSubmitReport = function () {
-    var requestQueue = [];
+    var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7);
+    queue.success(function () {
+        isReportEdited = false;
+        // TODO: When submit completed, we should update orig_data values
+    });
+
     var makeRequests = function (tid, data, cfs) {
         if (Object.keys(data).length === 0) {
             return;
         }
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             type: 'PUT',
             contentType: 'application/json',
             url: '/api/v3/trackors/' + encodeURIComponent(tid),
@@ -95,7 +100,7 @@ RigDaily.prototype.startSubmitReport = function () {
                 });
 
                 if (fields.length !== 0) {
-                    requestQueue.push({
+                    queue.push(new ApiClientQueueRequestOptions({
                         type: 'GET',
                         contentType: 'application/json',
                         url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
@@ -103,10 +108,10 @@ RigDaily.prototype.startSubmitReport = function () {
                         success: function (response) {
                             fillCfs(cfs, response);
                         }
-                    });
+                    }));
                 }
             }
-        });
+        }));
     };
 
     try {
@@ -157,19 +162,22 @@ RigDaily.prototype.startSubmitReport = function () {
         }
     }
 
-    if (requestQueue.length !== 0) {
-        ApiClient.startRequestQueueWork(requestQueue, requestQueue.length, 'Submitting report data...', function () {
-            isReportEdited = false;
-            // TODO: When submit completed, we should update orig_data values
-        });
+    if (!queue.isEmpty()) {
+        queue.totalRequests = queue.queue.length;
+        queue.start();
     } else {
         this.alertDialog('Nothing to submit');
     }
 };
 RigDaily.prototype.loadReport = function (tid) {
+    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 18, true, 7);
+    queue.success(function () {
+        subscribeChangeDynCfs();
+        $('#content').show();
+    });
+
     saveTid(config.rigDailyReportTT, tid, true);
 
-    var requestQueue = [];
     var key;
     var rigSiteKey;
     var clientKey;
@@ -186,7 +194,7 @@ RigDaily.prototype.loadReport = function (tid) {
     ];
     fields = fields.concat(Object.keys(rigDailyCfs));
 
-    requestQueue.push({
+    queue.push(new ApiClientQueueRequestOptions({
         url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
         successCode: 200,
         success: function (response) {
@@ -203,14 +211,14 @@ RigDaily.prototype.loadReport = function (tid) {
             pushOtherLoad();
             pushProjectManagementLoad();
         }
-    });
+    }));
 
     // projectManagement
     var pushProjectManagementLoad = function () {
         var contactInformationProjectManagementBaseRow = $('tr.contactInformationProjectManagementBaseRow').first();
         var contactInformationProjectManagementBaseRowCfs = getConfigFields(config.projectManagementTT, contactInformationProjectManagementBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(contactInformationProjectManagementBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -226,13 +234,13 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, elem);
                 });
             }
-        });
+        }));
     };
 
     // rigSite
     var pushRigSiteLoad = function () {
         var rigSiteCfs = getConfigFields(config.rigSiteTT);
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = [
                     'RS_CLIENT',
@@ -256,13 +264,13 @@ RigDaily.prototype.loadReport = function (tid) {
                 pushManagerLoad();
                 pushContractorLoad();
             }
-        });
+        }));
     };
 
     // client
     var pushClientLoad = function () {
         var clientsCfs = getConfigFields(config.clientsTT);
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(clientsCfs);
 
@@ -274,13 +282,13 @@ RigDaily.prototype.loadReport = function (tid) {
                 response = response[0];
                 fillCfs(clientsCfs, response);
             }
-        });
+        }));
     };
 
     // manager
     var pushManagerLoad = function () {
         var workersCfs = getConfigFields(config.workersTT);
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(workersCfs);
                 return '/api/v3/trackor_types/' + config.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -291,13 +299,13 @@ RigDaily.prototype.loadReport = function (tid) {
                 response = response[0];
                 fillCfs(workersCfs, response);
             }
-        });
+        }));
     };
 
     // contractor
     var pushContractorLoad = function () {
         var contractorCfs = getConfigFields(config.contractorsTT);
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(contractorCfs);
                 return '/api/v3/trackor_types/' + config.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -308,7 +316,7 @@ RigDaily.prototype.loadReport = function (tid) {
                 response = response[0];
                 fillCfs(contractorCfs, response);
             }
-        });
+        }));
     };
 
     var pushOtherLoad = function () {
@@ -316,7 +324,7 @@ RigDaily.prototype.loadReport = function (tid) {
         var holeDesignAndVolumeBaseRow = $('tr.holeDesignAndVolumeBaseRow');
         var holeDesignAndVolumeCfs = getConfigFields(config.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(holeDesignAndVolumeCfs);
                 return '/api/v3/trackor_types/' + config.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -334,13 +342,13 @@ RigDaily.prototype.loadReport = function (tid) {
 
                 dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, configTblIdxs[config.holeDesignAndVolumeTT]);
             }
-        });
+        }));
 
         // labTesting
         var labTestingBaseRow = $('tr.labTestingBaseRow');
         var labTestingBaseRowCfs = getConfigFields(config.labTestingTT, labTestingBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(labTestingBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -356,13 +364,13 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, elem);
                 });
             }
-        });
+        }));
 
         // apiScreenSize
         var apiScreenSizeBaseRow = $('tr.apiScreenSizeBaseRow');
         var apiScreenSizeBaseRowCfs = getConfigFields(config.apiScreenSizeTT, apiScreenSizeBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(apiScreenSizeBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -386,13 +394,13 @@ RigDaily.prototype.loadReport = function (tid) {
                     }
                 });
             }
-        });
+        }));
 
         // fieldTesting
         var fieldTestingBaseRow = $('tr.fieldTestingBaseRow');
         var fieldTestingBaseRowCfs = getConfigFields(config.fieldTestingTT, fieldTestingBaseRow, configTblIdxs[config.fieldTestingTT][0]);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = [
                     'FT_SHIFT'
@@ -455,13 +463,13 @@ RigDaily.prototype.loadReport = function (tid) {
                     });
                 });
             }
-        });
+        }));
 
         // retorts
         var retortsBaseRow = $('tr.retortsBaseRow');
         var retortsBaseRowCfs = getConfigFields(config.retortsTT, retortsBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(retortsBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -477,13 +485,13 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, elem);
                 });
             }
-        });
+        }));
 
         // wasteHaulOffUsage
         var wasteHaulOffUsageBaseRow = $('tr.wasteHaulOffUsageBaseRow');
         var wasteHaulOffUsageBaseRowCfs = getConfigFields(config.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(wasteHaulOffUsageBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -520,13 +528,13 @@ RigDaily.prototype.loadReport = function (tid) {
 
                 dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS']();
             }
-        });
+        }));
 
         // consumablesUsageTT
         var consumablesUsageBaseRow = $('tr.consumablesUsageBaseRow');
         var consumablesUsageBaseRowCfs = getConfigFields(config.consumablesUsageTT, consumablesUsageBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(consumablesUsageBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -542,7 +550,7 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, elem);
                 });
             }
-        });
+        }));
 
         // binderUsageTT
         var binderUsageBaseRow = $('tr.binderUsageBaseRow');
@@ -552,7 +560,7 @@ RigDaily.prototype.loadReport = function (tid) {
         var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
         var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderUsageTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderUsageTT][1]);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(binderUsageBaseRowCfs);
                 fields = fields.concat(Object.keys(binderLbsUsedBaseRowCfs));
@@ -583,13 +591,13 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(row2Cfs, elem);
                 });
             }
-        });
+        }));
 
         // equipmentUsageTT
         var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
         var equipmentUsageBaseRowCfs = getConfigFields(config.equipmentUsageTT, equipmentUsageBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(equipmentUsageBaseRowCfs);
                 return '/api/v3/trackor_types/' + config.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -605,7 +613,7 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, elem);
                 });
             }
-        });
+        }));
 
         // techniciansUsageTT, contactInformation
         var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
@@ -613,7 +621,7 @@ RigDaily.prototype.loadReport = function (tid) {
         var contactInformationBaseRow = $('tr.contactInformationBaseRow');
         var contactInformationBaseRowCfs = getConfigFields(config.techniciansUsageTT, contactInformationBaseRow);
 
-        requestQueue.push({
+        queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
                 return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -635,14 +643,14 @@ RigDaily.prototype.loadReport = function (tid) {
 
                 pushSupplyRequestLoad();
             }
-        });
+        }));
 
         var pushSupplyRequestLoad = function () {
             // supplyRequestTT
             var supplyRequestBaseRow = $('tr.supplyRequestBaseRow').first();
             var supplyRequestBaseRowCfs = getConfigFields(config.supplyRequestTT, supplyRequestBaseRow);
 
-            requestQueue.push({
+            queue.push(new ApiClientQueueRequestOptions({
                 url: function () {
                     var fields = Object.keys(supplyRequestBaseRowCfs);
                     return '/api/v3/trackor_types/' + config.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
@@ -658,16 +666,11 @@ RigDaily.prototype.loadReport = function (tid) {
                         fillCfs(rowCfs, elem);
                     });
                 }
-            });
+            }));
         };
     };
 
-    ApiClient.startRequestQueueWork(requestQueue, 18, 'Loading report data...', function () {
-        ApiClient.concurrentLimit = 1;
-
-        subscribeChangeDynCfs();
-        $('#content').show();
-    });
+    queue.start();
 };
 RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     var fields = [
@@ -688,10 +691,11 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
         filter[key] = siteFilter.val();
     }
 
+    var perPage = 15;
     this.client.request(new ApiClientRequestOptions({
         modalLoadingMessage: 'Loading reports...',
         url: '/api/v3/trackor_types/' + config.rigDailyReportTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
-        + '&page=' + page + '&per_page=15&sort=' + encodeURIComponent(sort.join(',')) + '&' + $.param(filter),
+        + '&page=' + page + '&per_page=' + perPage + '&sort=' + encodeURIComponent(sort.join(',')) + '&' + $.param(filter),
         successCode: 200,
         success: (function (response) {
             var buttonPrev = selectReportDialog.find('button.reportsPrev');
@@ -699,7 +703,7 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
 
             buttonPrev.button('option', 'disabled', page === 1);
             buttonPrev.data('page', page - 1);
-            buttonNext.button('option', 'disabled', response.length === 0);
+            buttonNext.button('option', 'disabled', response.length < perPage);
             buttonNext.data('page', page + 1);
 
             var table = selectReportDialog.find('table.reports tbody').empty();
@@ -793,10 +797,11 @@ RigDaily.prototype.initSelectReportDialog = function () {
         this.selectReportLoadPage(selectReportDialog, 1);
     }).bind(this));
 
-    selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click((function () {
+    var _this = this;
+    selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click(function () {
         selectReportDialog.dialog('close');
-        this.selectReportLoadPage(selectReportDialog, $(this).data('page'));
-    }).bind(this));
+        _this.selectReportLoadPage(selectReportDialog, $(this).data('page'));
+    });
 
     return selectReportDialog;
 };
