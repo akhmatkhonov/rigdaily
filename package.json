@@ -9,7 +9,8 @@
     "gulp-connect": "^5.0.0",
     "gulp-htmlmin": "^3.0.0",
     "gulp-livereload": "^3.8.1",
-    "gulp-order": "^1.1.1"
+    "gulp-order": "^1.1.1",
+    "gulp-sourcemaps": "^2.6.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

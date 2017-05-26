@@ -2,11 +2,14 @@ var gulp = require('gulp'),
     concat = require('gulp-concat'),
     cleanCss = require('gulp-clean-css'),
     connect = require('gulp-connect'),
-    order = require('gulp-order');
+    order = require('gulp-order'),
+    sourcemaps = require('gulp-sourcemaps');
 
 gulp.task('js', function () {
     gulp.src(['app/js/apiclient/*.js'])
+        .pipe(sourcemaps.init())
         .pipe(concat('js/apiclient.js'))
+        .pipe(sourcemaps.write('maps'))
         .pipe(gulp.dest('dist'));
     gulp.src(['app/js/rigdaily/*.js'])
         .pipe(order([
@@ -17,7 +20,9 @@ gulp.task('js', function () {
             'ConfigFields.js',
             'ArrowNavigation.js'
         ]))
+        .pipe(sourcemaps.init())
         .pipe(concat('js/rigdaily.js'))
+        .pipe(sourcemaps.write('maps'))
         .pipe(gulp.dest('dist'));
     gulp.src(['app/js/*.js'])
         .pipe(gulp.dest('dist/js'))
@@ -54,7 +59,7 @@ gulp.task('connect', function () {
 gulp.task('watch', function () {
     gulp.watch('./app/css/**/*', ['css', 'images']);
     gulp.watch('./app/js/**/*', ['js']);
-    gulp.watch('./app/*.html', ['html']);
+    gulp.watch('./app/*.htm', ['html']);
 });
 
 gulp.task('default', ['js', 'css', 'images', 'html', 'connect', 'watch']);
