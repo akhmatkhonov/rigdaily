@@ -1,7 +1,7 @@
 {
   "name": "rigdaily",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1-alpha",
+  "description": "Rig Daily report",
   "main": "gulpfile.js",
   "devDependencies": {
     "gulp": "^3.9.1",
@@ -16,12 +16,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KupchinskiyVasiliy/rigdaily.git"
+    "url": "git+https://github.com/Onevizion/rigdaily.git"
   },
-  "author": "",
+  "author": "OneVizion",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/KupchinskiyVasiliy/rigdaily/issues"
+    "url": "https://github.com/Onevizion/rigdaily/issues"
   },
-  "homepage": "https://github.com/KupchinskiyVasiliy/rigdaily#readme"
+  "homepage": "https://github.com/Onevizion/rigdaily#readme"
 }
