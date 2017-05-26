@@ -1,14 +1,6 @@
 function ApiClientErrorQueueUI() {
     this.queue = [];
 
-    // TODO: move to other class for prevent duplicates
-    $(window).resize(function () {
-        $('.ui-dialog-content:visible').each(function () {
-            var dialog = $(this).data('uiDialog');
-            dialog.option('position', dialog.options.position);
-        });
-    });
-
     // Init error dialog
     this.handle = $('#apiClientErrorDialog');
     this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
@@ -23,13 +15,43 @@ function ApiClientErrorQueueUI() {
     this.tbodyHandle = this.handle.find('table.error_requests tbody');
     this.progressHandle = this.handle.find('span.progress');
 }
-ApiClientErrorQueueUI.prototype.push = function (jqXHR, options) {
+ApiClientErrorQueueUI.prototype.push = function (options) {
     this.queue.push(options);
-    // TODO: show dialog and append to table (status code and text give from jqXHR)
+
+    var fullUrl = options.getUrl();
+    var shortUrlPos = fullUrl.indexOf('?');
+    var shortUrl = shortUrlPos !== -1 ? fullUrl.substring(0, shortUrlPos) : fullUrl;
+
+    var tr = $('<tr />');
+    tr.data('requestOptions', options);
+    tr.append($('<td />').text(this.tbodyHandle.children().length + 1));
+    var span = $('<span></span>').text(shortUrl);
+    span.tooltip({
+        items: 'span',
+        content: 'Full URL: ' + fullUrl
+    });
+    tr.append($('<td />').append(span));
+    tr.append($('<td />').text(options.getXHR().status));
+
+    var message = 'Resolved ' + options.getXHR().status + ' code, required ' + options.successCode;
+    var messageSpan = $('<span></span>').text(message);
+    messageSpan.tooltip({
+        items: 'span',
+        content: options.getXHR().responseText
+    });
+    tr.append($('<td />').text(messageSpan));
+    this.tbodyHandle.append(tr);
 
     if (!this.handle.dialog('isOpen')) {
         this.handle.dialog('open');
     }
+
+    // Centering
+    this.handle.dialog('option', 'position', {
+        my: 'center',
+        at: 'center',
+        of: window
+    });
 };
 ApiClientErrorQueueUI.prototype.isOpen = function () {
     return this.handle.dialog('isOpen');

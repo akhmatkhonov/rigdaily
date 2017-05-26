@@ -13,5 +13,14 @@ requirejs.config({
     }
 });
 requirejs(['jquery', 'jquery-ui.min', 'apiclient', 'rigdaily'], function () {
-    // TODO: Rig Daily init
+    // Dialogs auto centering when page resizes
+    $(window).resize(function () {
+        $('.ui-dialog-content:visible').each(function () {
+            var dialog = $(this).data('uiDialog');
+            dialog.option('position', dialog.options.position);
+        });
+    });
+
+    console.log('Rig Daily init start');
+    var rigDaily = new RigDaily();
 });

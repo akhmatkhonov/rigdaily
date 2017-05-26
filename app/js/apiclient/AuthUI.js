@@ -1,15 +1,7 @@
-function ApiClientAuthUI(credentialsCallback, endpoint) {
+function ApiClientAuthUI(client, credentialsCallback, endpoint) {
     this.queue = [];
     this.credentialsCallback = credentialsCallback;
     this.firstRun = true;
-
-    // TODO: move to other class for prevent duplicates
-    $(window).resize((function () {
-        $('.ui-dialog-content:visible').each(function () {
-            var dialog = $(this).data('uiDialog');
-            dialog.option('position', dialog.options.position);
-        });
-    }).bind(this));
 
     // Init auth dialog
     this.handle = $('#apiClientAuthDialog');
@@ -35,15 +27,16 @@ function ApiClientAuthUI(credentialsCallback, endpoint) {
 
         this.hideErrorMessage();
         try {
-            this.credentialsCallback(username, password);
+            this.credentialsCallback.apply(client, [username, password]);
         } catch (e) {
-            this.hideErrorMessage(e.message);
+            this.setErrorMessage(e.message);
             return;
         }
 
         passwordField.val('');
         this.handle.dialog('close');
 
+        // TODO
         new ApiClientAuthRequestQueue().success().start();
     }).bind(this));
 }
@@ -67,8 +60,12 @@ ApiClientAuthUI.prototype.show = function () {
         if (this.firstRun) {
             this.hideErrorMessage();
         } else {
-            var message = this.queue[0].getXHR().responseText.trim();
-            this.setErrorMessage(message);
+            if (this.queue[0].getXHR() !== null) {
+                var message = this.queue[0].getXHR().responseText.trim();
+                this.setErrorMessage(message);
+            } else {
+                this.hideErrorMessage();
+            }
         }
     }
 };

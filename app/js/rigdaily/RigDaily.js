@@ -1,5 +1,8 @@
 function RigDaily() {
-    this.client = new ApiClient('https://energy.onevizion.com');
+    this.client = new ApiClient('https://energy.onevizion.com').authSuccess(function (username) {
+        $('span.loggedin').empty().text(username);
+    });
+
     this.arrowNavigation = new ArrowNavigation();
     this.arrowNavigation.init();
 
@@ -13,65 +16,59 @@ function RigDaily() {
         return [position.left, position.top];
     };
 
-    // TODO
-    ApiClient.authSuccessCallback = function (un) {
-        $('span.loggedin').empty().text(un);
-    };
+    this.selectReportDialog = this.initSelectReportDialog();
+    this.startSelectReport(this.selectReportDialog);
 
-    var selectReportDialog = initSelectReportDialog();
-    startSelectReport(selectReportDialog);
+    $('#submitReportData').button().click((function () {
+        this.startSubmitReport();
+    }).bind(this));
 
-    $('#submitReportData').button().click(function () {
-        startSubmitReport();
-    });
-
-    var changeReport = function () {
-        tids = {};
-
-        isReportEdited = false;
-        $(window).off('beforeunload');
-
-        // Clear content
-        $('tr.subtable:not(.baseRow):not(.staticRow)').remove();
-        $('tr.subtable.baseRow, tr.subtable.staticRow').removeClass(function (index, classNames) {
-            var classes = classNames.split(' ');
-            var result = [];
-            $.each(classes, function (idx, className) {
-                if (className.indexOf('subtable') === 0) {
-                    result.push(className);
-                }
-            });
-            return result.join(' ');
-        }).each(function (idx, elem) {
-            var tr = $(elem);
-            $.each(tr.data(), function (key) {
-                if (key.indexOf('tid_') === 0) {
-                    tr.removeData(key);
-                }
-            })
-        });
-        $('[data-cf]').empty();
-        $('#content').hide();
-
-        ArrowNavigation.currentRow = 2;
-        ArrowNavigation.currentCell = 1;
-        ArrowNavigation.updateCell();
-
-        selectReportLoadPage(selectReportDialog, 1);
-    };
-    $('#changeReport').button().click(function () {
+    $('#changeReport').button().click((function () {
         if (isReportEdited) {
-            confirmDialog(loseDataMessage, changeReport);
+            this.confirmDialog(loseDataMessage, this.changeReport);
         } else {
-            changeReport();
+            this.changeReport();
         }
-    });
+    }).bind(this));
     $('#print').button({
         icon: 'ui-icon-print'
     }).click(function () {
         window.print();
     });
 }
+RigDaily.prototype.changeReport = function () {
+    tids = {};
+    isReportEdited = false;
+    $(window).off('beforeunload');
+
+    // Clear content
+    $('tr.subtable:not(.baseRow):not(.staticRow)').remove();
+    $('tr.subtable.baseRow, tr.subtable.staticRow').removeClass(function (index, classNames) {
+        var classes = classNames.split(' ');
+        var result = [];
+        $.each(classes, function (idx, className) {
+            if (className.indexOf('subtable') === 0) {
+                result.push(className);
+            }
+        });
+        return result.join(' ');
+    }).each(function (idx, elem) {
+        var tr = $(elem);
+        $.each(tr.data(), function (key) {
+            if (key.indexOf('tid_') === 0) {
+                tr.removeData(key);
+            }
+        })
+    });
+    $('[data-cf]').empty();
+    $('#content').hide();
+
+    this.arrowNavigation.currentRow = 2;
+    this.arrowNavigation.currentCell = 1;
+    this.arrowNavigation.updateCell();
+
+    this.selectReportLoadPage(this.selectReportDialog, 1);
+};
 RigDaily.prototype.startSubmitReport = function () {
     var requestQueue = [];
     var makeRequests = function (tid, data, cfs) {
@@ -141,7 +138,7 @@ RigDaily.prototype.startSubmitReport = function () {
         });
     } catch (e) {
         if (e instanceof RequiredFieldsNotPresentException || e instanceof FieldValidateFailedException) {
-            ArrowNavigation.setActiveCellRowTo(e.focusObj.closest('td'));
+            this.arrowNavigation.setActiveCellRowTo(e.focusObj.closest('td'));
             e.focusObj.focus().tooltip({
                 items: 'div',
                 content: e.message,
@@ -166,7 +163,7 @@ RigDaily.prototype.startSubmitReport = function () {
             // TODO: When submit completed, we should update orig_data values
         });
     } else {
-        alertDialog('Nothing to submit');
+        this.alertDialog('Nothing to submit');
     }
 };
 RigDaily.prototype.loadReport = function (tid) {
@@ -691,12 +688,12 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
         filter[key] = siteFilter.val();
     }
 
-    ApiClient.doRequest({
+    this.client.request(new ApiClientRequestOptions({
         modalLoadingMessage: 'Loading reports...',
         url: '/api/v3/trackor_types/' + config.rigDailyReportTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
         + '&page=' + page + '&per_page=15&sort=' + encodeURIComponent(sort.join(',')) + '&' + $.param(filter),
         successCode: 200,
-        success: function (response) {
+        success: (function (response) {
             var buttonPrev = selectReportDialog.find('button.reportsPrev');
             var buttonNext = selectReportDialog.find('button.reportsNext');
 
@@ -706,27 +703,27 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
             buttonNext.data('page', page + 1);
 
             var table = selectReportDialog.find('table.reports tbody').empty();
-            $.each(response, function (idx, obj) {
+            $.each(response, (function (idx, obj) {
                 var tid = obj['TRACKOR_ID'];
                 var tr = $('<tr></tr>');
-                tr.click(function () {
+                tr.click((function () {
                     $('span.site').empty().text(obj[config.rigSiteTT + '.TRACKOR_KEY']);
 
                     selectReportDialog.dialog('close');
-                    loadReport(tid);
-                });
+                    this.loadReport(tid);
+                }).bind(this));
 
                 $('<td></td>').text(obj[config.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
-                var reportDate = ApiClient.DateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
+                var reportDate = dateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
                 $('<td></td>').text(reportDate.getUTCDate() + 1).appendTo(tr);
-                $('<td></td>').text(ApiClient.DateUtils.objGetMonthName(reportDate)).appendTo(tr);
+                $('<td></td>').text(dateUtils.objGetMonthName(reportDate)).appendTo(tr);
                 $('<td></td>').text(reportDate.getUTCFullYear()).appendTo(tr);
 
                 var link = $('<a>Open</a>').attr('href', 'javascript:void(0)');
                 $('<td></td>').append(link).appendTo(tr);
 
                 table.append(tr);
-            });
+            }).bind(this));
             if (response.length === 0) {
                 var tr = $('<tr></tr>').addClass('nodata');
                 $('<td colspan="5"></td>').text('No reports').appendTo(tr);
@@ -742,8 +739,8 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
             siteFilter.selectmenu();
 
             selectReportDialog.dialog('open');
-        }
-    });
+        }).bind(this)
+    }));
 };
 RigDaily.prototype.startSelectReport = function (selectReportDialog) {
     var siteFilter = selectReportDialog.find('select.site');
@@ -763,18 +760,18 @@ RigDaily.prototype.startSelectReport = function (selectReportDialog) {
     siteFilter.empty();
     appendOpt('', '-- Any site --');
 
-    ApiClient.doRequest({
+    this.client.request(new ApiClientRequestOptions({
         modalLoadingMessage: 'Loading sites...',
         url: '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
         + '&sort=' + encodeURIComponent(sort.join(',')),
         successCode: 200,
-        success: function (response) {
+        success: (function (response) {
             $.each(response, function (idx, obj) {
                 appendOpt(obj['TRACKOR_KEY'], obj['TRACKOR_KEY']);
             });
-            selectReportLoadPage(selectReportDialog, 1);
-        }
-    });
+            this.selectReportLoadPage(selectReportDialog, 1);
+        }).bind(this)
+    }));
 };
 RigDaily.prototype.initSelectReportDialog = function () {
     var selectReportDialog = $('#selectReportDialog');
@@ -791,15 +788,15 @@ RigDaily.prototype.initSelectReportDialog = function () {
         }
     });
 
-    selectReportDialog.find('select.site').selectmenu().on('selectmenuchange', function () {
+    selectReportDialog.find('select.site').selectmenu().on('selectmenuchange', (function () {
         selectReportDialog.dialog('close');
-        selectReportLoadPage(selectReportDialog, 1);
-    });
+        this.selectReportLoadPage(selectReportDialog, 1);
+    }).bind(this));
 
-    selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click(function () {
+    selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click((function () {
         selectReportDialog.dialog('close');
-        selectReportLoadPage(selectReportDialog, $(this).data('page'));
-    });
+        this.selectReportLoadPage(selectReportDialog, $(this).data('page'));
+    }).bind(this));
 
     return selectReportDialog;
 };

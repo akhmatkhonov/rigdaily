@@ -1,27 +1,22 @@
 function ApiClientAuthRequestQueue(client) {
-    ApiClientRequestQueue.apply(this, [client, 'Authorizing...', 2, false]);
+    ApiClientRequestQueue.apply(this, [client, 'Authorizing...', 1, false, 1]);
 
     this.push(new ApiClientQueueRequestOptions({
         url: '/v3/user_settings',
         queue: this
     })).success((function (data) {
-        client.setUserSettings(data);
+        this.client.userSettings = data;
+        if (typeof this.client.authSuccessCallback === 'function') {
+            this.client.authSuccessCallback(this.client.credentials.username);
+        }
     }).bind(this));
 }
 ApiClientAuthRequestQueue.prototype = Object.create(ApiClientRequestQueue.prototype);
 
-function ApiClientAuthUI(credentialsCallback, endpoint) {
+function ApiClientAuthUI(client, credentialsCallback, endpoint) {
     this.queue = [];
     this.credentialsCallback = credentialsCallback;
     this.firstRun = true;
-
-    // TODO: move to other class for prevent duplicates
-    $(window).resize((function () {
-        $('.ui-dialog-content:visible').each(function () {
-            var dialog = $(this).data('uiDialog');
-            dialog.option('position', dialog.options.position);
-        });
-    }).bind(this));
 
     // Init auth dialog
     this.handle = $('#apiClientAuthDialog');
@@ -47,15 +42,16 @@ function ApiClientAuthUI(credentialsCallback, endpoint) {
 
         this.hideErrorMessage();
         try {
-            this.credentialsCallback(username, password);
+            this.credentialsCallback.apply(client, [username, password]);
         } catch (e) {
-            this.hideErrorMessage(e.message);
+            this.setErrorMessage(e.message);
             return;
         }
 
         passwordField.val('');
         this.handle.dialog('close');
 
+        // TODO
         new ApiClientAuthRequestQueue().success().start();
     }).bind(this));
 }
@@ -79,8 +75,12 @@ ApiClientAuthUI.prototype.show = function () {
         if (this.firstRun) {
             this.hideErrorMessage();
         } else {
-            var message = this.queue[0].getXHR().responseText.trim();
-            this.setErrorMessage(message);
+            if (this.queue[0].getXHR() !== null) {
+                var message = this.queue[0].getXHR().responseText.trim();
+                this.setErrorMessage(message);
+            } else {
+                this.hideErrorMessage();
+            }
         }
     }
 };
@@ -104,17 +104,19 @@ ApiClientAuthUI.dlgOptsNoClosable = {
 
 function ApiClient(endpoint) {
     this.loadingUi = new ApiClientLoadingUI();
-    this.authUi = new ApiClientAuthUI(this.setCredentials, endpoint);
+    this.authUi = new ApiClientAuthUI(this, this.setCredentials, endpoint);
     this.errorQueueUi = new ApiClientErrorQueueUI();
     this.credentials = {
         username: null,
         encoded: null
     };
     this.userSettings = null;
+    this.authSuccessCallback = null;
     this.endpoint = endpoint;
 }
-ApiClient.prototype.setUserSettings = function (userSettings) {
-    this.userSettings = userSettings;
+ApiClient.prototype.authSuccess = function (authSuccessCallback) {
+    this.authSuccessCallback = authSuccessCallback;
+    return this;
 };
 ApiClient.prototype.setCredentials = function (username, password) {
     this.credentials.username = username;
@@ -125,6 +127,10 @@ ApiClient.prototype.resetCredentials = function () {
     this.credentials.encoded = null;
 };
 ApiClient.prototype.request = function (options) {
+    if (this.credentials.username === null) {
+        this.handleUnauthorized(options);
+        return;
+    }
     var exOptions = $.extend({}, options.getProperties(), {
         url: this.endpoint + options.getUrl(),
         beforeSend: (function (jqXHR) {
@@ -134,30 +140,30 @@ ApiClient.prototype.request = function (options) {
                 this.loadingUi.showLoading(options.modalLoadingMessage);
             }
         }).bind(this),
-        complete: (function (jqXHR) {
+        complete: (function () {
             if (options.autoModalLoadingControl) {
                 this.loadingUi.hideLoading();
             }
-            if (!this.handleUnauthorized(jqXHR, options) && !this.handleNotSuccessCode(jqXHR, options)) {
+            if (!this.handleUnauthorized(options) && !this.handleNotSuccessCode(options)) {
                 options.requestSuccess();
             }
         }).bind(this)
     });
     options.setXHR($.ajax(exOptions));
 };
-ApiClient.prototype.handleUnauthorized = function (jqXHR, options) {
-    if (jqXHR.status === 401) {
+ApiClient.prototype.handleUnauthorized = function (options) {
+    if (options.getXHR() === null || options.getXHR().status === 401) {
         this.resetCredentials();
 
-        this.authUi.push(jqXHR, options);
+        this.authUi.push(options);
         this.authUi.show();
         return true;
     }
     return false;
 };
-ApiClient.prototype.handleNotSuccessCode = function (jqXHR, options) {
-    if (options.successCode !== jqXHR.status) {
-        this.errorQueueUi.push(jqXHR, options);
+ApiClient.prototype.handleNotSuccessCode = function (options) {
+    if (options.successCode !== options.getXHR().status) {
+        this.errorQueueUi.push(options);
         return true;
     }
     return false;
@@ -202,14 +208,6 @@ ApiDateUtils.prototype.objGetMonthName = function (dateObj) {
 function ApiClientErrorQueueUI() {
     this.queue = [];
 
-    // TODO: move to other class for prevent duplicates
-    $(window).resize(function () {
-        $('.ui-dialog-content:visible').each(function () {
-            var dialog = $(this).data('uiDialog');
-            dialog.option('position', dialog.options.position);
-        });
-    });
-
     // Init error dialog
     this.handle = $('#apiClientErrorDialog');
     this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
@@ -224,13 +222,43 @@ function ApiClientErrorQueueUI() {
     this.tbodyHandle = this.handle.find('table.error_requests tbody');
     this.progressHandle = this.handle.find('span.progress');
 }
-ApiClientErrorQueueUI.prototype.push = function (jqXHR, options) {
+ApiClientErrorQueueUI.prototype.push = function (options) {
     this.queue.push(options);
-    // TODO: show dialog and append to table (status code and text give from jqXHR)
+
+    var fullUrl = options.getUrl();
+    var shortUrlPos = fullUrl.indexOf('?');
+    var shortUrl = shortUrlPos !== -1 ? fullUrl.substring(0, shortUrlPos) : fullUrl;
+
+    var tr = $('<tr />');
+    tr.data('requestOptions', options);
+    tr.append($('<td />').text(this.tbodyHandle.children().length + 1));
+    var span = $('<span></span>').text(shortUrl);
+    span.tooltip({
+        items: 'span',
+        content: 'Full URL: ' + fullUrl
+    });
+    tr.append($('<td />').append(span));
+    tr.append($('<td />').text(options.getXHR().status));
+
+    var message = 'Resolved ' + options.getXHR().status + ' code, required ' + options.successCode;
+    var messageSpan = $('<span></span>').text(message);
+    messageSpan.tooltip({
+        items: 'span',
+        content: options.getXHR().responseText
+    });
+    tr.append($('<td />').text(messageSpan));
+    this.tbodyHandle.append(tr);
 
     if (!this.handle.dialog('isOpen')) {
         this.handle.dialog('open');
     }
+
+    // Centering
+    this.handle.dialog('option', 'position', {
+        my: 'center',
+        at: 'center',
+        of: window
+    });
 };
 ApiClientErrorQueueUI.prototype.isOpen = function () {
     return this.handle.dialog('isOpen');
@@ -296,7 +324,8 @@ ApiClientRequestOptions.prototype.requestSuccess = function () {
 };
 ApiClientRequestOptions.prototype.getProperties = function () {
     var obj = {};
-    for (var name in this.propNames) {
+    for (var key in this.propNames) {
+        var name = this.propNames[key];
         obj[name] = this[name];
     }
     return obj;
@@ -308,7 +337,7 @@ ApiClientRequestOptions.prototype.getXHR = function () {
     return this.xhr;
 };
 
-function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete) {
+function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete, concurrentLimit) {
     this.client = client;
     this.message = message;
     this.totalRequests = totalRequests;
@@ -316,6 +345,7 @@ function ApiClientRequestQueue(client, message, totalRequests, showPercentComple
     this.queue = [];
     this.inProgress = false;
     this.successCallback = null;
+    this.concurrentLimit = concurrentLimit;
     this.xhr = null;
 }
 ApiClientRequestQueue.prototype.success = function (successCallback) {
@@ -329,3 +359,5 @@ ApiClientRequestQueue.prototype.push = function (options) {
 ApiClientRequestQueue.prototype.start = function () {
     // TODO: start processing queue
 };
+
+//# sourceMappingURL=../maps/js/apiclient.js.map

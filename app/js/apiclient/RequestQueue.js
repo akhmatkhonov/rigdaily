@@ -1,4 +1,4 @@
-function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete) {
+function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete, concurrentLimit) {
     this.client = client;
     this.message = message;
     this.totalRequests = totalRequests;
@@ -6,6 +6,7 @@ function ApiClientRequestQueue(client, message, totalRequests, showPercentComple
     this.queue = [];
     this.inProgress = false;
     this.successCallback = null;
+    this.concurrentLimit = concurrentLimit;
     this.xhr = null;
 }
 ApiClientRequestQueue.prototype.success = function (successCallback) {

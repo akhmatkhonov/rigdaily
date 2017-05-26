@@ -26,7 +26,8 @@ ApiClientRequestOptions.prototype.requestSuccess = function () {
 };
 ApiClientRequestOptions.prototype.getProperties = function () {
     var obj = {};
-    for (var name in this.propNames) {
+    for (var key in this.propNames) {
+        var name = this.propNames[key];
         obj[name] = this[name];
     }
     return obj;
