@@ -1,7 +1,6 @@
 var gulp = require('gulp'),
     concat = require('gulp-concat'),
     cleanCss = require('gulp-clean-css'),
-    htmlmin = require('gulp-htmlmin'),
     livereload = require('gulp-livereload'),
     connect = require('gulp-connect');
 
@@ -34,7 +33,6 @@ gulp.task('images', function () {
 
 gulp.task('html', function () {
     gulp.src(['app/*.htm'])
-        .pipe(htmlmin({collapseWhitespace: true}))
         .pipe(gulp.dest('dist'))
         .pipe(connect.reload());
 });
