@@ -1,61 +1,62 @@
-'use strict';
-
-function ApiDateUtils() {
-    this.monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'];
+function ApiClient(endpoint) {
+    this.loadingUi = new ApiClientLoadingUI();
+    this.authUi = new ApiClientAuthUI(this.setCredentials, endpoint);
+    this.errorQueueUi = new ApiClientErrorQueueUI();
+    this.credentials = {
+        username: null,
+        encoded: null
+    };
+    this.userSettings = null;
+    this.endpoint = endpoint;
 }
+ApiClient.prototype.setUserSettings = function (userSettings) {
+    this.userSettings = userSettings;
+};
+ApiClient.prototype.setCredentials = function (username, password) {
+    this.credentials.username = username;
+    this.credentials.encoded = btoa(username + ':' + password);
+};
+ApiClient.prototype.resetCredentials = function () {
+    this.credentials.username = null;
+    this.credentials.encoded = null;
+};
+ApiClient.prototype.request = function (options) {
+    var exOptions = $.extend({}, options.getProperties(), {
+        url: this.endpoint + options.getUrl(),
+        beforeSend: (function (jqXHR) {
+            jqXHR.setRequestHeader('Authorization', 'Basic ' + this.credentials.encoded);
 
-ApiDateUtils.prototype.remoteDateToObj = function (remoteDateStr) {
-    if (remoteDateStr === null || remoteDateStr.length === 0) {
-        return null;
-    }
-    var parts = remoteDateStr.split('-');
-    return new Date(parts[0], parts[1] - 1, parts[2]);
+            if (options.autoModalLoadingControl) {
+                this.loadingUi.showLoading(options.modalLoadingMessage);
+            }
+        }).bind(this),
+        complete: (function (jqXHR) {
+            if (options.autoModalLoadingControl) {
+                this.loadingUi.hideLoading();
+            }
+            if (!this.handleUnauthorized(jqXHR, options) && !this.handleNotSuccessCode(jqXHR, options)) {
+                options.requestSuccess();
+            }
+        }).bind(this)
+    });
+    options.setXHR($.ajax(exOptions));
 };
-ApiDateUtils.prototype.remoteDateFormat = function (remoteDateStr) {
-    var dateObj = this.remoteDateToObj(remoteDateStr);
-    return this.formatDate(dateObj);
-};
-ApiDateUtils.prototype.localDateToObj = function (localDateStr) {
-    if (localDateStr === null || localDateStr.length === 0) {
-        return null;
-    }
-    var parts = localDateStr.split('/');
-    return new Date(parts[2], parts[0] - 1, parts[1]);
-};
-ApiDateUtils.prototype.formatDate = function (dateObj) {
-    return dateObj !== null ? $.datepicker.formatDate('mm/dd/yy', dateObj) : '';
-};
-ApiDateUtils.prototype.objToRemoteDate = function (dateObj) {
-    if (dateObj === null) {
-        return null;
-    }
-    return $.datepicker.formatDate('yy-mm-dd', dateObj);
-};
-ApiDateUtils.prototype.objGetMonthName = function (dateObj) {
-    return this.monthNames[dateObj.getMonth()];
-};
+ApiClient.prototype.handleUnauthorized = function (jqXHR, options) {
+    if (jqXHR.status === 401) {
+        this.resetCredentials();
 
-function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete) {
-    this.client = client;
-    this.message = message;
-    this.totalRequests = totalRequests;
-    this.showPercentComplete = showPercentComplete;
-    this.queue = [];
-    this.inProgress = false;
-    this.successCallback = null;
-    this.xhr = null;
-}
-ApiClientRequestQueue.prototype.success = function (successCallback) {
-    this.successCallback = successCallback;
-    return this;
+        this.authUi.push(jqXHR, options);
+        this.authUi.show();
+        return true;
+    }
+    return false;
 };
-ApiClientRequestQueue.prototype.push = function (options) {
-    this.queue.push(options);
-    return this;
-};
-ApiClientRequestQueue.prototype.start = function () {
-    // TODO: start processing queue
+ApiClient.prototype.handleNotSuccessCode = function (jqXHR, options) {
+    if (options.successCode !== jqXHR.status) {
+        this.errorQueueUi.push(jqXHR, options);
+        return true;
+    }
+    return false;
 };
 
 function ApiClientAuthRequestQueue(client) {
@@ -69,43 +70,6 @@ function ApiClientAuthRequestQueue(client) {
     }).bind(this));
 }
 ApiClientAuthRequestQueue.prototype = Object.create(ApiClientRequestQueue.prototype);
-
-function ApiClientErrorQueueUI() {
-    this.queue = [];
-
-    // TODO: move to other class for prevent duplicates
-    $(window).resize(function () {
-        $('.ui-dialog-content:visible').each(function () {
-            var dialog = $(this).data('uiDialog');
-            dialog.option('position', dialog.options.position);
-        });
-    });
-
-    // Init error dialog
-    this.handle = $('#apiClientErrorDialog');
-    this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
-    this.handle.find('button.retry').button().click((function () {
-        this.handle.dialog('close');
-        this.tbodyHandle.children().each(function (idx, tr) {
-            // TODO: replay all
-            //$(tr).data('requestOptions')
-        });
-        this.tbodyHandle.empty();
-    }).bind(this));
-    this.tbodyHandle = this.handle.find('table.error_requests tbody');
-    this.progressHandle = this.handle.find('span.progress');
-}
-ApiClientErrorQueueUI.prototype.push = function (jqXHR, options) {
-    this.queue.push(options);
-    // TODO: show dialog and append to table (status code and text give from jqXHR)
-
-    if (!this.handle.dialog('isOpen')) {
-        this.handle.dialog('open');
-    }
-};
-ApiClientErrorQueueUI.prototype.isOpen = function () {
-    return this.handle.dialog('isOpen');
-};
 
 function ApiClientAuthUI(credentialsCallback, endpoint) {
     this.queue = [];
@@ -199,6 +163,79 @@ ApiClientAuthUI.dlgOptsNoClosable = {
     }
 };
 
+function ApiDateUtils() {
+    this.monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+}
+
+ApiDateUtils.prototype.remoteDateToObj = function (remoteDateStr) {
+    if (remoteDateStr === null || remoteDateStr.length === 0) {
+        return null;
+    }
+    var parts = remoteDateStr.split('-');
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+ApiDateUtils.prototype.remoteDateFormat = function (remoteDateStr) {
+    var dateObj = this.remoteDateToObj(remoteDateStr);
+    return this.formatDate(dateObj);
+};
+ApiDateUtils.prototype.localDateToObj = function (localDateStr) {
+    if (localDateStr === null || localDateStr.length === 0) {
+        return null;
+    }
+    var parts = localDateStr.split('/');
+    return new Date(parts[2], parts[0] - 1, parts[1]);
+};
+ApiDateUtils.prototype.formatDate = function (dateObj) {
+    return dateObj !== null ? $.datepicker.formatDate('mm/dd/yy', dateObj) : '';
+};
+ApiDateUtils.prototype.objToRemoteDate = function (dateObj) {
+    if (dateObj === null) {
+        return null;
+    }
+    return $.datepicker.formatDate('yy-mm-dd', dateObj);
+};
+ApiDateUtils.prototype.objGetMonthName = function (dateObj) {
+    return this.monthNames[dateObj.getMonth()];
+};
+
+function ApiClientErrorQueueUI() {
+    this.queue = [];
+
+    // TODO: move to other class for prevent duplicates
+    $(window).resize(function () {
+        $('.ui-dialog-content:visible').each(function () {
+            var dialog = $(this).data('uiDialog');
+            dialog.option('position', dialog.options.position);
+        });
+    });
+
+    // Init error dialog
+    this.handle = $('#apiClientErrorDialog');
+    this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
+    this.handle.find('button.retry').button().click((function () {
+        this.handle.dialog('close');
+        this.tbodyHandle.children().each(function (idx, tr) {
+            // TODO: replay all
+            //$(tr).data('requestOptions')
+        });
+        this.tbodyHandle.empty();
+    }).bind(this));
+    this.tbodyHandle = this.handle.find('table.error_requests tbody');
+    this.progressHandle = this.handle.find('span.progress');
+}
+ApiClientErrorQueueUI.prototype.push = function (jqXHR, options) {
+    this.queue.push(options);
+    // TODO: show dialog and append to table (status code and text give from jqXHR)
+
+    if (!this.handle.dialog('isOpen')) {
+        this.handle.dialog('open');
+    }
+};
+ApiClientErrorQueueUI.prototype.isOpen = function () {
+    return this.handle.dialog('isOpen');
+};
+
 function ApiClientLoadingUI() {
     $(window).resize(this.recalcPosition());
     this.handle = $('.apiClientModalLoading');
@@ -221,6 +258,15 @@ ApiClientLoadingUI.prototype.recalcPosition = function () {
 ApiClientLoadingUI.prototype.setMessage = function (message) {
     this.handle.children('span').html(message);
 };
+
+function ApiClientQueueRequestOptions(initial) {
+    var newOptions = {
+        autoModalLoadingControl: false,
+        modalLoadingMessage: undefined
+    };
+    ApiClientRequestOptions.apply(this, [$.extend({}, initial, newOptions)]);
+}
+ApiClientQueueRequestOptions.prototype = Object.create(ApiClientRequestOptions.prototype);
 
 function ApiClientRequestOptions(initial) {
     this.propNames = [];
@@ -262,72 +308,24 @@ ApiClientRequestOptions.prototype.getXHR = function () {
     return this.xhr;
 };
 
-function ApiClientQueueRequestOptions(initial) {
-    var newOptions = {
-        autoModalLoadingControl: false,
-        modalLoadingMessage: undefined
-    };
-    ApiClientRequestOptions.apply(this, [$.extend({}, initial, newOptions)]);
+function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete) {
+    this.client = client;
+    this.message = message;
+    this.totalRequests = totalRequests;
+    this.showPercentComplete = showPercentComplete;
+    this.queue = [];
+    this.inProgress = false;
+    this.successCallback = null;
+    this.xhr = null;
 }
-ApiClientQueueRequestOptions.prototype = Object.create(ApiClientRequestOptions.prototype);
-
-function ApiClient(endpoint) {
-    this.loadingUi = new ApiClientLoadingUI();
-    this.authUi = new ApiClientAuthUI(this.setCredentials, endpoint);
-    this.errorQueueUi = new ApiClientErrorQueueUI();
-    this.credentials = {
-        username: null,
-        encoded: null
-    };
-    this.userSettings = null;
-    this.endpoint = endpoint;
-}
-ApiClient.prototype.setUserSettings = function (userSettings) {
-    this.userSettings = userSettings;
+ApiClientRequestQueue.prototype.success = function (successCallback) {
+    this.successCallback = successCallback;
+    return this;
 };
-ApiClient.prototype.setCredentials = function (username, password) {
-    this.credentials.username = username;
-    this.credentials.encoded = btoa(username + ':' + password);
+ApiClientRequestQueue.prototype.push = function (options) {
+    this.queue.push(options);
+    return this;
 };
-ApiClient.prototype.resetCredentials = function () {
-    this.credentials.username = null;
-    this.credentials.encoded = null;
-};
-ApiClient.prototype.request = function (options) {
-    var exOptions = $.extend({}, options.getProperties(), {
-        url: this.endpoint + options.getUrl(),
-        beforeSend: (function (jqXHR) {
-            jqXHR.setRequestHeader('Authorization', 'Basic ' + this.credentials.encoded);
-
-            if (options.autoModalLoadingControl) {
-                this.loadingUi.showLoading(options.modalLoadingMessage);
-            }
-        }).bind(this),
-        complete: (function (jqXHR) {
-            if (options.autoModalLoadingControl) {
-                this.loadingUi.hideLoading();
-            }
-            if (!this.handleUnauthorized(jqXHR, options) && !this.handleNotSuccessCode(jqXHR, options)) {
-                options.requestSuccess();
-            }
-        }).bind(this)
-    });
-    options.setXHR($.ajax(exOptions));
-};
-ApiClient.prototype.handleUnauthorized = function (jqXHR, options) {
-    if (jqXHR.status === 401) {
-        this.resetCredentials();
-
-        this.authUi.push(jqXHR, options);
-        this.authUi.show();
-        return true;
-    }
-    return false;
-};
-ApiClient.prototype.handleNotSuccessCode = function (jqXHR, options) {
-    if (options.successCode !== jqXHR.status) {
-        this.errorQueueUi.push(jqXHR, options);
-        return true;
-    }
-    return false;
+ApiClientRequestQueue.prototype.start = function () {
+    // TODO: start processing queue
 };
