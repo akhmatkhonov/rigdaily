@@ -1,17 +1,25 @@
 var gulp = require('gulp'),
     concat = require('gulp-concat'),
     cleanCss = require('gulp-clean-css'),
-    livereload = require('gulp-livereload'),
-    connect = require('gulp-connect');
+    connect = require('gulp-connect'),
+    order = require('gulp-order');
 
 gulp.task('js', function () {
     gulp.src(['app/js/apiclient/*.js'])
         .pipe(concat('js/apiclient.js'))
         .pipe(gulp.dest('dist'));
     gulp.src(['app/js/rigdaily/*.js'])
+        .pipe(order([
+            'RigDaily.js',
+            'Config.js',
+            'FieldValidators.js',
+            'DynamicCalculations.js',
+            'ConfigFields.js',
+            'ArrowNavigation.js'
+        ]))
         .pipe(concat('js/rigdaily.js'))
         .pipe(gulp.dest('dist'));
-    gulp.src(['app/js/jquery-*.js'])
+    gulp.src(['app/js/*.js'])
         .pipe(gulp.dest('dist/js'))
         .pipe(connect.reload());
 });
@@ -39,13 +47,12 @@ gulp.task('html', function () {
 
 gulp.task('connect', function () {
     connect.server({
-        root: 'dist',
-        livereload: true
+        root: 'dist'
     });
 });
 
 gulp.task('watch', function () {
-    gulp.watch('./app/css/**/*', ['css']);
+    gulp.watch('./app/css/**/*', ['css', 'images']);
     gulp.watch('./app/js/**/*', ['js']);
     gulp.watch('./app/*.html', ['html']);
 });
