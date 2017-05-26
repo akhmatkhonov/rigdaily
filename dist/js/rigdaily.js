@@ -1,714 +1,19 @@
-'use strict';
+function RigDaily() {
+    this.client = new ApiClient('https://energy.onevizion.com');
+    this.arrowNavigation = new ArrowNavigation();
+    this.arrowNavigation.init();
 
-ApiClient.endpoint = 'https://energy.onevizion.com';
-
-var config = {
-    rigDailyReportTT: 'Rig_Daily_Report',
-    rigSiteTT: 'Rig_Site',
-    clientsTT: 'Clients',
-    workersTT: 'Workers',
-    contractorsTT: 'Contractors',
-    holeDesignAndVolumeTT: 'Hole_Design_And_Volume',
-    labTestingTT: 'Lab_Testing',
-    apiScreenSizeTT: 'Api_Screen_Size',
-    fieldTestingTT: 'Field_Testing',
-    retortsTT: 'Retorts',
-    wasteHaulOffUsageTT: 'Waste_Haul_Off_Usage',
-    consumablesUsageTT: 'Consumables_Usage',
-    consumablesTT: 'Consumables',
-    binderTT: 'Binder',
-    binderUsageTT: 'Binder_Usage',
-    equipmentTT: 'Equipment',
-    equipmentUsageTT: 'Equipment_Usage',
-    techniciansUsageTT: 'Technicians_Usage',
-    supplyRequestTT: 'Supply_Request',
-    projectTT: 'Project',
-    projectManagementTT: 'Project_Management',
-
-    // For dynamic calculations
-    dynTT: 'Dynamic'
-};
-var configTblIdxs = {};
-configTblIdxs[config.holeDesignAndVolumeTT] = 'hd';
-configTblIdxs[config.labTestingTT] = 'lt';
-configTblIdxs[config.apiScreenSizeTT] = 'ass';
-configTblIdxs[config.fieldTestingTT] = ['ftam', 'ftpm'];
-configTblIdxs[config.retortsTT] = 'rtrs';
-configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
-configTblIdxs[config.consumablesUsageTT] = 'cu';
-configTblIdxs[config.binderUsageTT] = ['bu', 'blu1', 'blu2', 'blu3', 'blu4'];
-configTblIdxs[config.equipmentUsageTT] = 'equ';
-configTblIdxs[config.techniciansUsageTT] = 'tecu';
-configTblIdxs[config.supplyRequestTT] = 'sr';
-configTblIdxs[config.projectManagementTT] = 'pm';
-
-var loseDataMessage = 'You will lose any unsaved data. Continue?';
-
-var isReportEdited = false;
-var tids = {};
-var locks = {};
-
-function RequiredFieldsNotPresentException(focusObj) {
-    this.message = 'Required fields not present!';
-    this.focusObj = focusObj;
-}
-
-function FieldValidateFailedException(message, name, tid, tblIdx) {
-    this.message = message;
-    this.focusObj = findCf(name, tid, tblIdx).children('div[contenteditable]');
-}
-
-// Dynamic calculating cells
-var dynCalculations = {};
-
-// rigDailyReportTT
-dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
-    setCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED',
-        getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH') -
-        getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH'));
-
-    setCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH',
-        getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'));
-};
-dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
-    setCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED',
-        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
-        getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
-
-    dynCalculations[config.dynTT + '.RT_TOTAL']();
-};
-dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
-};
-dynCalculations[config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = function () {
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
-};
-
-// Rig pumps
-dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
-    setCfValue(config.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
-        getCfValue(config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
-        getCfValue(config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'));
-};
-dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'] = dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'];
-
-// labTestingTT
-dynCalculations[config.labTestingTT + '.LABT_WATER'] = function (tid, tblIdx) {
-    var water = getCfValue(config.labTestingTT + '.LABT_WATER', tid, tblIdx);
-    var oil = getCfValue(config.labTestingTT + '.LABT_OIL', tid, tblIdx);
-    setCfValue(config.labTestingTT + '.LABT_SOLIDS', (100 - water - oil), tid, tblIdx);
-};
-dynCalculations[config.labTestingTT + '.LABT_OIL'] = dynCalculations[config.labTestingTT + '.LABT_WATER'];
-
-// holeDesignAndVolumeTT
-dynCalculations[config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL'] = function (tid, tblIdx) {
-    var newVal = 0;
-    $.each(tids[config.holeDesignAndVolumeTT], function (idx, tid) {
-        newVal += getCfValue(config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', tid, tblIdx);
-    });
-    setCfValue(config.rigSiteTT + '.RS_GAUGE_HOLE_TOTAL', newVal);
-};
-dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'] = function (tid, tblIdx) {
-    var prevDepth;
-    $.each(tids[config.holeDesignAndVolumeTT], function (idx, tid) {
-        var hole = getCfValue(config.holeDesignAndVolumeTT + '.HDV_HOLE', tid, tblIdx);
-        var depth = getCfValue(config.holeDesignAndVolumeTT + '.HDV_DEPTH', tid, tblIdx);
-
-        var gaugeBbl = Math.pow(hole, 2) * 0.000972;
-        gaugeBbl *= typeof prevDepth !== 'undefined' ? depth - prevDepth : depth;
-        prevDepth = depth;
-
-        setCfValue(config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', gaugeBbl, tid, tblIdx);
-    });
-};
-dynCalculations[config.holeDesignAndVolumeTT + '.HDV_DEPTH'] = dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'];
-
-// retortsTT
-dynCalculations[config.retortsTT + '.RET_AM_OIL'] = function (tid, tblIdx) {
-    var water = getCfValue(config.retortsTT + '.RET_AM_WATER', tid, tblIdx);
-    var oil = getCfValue(config.retortsTT + '.RET_AM_OIL', tid, tblIdx);
-    setCfValue(config.retortsTT + '.RET_AM_SOLIDS', (100 - water - oil), tid, tblIdx);
-};
-dynCalculations[config.retortsTT + '.RET_AM_WATER'] = dynCalculations[config.retortsTT + '.RET_AM_OIL'];
-dynCalculations[config.retortsTT + '.RET_PM_OIL'] = function (tid, tblIdx) {
-    var water = getCfValue(config.retortsTT + '.RET_PM_WATER', tid, tblIdx);
-    var oil = getCfValue(config.retortsTT + '.RET_PM_OIL', tid, tblIdx);
-    setCfValue(config.retortsTT + '.RET_PM_SOLIDS', (100 - water - oil), tid, tblIdx);
-};
-dynCalculations[config.retortsTT + '.RET_PM_WATER'] = dynCalculations[config.retortsTT + '.RET_PM_OIL'];
-
-// wasteHaulOffUsageTT
-dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
-    var newValue = 0;
-    $.each(tids[config.wasteHaulOffUsageTT], function (idx, tid) {
-        $.each(configTblIdxs[config.wasteHaulOffUsageTT], function (idx, tblIdx) {
-            var val = getCfValue(config.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx);
-            if (val !== null) {
-                newValue += val;
-            }
-        });
-    });
-
-    setCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
-    newValue *= getCfValue(config.rigDailyReportTT + '.RDR_WHOU_COST_TON');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL', newValue);
-};
-
-dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'];
-
-dynCalculations[config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL') -
-        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
-};
-
-dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
-    var number = getCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
-        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(config.rigDailyReportTT + '.RDR_WHOU_TOTAL_LOADS_TO_DATE', number);
-};
-
-// consumablesUsageTT
-dynCalculations[config.consumablesUsageTT + '.CONU_INITIAL'] = function (tid, tblIdx) {
-    var newValue = getCfValue(config.consumablesUsageTT + '.CONU_INITIAL', tid, tblIdx) +
-        getCfValue(config.consumablesUsageTT + '.CONU_DELIVERED', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', newValue, tid, tblIdx);
-};
-dynCalculations[config.consumablesUsageTT + '.CONU_DELIVERED'] = dynCalculations[config.consumablesUsageTT + '.CONU_INITIAL'];
-dynCalculations[config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
-    var used = getCfValue(config.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
-    var totalDelivered = getCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_BALANCE', totalDelivered - used, tid, tblIdx);
-};
-dynCalculations[config.consumablesUsageTT + '.CONU_BALANCE'] = function (tid, tblIdx) {
-    var cost = getCfValue(config.consumablesUsageTT + '.' + config.consumablesTT + '.CONS_COST', tid, tblIdx);
-    var totalDelivered = getCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
-    var balance = getCfValue(config.consumablesUsageTT + '.CONU_BALANCE', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
-};
-dynCalculations[config.consumablesUsageTT + '.CONU_USED'] = function (tid, tblIdx) {
-    dynCalculations[config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'](tid, tblIdx);
-
-    var cost = getCfValue(config.consumablesUsageTT + '.' + config.consumablesTT + '.CONS_COST', tid, tblIdx);
-    var used = getCfValue(config.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_DAILY', cost * used, tid, tblIdx);
-};
-dynCalculations[config.consumablesUsageTT + '.CONU_DAILY'] = function (tid, tblIdx) {
-    var summ = 0;
-    $.each(tids[config.consumablesUsageTT], function (idx, tid) {
-        summ += getCfValue(config.consumablesUsageTT + '.CONU_DAILY', tid, tblIdx);
-    });
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES', summ);
-};
-
-// binderUsageTT
-dynCalculations[config.binderUsageTT + '.BU_INITIAL'] = function (tid, tblIdx) {
-    var newValue = getCfValue(config.binderUsageTT + '.BU_INITIAL', tid, tblIdx) +
-        getCfValue(config.binderUsageTT + '.BU_DELIVERED', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', newValue, tid, tblIdx);
-};
-dynCalculations[config.binderUsageTT + '.BU_DELIVERED'] = dynCalculations[config.binderUsageTT + '.BU_INITIAL'];
-dynCalculations[config.binderUsageTT + '.BU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
-    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
-    var totalDelivered = getCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_BALANCE', totalDelivered - used, tid, tblIdx);
-};
-dynCalculations[config.binderUsageTT + '.BU_BALANCE'] = function (tid, tblIdx) {
-    var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
-    var totalDelivered = getCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
-    var balance = getCfValue(config.binderUsageTT + '.BU_BALANCE', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
-};
-dynCalculations[config.binderUsageTT + '.BU_USED'] = function (tid, tblIdx) {
-    dynCalculations[config.binderUsageTT + '.BU_TOTAL_DELIVERED'](tid, tblIdx);
-
-    var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
-    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
-
-    dynCalculations[config.binderUsageTT + '.BU_UNIT'](tid, tblIdx);
-};
-dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
-    var key = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tid, tblIdx);
-    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
-    var unit = getCfValue(config.binderUsageTT + '.BU_UNIT', tid, tblIdx);
-
-    var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
-    var binderLbsUsedTid;
-    var binderLbsUsedTblIdx;
-
-    $.each(configTblIdxs[config.binderUsageTT].slice(1), function (idx, tblIdx) {
-        var tblIdxTid = baseRowData['tid_' + tblIdx];
-        if (getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
-            binderLbsUsedTid = tblIdxTid;
-            binderLbsUsedTblIdx = tblIdx;
-            return false;
+    // http://stackoverflow.com/a/24693866
+    $.datepicker._findPos = function (obj) {
+        var position;
+        if (obj.type === 'hidden') {
+            obj = $(obj).closest('td');
         }
-    });
-
-    if (binderLbsUsedTid && binderLbsUsedTblIdx) {
-        var number = used * unit;
-        setCfValue(config.binderUsageTT + '.BU_BINDER_LBS_USED', number, binderLbsUsedTid, binderLbsUsedTblIdx);
-    }
-};
-dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
-    var summ = 0;
-    $.each(tids[config.binderUsageTT], function (idx, tid) {
-        summ += getCfValue(config.binderUsageTT + '.BU_DAILY', tid, tblIdx);
-    });
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
-};
-
-// equipmentUsageTT
-dynCalculations[config.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
-    var number = getCfValue(config.equipmentUsageTT + '.EQU_QUANTITY', tid, tblIdx) *
-        getCfValue(config.equipmentUsageTT + '.' + config.equipmentTT + '.EQ_DAILY_COST', tid, tblIdx);
-    setCfValue(config.equipmentUsageTT + '.EQU_TOTAL', number, tid, tblIdx);
-};
-dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
-    // Daily Total All In
-    var dailyTotalEquip = 0;
-    $.each(tids[config.equipmentUsageTT], function (idx, tid) {
-        dailyTotalEquip += getCfValue(config.equipmentUsageTT + '.EQU_TOTAL', tid, configTblIdxs[config.equipmentUsageTT]);
-    });
-
-    var dailyTotalTech = 0;
-    $.each(tids[config.techniciansUsageTT], function (idx, tid) {
-        dailyTotalTech += getCfValue(config.techniciansUsageTT + '.TECU_TOTAL', tid, configTblIdxs[config.techniciansUsageTT]);
-    });
-
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_EQUIPMENT', dailyTotalEquip);
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_TECHNICIANS', dailyTotalTech);
-    setCfValue(config.dynTT + '.RT_DAILY_EQTECH', dailyTotalEquip + dailyTotalTech);
-};
-
-// techniciansUsageTT
-dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, tblIdx) {
-    var number = getCfValue(config.techniciansUsageTT + '.TECU_QUANTITY', tid, tblIdx) *
-        getCfValue(config.techniciansUsageTT + '.' + config.workersTT + '.WOR_DAILY_COST', tid, tblIdx);
-    setCfValue(config.techniciansUsageTT + '.TECU_TOTAL', number, tid, tblIdx);
-};
-dynCalculations[config.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'];
-
-// Running totals
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
-    setCfValue(config.dynTT + '.RT_PREV_CONSUMABLES', number);
-
-    number = (getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(config.dynTT + '.PREV', number);
-
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER'] = function () {
-    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.RT_PREV_BINDER', number);
-
-    number = (getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(config.dynTT + '.PREV', number);
-
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
-    var number = checkInfinity(getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS') /
-        getCfValue(config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'));
-    setCfValue(config.projectTT + '.PR_LBS__TONS', number);
-};
-
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
-    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS');
-    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
-
-    number -= getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.dynTT + '.RT_PREV_EQTECH', number);
-};
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'];
-
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
-    setCfValue(config.dynTT + '.RT_PREV_WHLOFF', number);
-};
-
-dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
-    setCfValue(config.dynTT + '.RT_PREV', number);
-};
-
-// Daily running totals
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
-
-    number = getCfValue(config.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
-    setCfValue(config.dynTT + '.RT_TOTAL_CONSUMABLES', number);
-
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') +
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
-};
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
-    var number = getCfValue(config.dynTT + '.RT_PREV_BINDER') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.RT_TOTAL_BINDER', number);
-
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
-
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-
-dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
-
-    number = getCfValue(config.dynTT + '.RT_PREV_EQTECH') + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
-};
-
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
-    setCfValue(config.dynTT + '.WHL_DAILY_TOTAL', number);
-
-    number += getCfValue(config.dynTT + '.RT_PREV_WHLOFF');
-    setCfValue(config.dynTT + '.RT_TOTAL_WHLOFF', number);
-
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
-};
-
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = checkInfinity(getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
-        (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
-
-    number = getCfValue(config.dynTT + '.RT_PREV') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
-    setCfValue(config.dynTT + '.RT_TOTAL', number);
-};
-
-dynCalculations[config.dynTT + '.RT_TOTAL'] = function () {
-    var number = checkInfinity(getCfValue(config.dynTT + '.RT_TOTAL') /
-        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
-    setCfValue(config.projectTT + '.PR_TOTAL_EST_COST__FT', number);
-};
-//
-
-// Field validators
-var fieldValidators = {};
-fieldValidators[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
-    var prevDepth = getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH');
-    var currentDepth = getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
-    if (prevDepth > currentDepth) {
-        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
-    }
-};
-fieldValidators[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
-    var prevDepth = getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH');
-    var currentDepth = getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
-    if (prevDepth > currentDepth) {
-        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
-    }
-};
-//
-
-function checkInfinity(number) {
-    return number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY ? 0 : number;
-}
-
-function findCf(name, tid, tblIdx) {
-    var cfs = $('[data-cf="' + name + '"]');
-    if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
-        cfs = cfs.filter(function () {
-            var cf = $(this);
-            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
-        });
-    }
-    return cfs;
-}
-
-function getCfValue(name, tid, tblIdx) {
-    var cfs = findCf(name, tid, tblIdx);
-
-    if (cfs.length === 0) {
-        return null;
-    } else if (cfs.length > 1) {
-        cfs = cfs.first();
-    }
-
-    var dataType = cfs.data('t');
-    var value = cfs[0].innerText.trim();
-    if (dataType === 'number') {
-        value = parseFloat(value);
-        if (isNaN(value)) {
-            value = 0;
-        }
-    }
-    return value;
-}
-
-function setCfValue(name, value, tid, tblIdx) {
-    var cfs = findCf(name, tid, tblIdx);
-
-    var dataType = cfs.data('t');
-    if (dataType === 'number') {
-        if (typeof value !== 'number') {
-            value = parseFloat(value);
-        }
-        value = value.toFixed(2);
-        if (value % 1 === 0) {
-            value = parseInt(value);
-        }
-
-        if (isNaN(value)) {
-            value = '0';
-        }
-    }
-
-    var editDiv = cfs.find('div[contenteditable]');
-    if (editDiv.length !== 0) {
-        editDiv.empty().text(value);
-        editDiv.trigger('change');
-    } else {
-        cfs.empty().text(value).trigger('change');
-    }
-}
-
-function saveTid(ttName, tid, isSingle) {
-    if (isSingle) {
-        tids[ttName] = tid;
-    } else {
-        if (tids.hasOwnProperty(ttName)) {
-            tids[ttName].push(tid);
-        } else {
-            tids[ttName] = [tid];
-        }
-    }
-}
-
-function getConfigFields(ttName, parent, tblIdx, prependTtName) {
-    var cfs = {};
-    $('[data-cf^="' + ttName + '."]' + (typeof tblIdx !== 'undefined' ? '[data-tIdx="' + tblIdx + '"]' : ''), parent).each(function (idx, elem) {
-        var obj = $(elem);
-        var shortCfName = obj.data('cf').split('.').splice(1).join('.');
-        var cfName = (prependTtName ? obj.data('cf') : shortCfName);
-
-        if (!cfs[cfName]) {
-            cfs[cfName] = [];
-        }
-
-        cfs[cfName].push({
-            'tt': ttName,
-            'name': shortCfName,
-            'obj': obj,
-            'tIdx': tblIdx,
-            'orig_data': obj.data('orig_data'),
-            'reload': obj.data('reload') + '' === 'true',
-            'forceSubmit': obj.data('submit') + '' === 'true',
-            'required': obj.data('required') + '' === 'true',
-            'lockable': obj.data('lockable') + '' === 'true', 'type': obj.data('t'),
-            'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
-            'editable_style': obj.data('ed-style')
-        });
-    });
-    return cfs;
-}
-
-function isCfLocked(cf) {
-    if (!cf.lockable) {
-        return false;
-    }
-
-    var tr = cf.obj.closest('tr');
-    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
-    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-
-    if (!$.isArray(locks[cf.tt])) {
-        return false;
-    }
-
-    var lockVal = $.isArray(locks[cf.tt][tid]) ? locks[cf.tt][tid][cf.name] : undefined;
-    return lockVal !== undefined ? lockVal : false;
-}
-
-function fillCf(cf, value) {
-    if (cf.type === 'number') {
-        value = parseFloat(value).toFixed(2);
-        if (value % 1 === 0) {
-            value = parseInt(value);
-        }
-
-        if (isNaN(value)) {
-            value = 0;
-        }
-
-        cf.obj.text(value);
-    } else if (cf.type === 'memo') {
-        cf.obj.html(value !== null ? value.replace("\n", '<br>') : '');
-    } else {
-        cf.obj.text(value);
-    }
-
-    var subscribeObj = cf.obj;
-    if (cf.editable) {
-        var isLocked = isCfLocked(cf);
-        var div = $('<div contenteditable="' + (isLocked ? 'false' : 'true') + '"></div>');
-        subscribeObj = div;
-
-        div.html(cf.obj.html());
-
-        if (cf.editable_style) {
-            div.attr('style', cf.editable_style);
-        }
-
-        if (isLocked) {
-            div.tooltip({
-                items: 'div',
-                content: 'Locked'
-            });
-            cf.obj.empty().append(div);
-        } else {
-            cf.obj.empty().append(div);
-
-            // Init editable
-            div.on('blur keyup paste', function () {
-                if (!isReportEdited && cf.orig_data !== div.text()) {
-                    isReportEdited = true;
-
-                    $(window).on('beforeunload', function () {
-                        return loseDataMessage;
-                    });
-                }
-
-                var triggerChange = true;
-                if (div.text().trim().length === 0) {
-                    if (cf.type === 'number') {
-                        div.text('0');
-                    } else if (cf.required) {
-                        cf.obj.addClass('required_error');
-                        triggerChange = false;
-                    }
-                } else {
-                    cf.obj.removeClass('required_error');
-                }
-
-                if (triggerChange) {
-                    div.trigger('change');
-                }
-            });
-
-            if (cf.type !== 'memo') {
-                div.keypress(function (e) {
-                    // Prevent to create new lines
-                    return e.which !== 13;
-                });
-            }
-
-            switch (cf.type) {
-                case 'number': {
-                    // Deny input not number chars
-                    // http://stackoverflow.com/a/995193
-                    div.keydown(function (e) {
-                        // Allow: backspace, delete, tab, escape, enter and .
-                        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
-                            // Allow: Ctrl+A, Command+A
-                            (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                            // Allow: home, end, left, right, down, up
-                            (e.keyCode >= 35 && e.keyCode <= 40)) {
-                            // let it happen, don't do anything
-                            return;
-                        }
-                        // Ensure that it is a number and stop the keypress
-                        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
-                            e.preventDefault();
-                        }
-                    });
-                    if (value === null || value === '') {
-                        div.text('0');
-                    }
-                    break;
-                }
-                case 'memo': {
-                    cf.obj.css('vertical-align', 'middle');
-                    break;
-                }
-                case 'date': {
-                    var input = $('<input />');
-                    input
-                        .attr('type', 'hidden')
-                        .datepicker({
-                            dateFormat: 'mm/dd/yy',
-                            onSelect: function (dateText) {
-                                div.empty().text(dateText);
-                            }
-                        });
-                    input.insertAfter(div);
-                    div.prop('contenteditable', false).text(ApiClient.DateUtils.remoteDateFormat(div.text()));
-                    cf.obj.unbind('click').click(function () {
-                        input.datepicker('show');
-                    });
-                    break;
-                }
-            }
-        }
-
-        cf.obj.data('orig_data', div.text());
-    }
-
-    // Subscribe events
-    if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
-        subscribeObj.change(function () {
-            var tr = cf.obj.closest('tr');
-            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
-            var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
-        }).trigger('change');
-    }
-}
-
-function subscribeChangeDynCfs() {
-    var cfs = getConfigFields(config.dynTT);
-    $.each(cfs, function (cfName, cfArr) {
-        $.each(cfArr, function (idx, cf) {
-            if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
-                cf.obj.change(function () {
-                    var tr = cf.obj.closest('tr');
-                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
-                    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
-                }).trigger('change');
-            }
-        });
-    });
-}
-
-function fillCfs(cfs, response) {
-    $.each(cfs, function (cfName, cfArr) {
-        if (response.hasOwnProperty(cfName)) {
-            $.each(cfArr, function (idx, cf) {
-                fillCf(cf, response[cfName]);
-            });
-        }
-    });
-}
-
-function init() {
+        position = $(obj).offset();
+        return [position.left, position.top];
+    };
+
+    // TODO
     ApiClient.authSuccessCallback = function (un) {
         $('span.loggedin').empty().text(un);
     };
@@ -767,159 +72,7 @@ function init() {
         window.print();
     });
 }
-
-function isEmptyRange(colStartIdx, colEndIdx, row) {
-    var count = colEndIdx - colStartIdx;
-    var result = false;
-    row.children('td').each(function (idx, elem) {
-        if (idx + 1 >= count) {
-            result = $(elem).hasClass('emptycols') && parseInt($(elem).attr('colspan')) === count;
-            return false;
-        }
-    });
-    return result;
-}
-
-function copyRange(colStartIdx, colEndIdx, fromRow, toRow) {
-    var insertAfter = deleteRange(colStartIdx, colEndIdx, toRow);
-    var count = 0;
-    var tds = [];
-
-    fromRow.children('td').each(function (idx, elem) {
-        var td = $(elem);
-        if (td.is('[colspan]')) {
-            count += parseInt(td.attr('colspan'));
-        } else {
-            count++;
-        }
-
-        if (count >= colStartIdx && count <= colEndIdx) {
-            tds.push(td);
-        }
-    });
-    $.each(tds.reverse(), function (idx, td) {
-        td.clone().insertAfter(insertAfter);
-    });
-}
-
-function deleteRange(colStartIdx, colEndIdx, row) {
-    var count = 0;
-    var startTd = null;
-    row.children('td').each(function (idx, elem) {
-        var td = $(elem);
-        if (td.is('[colspan]')) {
-            count += parseInt(td.attr('colspan'));
-        } else {
-            count++;
-        }
-
-        if (startTd === null && count >= colStartIdx) {
-            startTd = td.prev();
-        }
-        if (count >= colStartIdx && count <= colEndIdx) {
-            td.remove();
-        }
-    });
-    return startTd;
-}
-
-function colsCount(row) {
-    var result = 0;
-    row.children('td').each(function (idx, elem) {
-        if ($(elem).is('[colspan]')) {
-            result += parseInt($(elem).attr('colspan'));
-        } else {
-            result++;
-        }
-    });
-    return result;
-}
-
-function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
-    var row = baseRow;
-    var prevRow = baseRow;
-    while (row.length !== 0 && row.hasClass('subtable') && row.hasClass('subtable_' + tblIdx) && !isEmptyRange(colStartIdx, colEndIdx, row)) {
-        prevRow = row;
-        row = row.next('tr.subtable, tr.staticRow');
-    }
-
-    if (row.length === 0) {
-        // Clone baseRow
-        row = baseRow.clone();
-
-        // Fill outside ranges with empty white space
-        var newTd = function (colspan) {
-            return $('<td></td>').addClass('xl97 emptycols')
-                .attr('colspan', colspan)
-                .css('border-right', '1.0pt solid black')
-                .css('border-left', '1.0pt solid black')
-                .css('border-bottom', '1.0pt solid black')
-                .css('border-top', '1.0pt solid black');
-        };
-
-        if (colStartIdx > 2) {
-            // We have range before colStartIdx
-            deleteRange(2, colStartIdx - 1, row);
-            newTd(colStartIdx - 2).insertAfter(row.find('td:first'));
-        }
-
-        var lastColIdx = colsCount(row);
-        if (colEndIdx < lastColIdx - 1) {
-            // We have range after colEndIdx
-            deleteRange(colEndIdx + 1, lastColIdx, row);
-            row.append(newTd(lastColIdx - colEndIdx));
-        }
-
-        row.removeClass('baseRow').insertAfter(prevRow);
-    } else if (row !== baseRow && !row.hasClass('staticRow')) {
-        // Copy cols from baseRow
-        copyRange(colStartIdx, colEndIdx, baseRow, row);
-        row.addClass('subtable_' + tblIdx);
-    } else {
-        row.addClass('subtable subtable_' + tblIdx);
-    }
-
-    if (tid) {
-        row.data('tid_' + tblIdx, tid);
-    }
-
-    ArrowNavigation.initCells(row.find('td'));
-    return row;
-}
-
-function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
-    var result = {};
-    $.each(cfs, function (idx, cfObj) {
-        $.each(cfObj, function (idx, cf) {
-            if (cf.editable && !isCfLocked(cf)) {
-                var val = cf.obj.children('div[contenteditable]')[0].innerText;
-                if (cf.required && val.length === 0) {
-                    var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
-                    throw new RequiredFieldsNotPresentException(focusObj);
-                }
-
-                if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
-                    fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
-                }
-
-                if (cf.orig_data !== val) {
-                    if (cf.type === 'date') {
-                        // Reformat date
-                        var dateObj = ApiClient.DateUtils.localDateToObj(val);
-                        val = ApiClient.DateUtils.objToRemoteDate(dateObj);
-                    }
-
-                    result[cf.name] = val;
-                }
-            } else if (cf.forceSubmit) {
-                result[cf.name] = cf.obj.text();
-            }
-        });
-    });
-    return result;
-}
-
-function startSubmitReport() {
+RigDaily.prototype.startSubmitReport = function () {
     var requestQueue = [];
     var makeRequests = function (tid, data, cfs) {
         if (Object.keys(data).length === 0) {
@@ -1015,9 +168,8 @@ function startSubmitReport() {
     } else {
         alertDialog('Nothing to submit');
     }
-}
-
-function loadReport(tid) {
+};
+RigDaily.prototype.loadReport = function (tid) {
     saveTid(config.rigDailyReportTT, tid, true);
 
     var requestQueue = [];
@@ -1519,9 +671,8 @@ function loadReport(tid) {
         subscribeChangeDynCfs();
         $('#content').show();
     });
-}
-
-function selectReportLoadPage(selectReportDialog, page) {
+};
+RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     var fields = [
         'TRACKOR_KEY',
         config.rigSiteTT + '.TRACKOR_KEY',
@@ -1593,9 +744,8 @@ function selectReportLoadPage(selectReportDialog, page) {
             selectReportDialog.dialog('open');
         }
     });
-}
-
-function startSelectReport(selectReportDialog) {
+};
+RigDaily.prototype.startSelectReport = function (selectReportDialog) {
     var siteFilter = selectReportDialog.find('select.site');
 
     // Load sites
@@ -1625,9 +775,8 @@ function startSelectReport(selectReportDialog) {
             selectReportLoadPage(selectReportDialog, 1);
         }
     });
-}
-
-function initSelectReportDialog() {
+};
+RigDaily.prototype.initSelectReportDialog = function () {
     var selectReportDialog = $('#selectReportDialog');
     selectReportDialog.dialog({
         width: 'auto',
@@ -1653,9 +802,8 @@ function initSelectReportDialog() {
     });
 
     return selectReportDialog;
-}
-
-function alertDialog(message, callback, title) {
+};
+RigDaily.prototype.alertDialog = function (message, callback, title) {
     if (typeof(title) !== 'string') {
         title = 'Information';
     }
@@ -1677,9 +825,8 @@ function alertDialog(message, callback, title) {
             }
         }
     });
-}
-
-function confirmDialog(message, callback, title) {
+};
+RigDaily.prototype.confirmDialog = function (message, callback, title) {
     if (typeof(title) !== 'string') {
         title = 'Confirm';
     }
@@ -1702,123 +849,958 @@ function confirmDialog(message, callback, title) {
             div.remove();
         }
     });
-}
-
-// Arrow navigation related
-var ArrowNavigation = {
-    currentRow: 2,
-    currentCell: 1,
-    isCtrlPressed: false,
-
-    updateCell: function (direction) {
-        $('td.active').removeClass('active').find('div[contenteditable]').blur();
-
-        var rows = $('#content').find('tr');
-        if (this.currentRow > rows.length - 1) {
-            this.currentRow = rows.length - 1;
-        }
-
-        var tableRow = rows.eq(this.currentRow);
-        var cellCount = tableRow.children().length;
-        if (this.currentCell > cellCount - 1) {
-            this.currentCell = cellCount - 1;
-        }
-
-        var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
-        tableCell.focus();
-        tableCell.addClass('active');
-    },
-    setActiveCellRowTo: function (td) {
-        if (td.index() === 0) {
-            return;
-        }
-
-        var row = $('#content').find('tr').index(td.closest('tr'));
-        if (row === 0) {
-            return;
-        }
-
-        ArrowNavigation.currentRow = row;
-        ArrowNavigation.currentCell = td.index();
-        ArrowNavigation.updateCell();
-    },
-    initCells: function (td) {
-        td.unbind('mousedown').mousedown(function () {
-            ArrowNavigation.setActiveCellRowTo($(this));
-        }).unbind('dblclick').dblclick(function () {
-            var div = $(this).find('div[contenteditable]:first');
-            if (div.length !== 0) {
-                div.focus();
-            }
-        });
-    },
-    init: function () {
-        ArrowNavigation.updateCell();
-
-        this.initCells($('#content').find('td'));
-
-        $(document).keydown(function (e) {
-            if (e.which === 17) {
-                ArrowNavigation.isCtrlPressed = true;
-            }
-
-            var focusedDiv = $('div[contenteditable]:focus');
-
-            if (e.shiftKey || ArrowNavigation.isCtrlPressed ||
-                $('#content').is(':hidden') || focusedDiv.length !== 0) {
-
-                if (e.keyCode === 27 && focusedDiv.length !== 0) {
-                    focusedDiv.blur();
-                }
-                return true;
-            }
-
-            if (e.keyCode === 37) {
-                if (ArrowNavigation.currentCell === 1) {
-                    return false;
-                }
-                ArrowNavigation.currentCell--;
-                ArrowNavigation.updateCell('left');
-                return false;
-            } else if (e.keyCode === 38) {
-                if (ArrowNavigation.currentRow === 2) {
-                    return false;
-                }
-                ArrowNavigation.currentRow--;
-                ArrowNavigation.updateCell('up');
-                return false;
-            } else if (e.keyCode === 39) {
-                ArrowNavigation.currentCell++;
-                ArrowNavigation.updateCell('right');
-                return false;
-            } else if (e.keyCode === 40 || e.keyCode === 13) {
-                ArrowNavigation.currentRow++;
-                ArrowNavigation.updateCell('down');
-                return false;
-            }
-        }).keyup(function (e) {
-            if (e.which === 17) {
-                ArrowNavigation.isCtrlPressed = false;
-            } else if (e.which === 8 || e.which === 46) {
-                var tableCell = $('td.active');
-                tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
-            }
-        });
-    }
 };
 
-$(function () {
-    // http://stackoverflow.com/a/24693866
-    $.datepicker._findPos = function (obj) {
-        var position;
-        if (obj.type === 'hidden') {
-            obj = $(obj).closest('td');
-        }
-        position = $(obj).offset();
-        return [position.left, position.top];
-    };
+var config = {
+    rigDailyReportTT: 'Rig_Daily_Report',
+    rigSiteTT: 'Rig_Site',
+    clientsTT: 'Clients',
+    workersTT: 'Workers',
+    contractorsTT: 'Contractors',
+    holeDesignAndVolumeTT: 'Hole_Design_And_Volume',
+    labTestingTT: 'Lab_Testing',
+    apiScreenSizeTT: 'Api_Screen_Size',
+    fieldTestingTT: 'Field_Testing',
+    retortsTT: 'Retorts',
+    wasteHaulOffUsageTT: 'Waste_Haul_Off_Usage',
+    consumablesUsageTT: 'Consumables_Usage',
+    consumablesTT: 'Consumables',
+    binderTT: 'Binder',
+    binderUsageTT: 'Binder_Usage',
+    equipmentTT: 'Equipment',
+    equipmentUsageTT: 'Equipment_Usage',
+    techniciansUsageTT: 'Technicians_Usage',
+    supplyRequestTT: 'Supply_Request',
+    projectTT: 'Project',
+    projectManagementTT: 'Project_Management',
 
-    ApiClient.init();
-    ArrowNavigation.init();
-    init();
-});
+    // For dynamic calculations
+    dynTT: 'Dynamic'
+};
+var configTblIdxs = {};
+configTblIdxs[config.holeDesignAndVolumeTT] = 'hd';
+configTblIdxs[config.labTestingTT] = 'lt';
+configTblIdxs[config.apiScreenSizeTT] = 'ass';
+configTblIdxs[config.fieldTestingTT] = ['ftam', 'ftpm'];
+configTblIdxs[config.retortsTT] = 'rtrs';
+configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
+configTblIdxs[config.consumablesUsageTT] = 'cu';
+configTblIdxs[config.binderUsageTT] = ['bu', 'blu1', 'blu2', 'blu3', 'blu4'];
+configTblIdxs[config.equipmentUsageTT] = 'equ';
+configTblIdxs[config.techniciansUsageTT] = 'tecu';
+configTblIdxs[config.supplyRequestTT] = 'sr';
+configTblIdxs[config.projectManagementTT] = 'pm';
+
+var fieldValidators = {};
+
+fieldValidators[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
+    var prevDepth = getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH');
+    var currentDepth = getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
+    if (prevDepth > currentDepth) {
+        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
+    }
+};
+fieldValidators[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
+    var prevDepth = getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH');
+    var currentDepth = getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+    if (prevDepth > currentDepth) {
+        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+    }
+};
+var dynCalculations = {};
+
+// rigDailyReportTT
+dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
+    setCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED',
+        getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH') -
+        getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH'));
+
+    setCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH',
+        getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'));
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
+    setCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED',
+        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
+        getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
+
+    dynCalculations[config.dynTT + '.RT_TOTAL']();
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = function () {
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+};
+
+// Rig pumps
+dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
+    setCfValue(config.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
+        getCfValue(config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
+        getCfValue(config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'));
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'] = dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'];
+
+// labTestingTT
+dynCalculations[config.labTestingTT + '.LABT_WATER'] = function (tid, tblIdx) {
+    var water = getCfValue(config.labTestingTT + '.LABT_WATER', tid, tblIdx);
+    var oil = getCfValue(config.labTestingTT + '.LABT_OIL', tid, tblIdx);
+    setCfValue(config.labTestingTT + '.LABT_SOLIDS', (100 - water - oil), tid, tblIdx);
+};
+dynCalculations[config.labTestingTT + '.LABT_OIL'] = dynCalculations[config.labTestingTT + '.LABT_WATER'];
+
+// holeDesignAndVolumeTT
+dynCalculations[config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL'] = function (tid, tblIdx) {
+    var newVal = 0;
+    $.each(tids[config.holeDesignAndVolumeTT], function (idx, tid) {
+        newVal += getCfValue(config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', tid, tblIdx);
+    });
+    setCfValue(config.rigSiteTT + '.RS_GAUGE_HOLE_TOTAL', newVal);
+};
+dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'] = function (tid, tblIdx) {
+    var prevDepth;
+    $.each(tids[config.holeDesignAndVolumeTT], function (idx, tid) {
+        var hole = getCfValue(config.holeDesignAndVolumeTT + '.HDV_HOLE', tid, tblIdx);
+        var depth = getCfValue(config.holeDesignAndVolumeTT + '.HDV_DEPTH', tid, tblIdx);
+
+        var gaugeBbl = Math.pow(hole, 2) * 0.000972;
+        gaugeBbl *= typeof prevDepth !== 'undefined' ? depth - prevDepth : depth;
+        prevDepth = depth;
+
+        setCfValue(config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', gaugeBbl, tid, tblIdx);
+    });
+};
+dynCalculations[config.holeDesignAndVolumeTT + '.HDV_DEPTH'] = dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'];
+
+// retortsTT
+dynCalculations[config.retortsTT + '.RET_AM_OIL'] = function (tid, tblIdx) {
+    var water = getCfValue(config.retortsTT + '.RET_AM_WATER', tid, tblIdx);
+    var oil = getCfValue(config.retortsTT + '.RET_AM_OIL', tid, tblIdx);
+    setCfValue(config.retortsTT + '.RET_AM_SOLIDS', (100 - water - oil), tid, tblIdx);
+};
+dynCalculations[config.retortsTT + '.RET_AM_WATER'] = dynCalculations[config.retortsTT + '.RET_AM_OIL'];
+dynCalculations[config.retortsTT + '.RET_PM_OIL'] = function (tid, tblIdx) {
+    var water = getCfValue(config.retortsTT + '.RET_PM_WATER', tid, tblIdx);
+    var oil = getCfValue(config.retortsTT + '.RET_PM_OIL', tid, tblIdx);
+    setCfValue(config.retortsTT + '.RET_PM_SOLIDS', (100 - water - oil), tid, tblIdx);
+};
+dynCalculations[config.retortsTT + '.RET_PM_WATER'] = dynCalculations[config.retortsTT + '.RET_PM_OIL'];
+
+// wasteHaulOffUsageTT
+dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
+    var newValue = 0;
+    $.each(tids[config.wasteHaulOffUsageTT], function (idx, tid) {
+        $.each(configTblIdxs[config.wasteHaulOffUsageTT], function (idx, tblIdx) {
+            var val = getCfValue(config.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx);
+            if (val !== null) {
+                newValue += val;
+            }
+        });
+    });
+
+    setCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
+    newValue *= getCfValue(config.rigDailyReportTT + '.RDR_WHOU_COST_TON');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL', newValue);
+};
+
+dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'];
+
+dynCalculations[config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL') -
+        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
+};
+
+dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
+    var number = getCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
+        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(config.rigDailyReportTT + '.RDR_WHOU_TOTAL_LOADS_TO_DATE', number);
+};
+
+// consumablesUsageTT
+dynCalculations[config.consumablesUsageTT + '.CONU_INITIAL'] = function (tid, tblIdx) {
+    var newValue = getCfValue(config.consumablesUsageTT + '.CONU_INITIAL', tid, tblIdx) +
+        getCfValue(config.consumablesUsageTT + '.CONU_DELIVERED', tid, tblIdx);
+    setCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', newValue, tid, tblIdx);
+};
+dynCalculations[config.consumablesUsageTT + '.CONU_DELIVERED'] = dynCalculations[config.consumablesUsageTT + '.CONU_INITIAL'];
+dynCalculations[config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
+    var used = getCfValue(config.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
+    var totalDelivered = getCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
+    setCfValue(config.consumablesUsageTT + '.CONU_BALANCE', totalDelivered - used, tid, tblIdx);
+};
+dynCalculations[config.consumablesUsageTT + '.CONU_BALANCE'] = function (tid, tblIdx) {
+    var cost = getCfValue(config.consumablesUsageTT + '.' + config.consumablesTT + '.CONS_COST', tid, tblIdx);
+    var totalDelivered = getCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
+    var balance = getCfValue(config.consumablesUsageTT + '.CONU_BALANCE', tid, tblIdx);
+    setCfValue(config.consumablesUsageTT + '.CONU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
+};
+dynCalculations[config.consumablesUsageTT + '.CONU_USED'] = function (tid, tblIdx) {
+    dynCalculations[config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'](tid, tblIdx);
+
+    var cost = getCfValue(config.consumablesUsageTT + '.' + config.consumablesTT + '.CONS_COST', tid, tblIdx);
+    var used = getCfValue(config.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
+    setCfValue(config.consumablesUsageTT + '.CONU_DAILY', cost * used, tid, tblIdx);
+};
+dynCalculations[config.consumablesUsageTT + '.CONU_DAILY'] = function (tid, tblIdx) {
+    var summ = 0;
+    $.each(tids[config.consumablesUsageTT], function (idx, tid) {
+        summ += getCfValue(config.consumablesUsageTT + '.CONU_DAILY', tid, tblIdx);
+    });
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES', summ);
+};
+
+// binderUsageTT
+dynCalculations[config.binderUsageTT + '.BU_INITIAL'] = function (tid, tblIdx) {
+    var newValue = getCfValue(config.binderUsageTT + '.BU_INITIAL', tid, tblIdx) +
+        getCfValue(config.binderUsageTT + '.BU_DELIVERED', tid, tblIdx);
+    setCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', newValue, tid, tblIdx);
+};
+dynCalculations[config.binderUsageTT + '.BU_DELIVERED'] = dynCalculations[config.binderUsageTT + '.BU_INITIAL'];
+dynCalculations[config.binderUsageTT + '.BU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
+    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
+    var totalDelivered = getCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
+    setCfValue(config.binderUsageTT + '.BU_BALANCE', totalDelivered - used, tid, tblIdx);
+};
+dynCalculations[config.binderUsageTT + '.BU_BALANCE'] = function (tid, tblIdx) {
+    var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
+    var totalDelivered = getCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
+    var balance = getCfValue(config.binderUsageTT + '.BU_BALANCE', tid, tblIdx);
+    setCfValue(config.binderUsageTT + '.BU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
+};
+dynCalculations[config.binderUsageTT + '.BU_USED'] = function (tid, tblIdx) {
+    dynCalculations[config.binderUsageTT + '.BU_TOTAL_DELIVERED'](tid, tblIdx);
+
+    var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
+    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
+    setCfValue(config.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
+
+    dynCalculations[config.binderUsageTT + '.BU_UNIT'](tid, tblIdx);
+};
+dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
+    var key = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tid, tblIdx);
+    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
+    var unit = getCfValue(config.binderUsageTT + '.BU_UNIT', tid, tblIdx);
+
+    var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
+    var binderLbsUsedTid;
+    var binderLbsUsedTblIdx;
+
+    $.each(configTblIdxs[config.binderUsageTT].slice(1), function (idx, tblIdx) {
+        var tblIdxTid = baseRowData['tid_' + tblIdx];
+        if (getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
+            binderLbsUsedTid = tblIdxTid;
+            binderLbsUsedTblIdx = tblIdx;
+            return false;
+        }
+    });
+
+    if (binderLbsUsedTid && binderLbsUsedTblIdx) {
+        var number = used * unit;
+        setCfValue(config.binderUsageTT + '.BU_BINDER_LBS_USED', number, binderLbsUsedTid, binderLbsUsedTblIdx);
+    }
+};
+dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
+    var summ = 0;
+    $.each(tids[config.binderUsageTT], function (idx, tid) {
+        summ += getCfValue(config.binderUsageTT + '.BU_DAILY', tid, tblIdx);
+    });
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
+};
+
+// equipmentUsageTT
+dynCalculations[config.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
+    var number = getCfValue(config.equipmentUsageTT + '.EQU_QUANTITY', tid, tblIdx) *
+        getCfValue(config.equipmentUsageTT + '.' + config.equipmentTT + '.EQ_DAILY_COST', tid, tblIdx);
+    setCfValue(config.equipmentUsageTT + '.EQU_TOTAL', number, tid, tblIdx);
+};
+dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
+    // Daily Total All In
+    var dailyTotalEquip = 0;
+    $.each(tids[config.equipmentUsageTT], function (idx, tid) {
+        dailyTotalEquip += getCfValue(config.equipmentUsageTT + '.EQU_TOTAL', tid, configTblIdxs[config.equipmentUsageTT]);
+    });
+
+    var dailyTotalTech = 0;
+    $.each(tids[config.techniciansUsageTT], function (idx, tid) {
+        dailyTotalTech += getCfValue(config.techniciansUsageTT + '.TECU_TOTAL', tid, configTblIdxs[config.techniciansUsageTT]);
+    });
+
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_EQUIPMENT', dailyTotalEquip);
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_TECHNICIANS', dailyTotalTech);
+    setCfValue(config.dynTT + '.RT_DAILY_EQTECH', dailyTotalEquip + dailyTotalTech);
+};
+
+// techniciansUsageTT
+dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, tblIdx) {
+    var number = getCfValue(config.techniciansUsageTT + '.TECU_QUANTITY', tid, tblIdx) *
+        getCfValue(config.techniciansUsageTT + '.' + config.workersTT + '.WOR_DAILY_COST', tid, tblIdx);
+    setCfValue(config.techniciansUsageTT + '.TECU_TOTAL', number, tid, tblIdx);
+};
+dynCalculations[config.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'];
+
+// Running totals
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(config.dynTT + '.RT_PREV_CONSUMABLES', number);
+
+    number = (getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(config.dynTT + '.PREV', number);
+
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
+};
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(config.dynTT + '.RT_PREV_BINDER', number);
+
+    number = (getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(config.dynTT + '.PREV', number);
+
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
+};
+
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
+    var number = checkInfinity(getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS') /
+        getCfValue(config.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'));
+    setCfValue(config.projectTT + '.PR_LBS__TONS', number);
+};
+
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS');
+    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+
+    number -= getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.dynTT + '.RT_PREV_EQTECH', number);
+};
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'];
+
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(config.dynTT + '.RT_PREV_WHLOFF', number);
+};
+
+dynCalculations[config.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = getCfValue(config.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(config.dynTT + '.RT_PREV', number);
+};
+
+// Daily running totals
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+
+    number = getCfValue(config.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(config.dynTT + '.RT_TOTAL_CONSUMABLES', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') +
+        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+};
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
+    var number = getCfValue(config.dynTT + '.RT_PREV_BINDER') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(config.dynTT + '.RT_TOTAL_BINDER', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+
+    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
+};
+
+dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+
+    number = getCfValue(config.dynTT + '.RT_PREV_EQTECH') + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+};
+
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(config.dynTT + '.WHL_DAILY_TOTAL', number);
+
+    number += getCfValue(config.dynTT + '.RT_PREV_WHLOFF');
+    setCfValue(config.dynTT + '.RT_TOTAL_WHLOFF', number);
+
+    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+};
+
+dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = checkInfinity(getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
+        (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
+    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
+
+    number = getCfValue(config.dynTT + '.RT_PREV') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(config.dynTT + '.RT_TOTAL', number);
+};
+
+dynCalculations[config.dynTT + '.RT_TOTAL'] = function () {
+    var number = checkInfinity(getCfValue(config.dynTT + '.RT_TOTAL') /
+        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
+    setCfValue(config.projectTT + '.PR_TOTAL_EST_COST__FT', number);
+};
+var loseDataMessage = 'You will lose any unsaved data. Continue?';
+
+var isReportEdited = false;
+var tids = {};
+var locks = {};
+var dateUtils = new ApiDateUtils();
+
+function RequiredFieldsNotPresentException(focusObj) {
+    this.message = 'Required fields not present!';
+    this.focusObj = focusObj;
+}
+
+function FieldValidateFailedException(message, name, tid, tblIdx) {
+    this.message = message;
+    this.focusObj = findCf(name, tid, tblIdx).children('div[contenteditable]');
+}
+
+function checkInfinity(number) {
+    return number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY ? 0 : number;
+}
+
+function findCf(name, tid, tblIdx) {
+    var cfs = $('[data-cf="' + name + '"]');
+    if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
+        cfs = cfs.filter(function () {
+            var cf = $(this);
+            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
+        });
+    }
+    return cfs;
+}
+
+function getCfValue(name, tid, tblIdx) {
+    var cfs = findCf(name, tid, tblIdx);
+
+    if (cfs.length === 0) {
+        return null;
+    } else if (cfs.length > 1) {
+        cfs = cfs.first();
+    }
+
+    var dataType = cfs.data('t');
+    var value = cfs[0].innerText.trim();
+    if (dataType === 'number') {
+        value = parseFloat(value);
+        if (isNaN(value)) {
+            value = 0;
+        }
+    }
+    return value;
+}
+
+function setCfValue(name, value, tid, tblIdx) {
+    var cfs = findCf(name, tid, tblIdx);
+
+    var dataType = cfs.data('t');
+    if (dataType === 'number') {
+        if (typeof value !== 'number') {
+            value = parseFloat(value);
+        }
+        value = value.toFixed(2);
+        if (value % 1 === 0) {
+            value = parseInt(value);
+        }
+
+        if (isNaN(value)) {
+            value = '0';
+        }
+    }
+
+    var editDiv = cfs.find('div[contenteditable]');
+    if (editDiv.length !== 0) {
+        editDiv.empty().text(value);
+        editDiv.trigger('change');
+    } else {
+        cfs.empty().text(value).trigger('change');
+    }
+}
+
+function saveTid(ttName, tid, isSingle) {
+    if (isSingle) {
+        tids[ttName] = tid;
+    } else {
+        if (tids.hasOwnProperty(ttName)) {
+            tids[ttName].push(tid);
+        } else {
+            tids[ttName] = [tid];
+        }
+    }
+}
+
+function getConfigFields(ttName, parent, tblIdx, prependTtName) {
+    var cfs = {};
+    $('[data-cf^="' + ttName + '."]' + (typeof tblIdx !== 'undefined' ? '[data-tIdx="' + tblIdx + '"]' : ''), parent).each(function (idx, elem) {
+        var obj = $(elem);
+        var shortCfName = obj.data('cf').split('.').splice(1).join('.');
+        var cfName = (prependTtName ? obj.data('cf') : shortCfName);
+
+        if (!cfs[cfName]) {
+            cfs[cfName] = [];
+        }
+
+        cfs[cfName].push({
+            'tt': ttName,
+            'name': shortCfName,
+            'obj': obj,
+            'tIdx': tblIdx,
+            'orig_data': obj.data('orig_data'),
+            'reload': obj.data('reload') + '' === 'true',
+            'forceSubmit': obj.data('submit') + '' === 'true',
+            'required': obj.data('required') + '' === 'true',
+            'lockable': obj.data('lockable') + '' === 'true', 'type': obj.data('t'),
+            'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
+            'editable_style': obj.data('ed-style')
+        });
+    });
+    return cfs;
+}
+
+function isCfLocked(cf) {
+    if (!cf.lockable) {
+        return false;
+    }
+
+    var tr = cf.obj.closest('tr');
+    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+
+    if (!$.isArray(locks[cf.tt])) {
+        return false;
+    }
+
+    var lockVal = $.isArray(locks[cf.tt][tid]) ? locks[cf.tt][tid][cf.name] : undefined;
+    return lockVal !== undefined ? lockVal : false;
+}
+
+function fillCf(cf, value) {
+    if (cf.type === 'number') {
+        value = parseFloat(value).toFixed(2);
+        if (value % 1 === 0) {
+            value = parseInt(value);
+        }
+
+        if (isNaN(value)) {
+            value = 0;
+        }
+
+        cf.obj.text(value);
+    } else if (cf.type === 'memo') {
+        cf.obj.html(value !== null ? value.replace("\n", '<br>') : '');
+    } else {
+        cf.obj.text(value);
+    }
+
+    var subscribeObj = cf.obj;
+    if (cf.editable) {
+        var isLocked = isCfLocked(cf);
+        var div = $('<div contenteditable="' + (isLocked ? 'false' : 'true') + '"></div>');
+        subscribeObj = div;
+
+        div.html(cf.obj.html());
+
+        if (cf.editable_style) {
+            div.attr('style', cf.editable_style);
+        }
+
+        if (isLocked) {
+            div.tooltip({
+                items: 'div',
+                content: 'Locked'
+            });
+            cf.obj.empty().append(div);
+        } else {
+            cf.obj.empty().append(div);
+
+            // Init editable
+            div.on('blur keyup paste', function () {
+                if (!isReportEdited && cf.orig_data !== div.text()) {
+                    isReportEdited = true;
+
+                    $(window).on('beforeunload', function () {
+                        return loseDataMessage;
+                    });
+                }
+
+                var triggerChange = true;
+                if (div.text().trim().length === 0) {
+                    if (cf.type === 'number') {
+                        div.text('0');
+                    } else if (cf.required) {
+                        cf.obj.addClass('required_error');
+                        triggerChange = false;
+                    }
+                } else {
+                    cf.obj.removeClass('required_error');
+                }
+
+                if (triggerChange) {
+                    div.trigger('change');
+                }
+            });
+
+            if (cf.type !== 'memo') {
+                div.keypress(function (e) {
+                    // Prevent to create new lines
+                    return e.which !== 13;
+                });
+            }
+
+            switch (cf.type) {
+                case 'number': {
+                    // Deny input not number chars
+                    // http://stackoverflow.com/a/995193
+                    div.keydown(function (e) {
+                        // Allow: backspace, delete, tab, escape, enter and .
+                        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
+                            // Allow: Ctrl+A, Command+A
+                            (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                            // Allow: home, end, left, right, down, up
+                            (e.keyCode >= 35 && e.keyCode <= 40)) {
+                            // let it happen, don't do anything
+                            return;
+                        }
+                        // Ensure that it is a number and stop the keypress
+                        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                            e.preventDefault();
+                        }
+                    });
+                    if (value === null || value === '') {
+                        div.text('0');
+                    }
+                    break;
+                }
+                case 'memo': {
+                    cf.obj.css('vertical-align', 'middle');
+                    break;
+                }
+                case 'date': {
+                    var input = $('<input />');
+                    input
+                        .attr('type', 'hidden')
+                        .datepicker({
+                            dateFormat: 'mm/dd/yy',
+                            onSelect: function (dateText) {
+                                div.empty().text(dateText);
+                            }
+                        });
+                    input.insertAfter(div);
+                    div.prop('contenteditable', false).text(dateUtils.remoteDateFormat(div.text()));
+                    cf.obj.unbind('click').click(function () {
+                        input.datepicker('show');
+                    });
+                    break;
+                }
+            }
+        }
+
+        cf.obj.data('orig_data', div.text());
+    }
+
+    // Subscribe events
+    if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
+        subscribeObj.change(function () {
+            var tr = cf.obj.closest('tr');
+            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+            var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+        }).trigger('change');
+    }
+}
+
+function subscribeChangeDynCfs() {
+    var cfs = getConfigFields(config.dynTT);
+    $.each(cfs, function (cfName, cfArr) {
+        $.each(cfArr, function (idx, cf) {
+            if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
+                cf.obj.change(function () {
+                    var tr = cf.obj.closest('tr');
+                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+                    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+                }).trigger('change');
+            }
+        });
+    });
+}
+
+function fillCfs(cfs, response) {
+    $.each(cfs, function (cfName, cfArr) {
+        if (response.hasOwnProperty(cfName)) {
+            $.each(cfArr, function (idx, cf) {
+                fillCf(cf, response[cfName]);
+            });
+        }
+    });
+}
+
+function isEmptyRange(colStartIdx, colEndIdx, row) {
+    var count = colEndIdx - colStartIdx;
+    var result = false;
+    row.children('td').each(function (idx, elem) {
+        if (idx + 1 >= count) {
+            result = $(elem).hasClass('emptycols') && parseInt($(elem).attr('colspan')) === count;
+            return false;
+        }
+    });
+    return result;
+}
+
+function copyRange(colStartIdx, colEndIdx, fromRow, toRow) {
+    var insertAfter = deleteRange(colStartIdx, colEndIdx, toRow);
+    var count = 0;
+    var tds = [];
+
+    fromRow.children('td').each(function (idx, elem) {
+        var td = $(elem);
+        if (td.is('[colspan]')) {
+            count += parseInt(td.attr('colspan'));
+        } else {
+            count++;
+        }
+
+        if (count >= colStartIdx && count <= colEndIdx) {
+            tds.push(td);
+        }
+    });
+    $.each(tds.reverse(), function (idx, td) {
+        td.clone().insertAfter(insertAfter);
+    });
+}
+
+function deleteRange(colStartIdx, colEndIdx, row) {
+    var count = 0;
+    var startTd = null;
+    row.children('td').each(function (idx, elem) {
+        var td = $(elem);
+        if (td.is('[colspan]')) {
+            count += parseInt(td.attr('colspan'));
+        } else {
+            count++;
+        }
+
+        if (startTd === null && count >= colStartIdx) {
+            startTd = td.prev();
+        }
+        if (count >= colStartIdx && count <= colEndIdx) {
+            td.remove();
+        }
+    });
+    return startTd;
+}
+
+function colsCount(row) {
+    var result = 0;
+    row.children('td').each(function (idx, elem) {
+        if ($(elem).is('[colspan]')) {
+            result += parseInt($(elem).attr('colspan'));
+        } else {
+            result++;
+        }
+    });
+    return result;
+}
+
+function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
+    var row = baseRow;
+    var prevRow = baseRow;
+    while (row.length !== 0 && row.hasClass('subtable') && row.hasClass('subtable_' + tblIdx) && !isEmptyRange(colStartIdx, colEndIdx, row)) {
+        prevRow = row;
+        row = row.next('tr.subtable, tr.staticRow');
+    }
+
+    if (row.length === 0) {
+        // Clone baseRow
+        row = baseRow.clone();
+
+        // Fill outside ranges with empty white space
+        var newTd = function (colspan) {
+            return $('<td></td>').addClass('xl97 emptycols')
+                .attr('colspan', colspan)
+                .css('border-right', '1.0pt solid black')
+                .css('border-left', '1.0pt solid black')
+                .css('border-bottom', '1.0pt solid black')
+                .css('border-top', '1.0pt solid black');
+        };
+
+        if (colStartIdx > 2) {
+            // We have range before colStartIdx
+            deleteRange(2, colStartIdx - 1, row);
+            newTd(colStartIdx - 2).insertAfter(row.find('td:first'));
+        }
+
+        var lastColIdx = colsCount(row);
+        if (colEndIdx < lastColIdx - 1) {
+            // We have range after colEndIdx
+            deleteRange(colEndIdx + 1, lastColIdx, row);
+            row.append(newTd(lastColIdx - colEndIdx));
+        }
+
+        row.removeClass('baseRow').insertAfter(prevRow);
+    } else if (row !== baseRow && !row.hasClass('staticRow')) {
+        // Copy cols from baseRow
+        copyRange(colStartIdx, colEndIdx, baseRow, row);
+        row.addClass('subtable_' + tblIdx);
+    } else {
+        row.addClass('subtable subtable_' + tblIdx);
+    }
+
+    if (tid) {
+        row.data('tid_' + tblIdx, tid);
+    }
+
+    ArrowNavigation.initCells(row.find('td'));
+    return row;
+}
+
+function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
+    var result = {};
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            if (cf.editable && !isCfLocked(cf)) {
+                var val = cf.obj.children('div[contenteditable]')[0].innerText;
+                if (cf.required && val.length === 0) {
+                    var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
+                    throw new RequiredFieldsNotPresentException(focusObj);
+                }
+
+                if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
+                    fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
+                }
+
+                if (cf.orig_data !== val) {
+                    if (cf.type === 'date') {
+                        // Reformat date
+                        var dateObj = dateUtils.localDateToObj(val);
+                        val = dateUtils.objToRemoteDate(dateObj);
+                    }
+
+                    result[cf.name] = val;
+                }
+            } else if (cf.forceSubmit) {
+                result[cf.name] = cf.obj.text();
+            }
+        });
+    });
+    return result;
+}
+
+function ArrowNavigation() {
+    this.currentRow = 2;
+    this.currentCell = 1;
+    this.isCtrlPressed = false;
+}
+ArrowNavigation.prototype.updateCell = function () {
+    $('td.active').removeClass('active').find('div[contenteditable]').blur();
+
+    var rows = $('#content').find('tr');
+    if (this.currentRow > rows.length - 1) {
+        this.currentRow = rows.length - 1;
+    }
+
+    var tableRow = rows.eq(this.currentRow);
+    var cellCount = tableRow.children().length;
+    if (this.currentCell > cellCount - 1) {
+        this.currentCell = cellCount - 1;
+    }
+
+    var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
+    tableCell.focus();
+    tableCell.addClass('active');
+};
+ArrowNavigation.prototype.setActiveCellRowTo = function (td) {
+    if (td.index() === 0) {
+        return;
+    }
+
+    var row = $('#content').find('tr').index(td.closest('tr'));
+    if (row === 0) {
+        return;
+    }
+
+    this.currentRow = row;
+    this.currentCell = td.index();
+    this.updateCell();
+};
+ArrowNavigation.prototype.initCells = function (td) {
+    var _this = this;
+    td.unbind('mousedown').mousedown(function () {
+        _this.setActiveCellRowTo($(this));
+    }).unbind('dblclick').dblclick(function () {
+        var div = $(this).find('div[contenteditable]:first');
+        if (div.length !== 0) {
+            div.focus();
+        }
+    });
+};
+ArrowNavigation.prototype.init = function () {
+    this.updateCell();
+    this.initCells($('#content').find('td'));
+
+    $(document).keydown((function (e) {
+        if (e.which === 17) {
+            this.isCtrlPressed = true;
+        }
+
+        var focusedDiv = $('div[contenteditable]:focus');
+
+        if (e.shiftKey || this.isCtrlPressed ||
+            $('#content').is(':hidden') || focusedDiv.length !== 0) {
+
+            if (e.keyCode === 27 && focusedDiv.length !== 0) {
+                focusedDiv.blur();
+            }
+            return true;
+        }
+
+        if (e.keyCode === 37) {
+            if (this.currentCell === 1) {
+                return false;
+            }
+            this.currentCell--;
+            this.updateCell();
+            return false;
+        } else if (e.keyCode === 38) {
+            if (this.currentRow === 2) {
+                return false;
+            }
+            this.currentRow--;
+            this.updateCell();
+            return false;
+        } else if (e.keyCode === 39) {
+            this.currentCell++;
+            this.updateCell();
+            return false;
+        } else if (e.keyCode === 40 || e.keyCode === 13) {
+            this.currentRow++;
+            this.updateCell();
+            return false;
+        }
+    }).bind(this)).keyup((function (e) {
+        if (e.which === 17) {
+            this.isCtrlPressed = false;
+        } else if (e.which === 8 || e.which === 46) {
+            var tableCell = $('td.active');
+            tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
+        }
+    }).bind(this));
+};

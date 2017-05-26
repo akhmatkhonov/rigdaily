@@ -1,5 +1,5 @@
 function ApiClientLoadingUI() {
-    $(window).resize(this.recalcPosition());
+    $(window).resize(this.recalcPosition);
     this.handle = $('.apiClientModalLoading');
 }
 ApiClientLoadingUI.prototype.hideLoading = function () {
