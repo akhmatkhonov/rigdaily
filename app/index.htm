@@ -21,24 +21,24 @@
     </span>
     <input name="username" placeholder="UN/E-Mail" type="text" value="">
     <input name="password" placeholder="Password" type="password" value="">
-    <div class="ui-widget" style="display: none; margin-top: 10px">
+    <div class="ui-widget error" style="display: none; margin-top: 10px">
         <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
             <p>
                 <span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
-                <span class="error"></span>
+                <span class="error_text"></span>
             </p>
         </div>
     </div>
     <button class="authorize">Log In</button>
 </div>
-<div id="apiClientErrorDialog" title="Rig Daily Report (Onevizion)" style="display: none">
-    <span>Something went wrong...</span>
+<div id="apiClientErrorDialog" title="Request failures" style="display: none">
+    <span class="progress"></span>
     <div style="margin-top: 10px">
         <table class="error_requests">
             <thead>
             <tr>
                 <th>#</th>
-                <th>Endpoint URL</th>
+                <th>URL</th>
                 <th>Code</th>
                 <th>Message</th>
             </tr>
@@ -818,7 +818,8 @@
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl293 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number" data-ed="false" data-submit="true"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number" data-ed="false"
+                data-submit="true"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
