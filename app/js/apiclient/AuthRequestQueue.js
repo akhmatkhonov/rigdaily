@@ -1,9 +1,8 @@
 function ApiClientAuthRequestQueue(client) {
-    ApiClientRequestQueue.apply(this, [client, 'Authorizing...', 1, false, 1]);
+    ApiClientRequestQueue.call(this, client, 'Authorizing...', 1, false, 1);
 
     this.push(new ApiClientQueueRequestOptions({
         url: '/api/v3/user_settings',
-        queue: this,
         success: (function (data) {
             this.client.userSettings = data;
             this.client.authUi.canShow = false;

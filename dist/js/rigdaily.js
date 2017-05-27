@@ -817,15 +817,15 @@ RigDaily.prototype.alertDialog = function (message, callback, title) {
         modal: true,
         buttons: {
             'OK': function () {
-                $(this).dialog('close');
+                div.dialog('close');
             }
         },
-        close: function () {
+        close: (function () {
             div.remove();
             if (typeof(callback) === 'function') {
-                callback();
+                callback.call(this);
             }
-        }
+        }).bind(this)
     });
 };
 RigDaily.prototype.confirmDialog = function (message, callback, title) {
@@ -839,12 +839,12 @@ RigDaily.prototype.confirmDialog = function (message, callback, title) {
         resizable: false,
         modal: true,
         buttons: {
-            'OK': function () {
-                $(this).dialog('close');
-                callback();
-            },
+            'OK': (function () {
+                div.dialog('close');
+                callback.call(this);
+            }).bind(this),
             'Cancel': function () {
-                $(this).dialog('close');
+                div.dialog('close');
             }
         },
         close: function () {

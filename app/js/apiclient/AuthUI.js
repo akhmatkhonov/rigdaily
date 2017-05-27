@@ -59,7 +59,7 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
     }).bind(this));
 }
 ApiClientAuthUI.prototype.setErrorMessage = function (message) {
-    this.handle.find('span.error_text').html(message).closest('div.error').show();
+    this.handle.find('span.error_text').html(message.trim()).closest('div.error').show();
     this.handle.dialog('option', 'position', {
         my: 'center',
         at: 'center',
@@ -81,7 +81,10 @@ ApiClientAuthUI.prototype.show = function () {
         this.handle.dialog('open');
         var xhr = this.queue.slice(-1)[0].getXHR();
         if (xhr !== null) {
-            var message = xhr.responseText.trim();
+            var message = xhr.responseText;
+            if (typeof message === 'undefined') {
+                message = 'Unknown error (code ' + xhr.status + ')';
+            }
             this.setErrorMessage(message);
         } else {
             this.hideErrorMessage();

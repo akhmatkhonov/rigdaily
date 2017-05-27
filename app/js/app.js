@@ -13,14 +13,16 @@ requirejs.config({
     }
 });
 requirejs(['jquery', 'jquery-ui.min', 'apiclient', 'rigdaily'], function () {
-    // Dialogs auto centering when page resizes
-    $(window).resize(function () {
-        $('.ui-dialog-content:visible').each(function () {
-            var dialog = $(this).data('uiDialog');
-            dialog.option('position', dialog.options.position);
+    $(function () {
+        // Dialogs auto centering when page resizes
+        $(window).resize(function () {
+            $('.ui-dialog-content:visible').each(function () {
+                var dialog = $(this).data('uiDialog');
+                dialog.option('position', dialog.options.position);
+            });
         });
-    });
 
-    console.log('Rig Daily init start');
-    window.rigDaily = new RigDaily();
+        console.log('Rig Daily init start');
+        window.rigDaily = new RigDaily();
+    });
 });

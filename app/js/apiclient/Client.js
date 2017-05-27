@@ -65,7 +65,8 @@ ApiClient.prototype.request = function (options) {
     return xhr;
 };
 ApiClient.prototype.handleUnauthorized = function (options) {
-    if (this.authUi.canShow && (options.getXHR() === null || options.getXHR().status === 401)) {
+    if (this.authUi.canShow && (options.getXHR() === null ||
+        options.getXHR().status === 401 || options.getXHR().status === 0)) {
         this.resetCredentials();
 
         this.authUi.push(options);

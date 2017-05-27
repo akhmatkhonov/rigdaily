@@ -16,6 +16,7 @@ ApiClientRequestQueue.prototype.success = function (successCallback) {
     return this;
 };
 ApiClientRequestQueue.prototype.push = function (options) {
+    options.queue = this;
     this.queue.push(options);
     return this;
 };
@@ -29,15 +30,21 @@ ApiClientRequestQueue.prototype.start = function () {
     this.processNext();
 };
 ApiClientRequestQueue.prototype.processNext = function () {
+    // Can be called from ErrorQueueUI or AuthUI
+    if (this.inProgressRequests >= this.concurrentLimit) {
+        return;
+    }
+
     var options = this.queue.shift();
     if (typeof options === 'undefined') {
-        if (typeof this.successCallback === 'function' &&
-            this.inProgressRequests === 0 && this.erroredRequests === 0) {
+        if (this.inProgressRequests === 0 && this.erroredRequests === 0) {
             this.client.loadingUi.hideLoading();
-            try {
-                this.successCallback();
-            } catch (e) {
-                console.error(e.message);
+            if (typeof this.successCallback === 'function') {
+                try {
+                    this.successCallback.call(this);
+                } catch (e) {
+                    console.error(e.message);
+                }
             }
         }
         return;
@@ -71,7 +78,7 @@ ApiClientRequestQueue.prototype.processNext = function () {
             }
             console.log('Queue request success (' + this.completeRequests + ' of ' + this.totalRequests + ' assumed)');
             if (typeof successCallback === 'function') {
-                successCallback(data);
+                successCallback.call(this, data);
             }
         }).bind(this);
     }
