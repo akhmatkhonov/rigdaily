@@ -27,6 +27,9 @@ function findCf(name, tid, tblIdx) {
             return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
         });
     }
+    if (cfs.length === 0) {
+        console.log('Config field ' + name + '[' + tid + ':' + tblIdx + '] not found');
+    }
     return cfs;
 }
 
@@ -279,11 +282,15 @@ function fillCf(cf, value) {
     if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
         subscribeObj.change(function () {
             var tr = cf.obj.closest('tr');
-            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
+            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
             var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
             dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
         }).trigger('change');
     }
+}
+
+function getFirstTblIdx(tt) {
+    return $.isArray(tableIndexes[tt]) ? tableIndexes[tt][0] : tableIndexes[tt];
 }
 
 function subscribeChangeDynCfs() {
@@ -293,7 +300,7 @@ function subscribeChangeDynCfs() {
             if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
                 cf.obj.change(function () {
                     var tr = cf.obj.closest('tr');
-                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
+                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
                     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
                     dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
                 }).trigger('change');

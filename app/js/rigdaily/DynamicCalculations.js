@@ -89,6 +89,7 @@ dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
             var val = getCfValue(trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx);
             if (val !== null) {
                 newValue += val;
+                return false;
             }
         });
     });
@@ -100,8 +101,8 @@ dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
 
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'];
 
-dynCalculations[trackorTypes.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
-    var number = getCfValue(trackorTypes.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL') -
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL') -
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
     setCfValue(trackorTypes.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
 };
@@ -165,17 +166,15 @@ dynCalculations[trackorTypes.binderUsageTT + '.BU_BALANCE'] = function (tid, tbl
 };
 dynCalculations[trackorTypes.binderUsageTT + '.BU_USED'] = function (tid, tblIdx) {
     dynCalculations[trackorTypes.binderUsageTT + '.BU_TOTAL_DELIVERED'](tid, tblIdx);
-
-    var cost = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.BIND_COST', tid, tblIdx);
-    var used = getCfValue(trackorTypes.binderUsageTT + '.BU_USED', tid, tblIdx);
-    setCfValue(trackorTypes.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
-
     dynCalculations[trackorTypes.binderUsageTT + '.BU_UNIT'](tid, tblIdx);
 };
 dynCalculations[trackorTypes.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
     var key = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tid, tblIdx);
+    var cost = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.BIND_COST', tid, tblIdx);
     var used = getCfValue(trackorTypes.binderUsageTT + '.BU_USED', tid, tblIdx);
     var unit = getCfValue(trackorTypes.binderUsageTT + '.BU_UNIT', tid, tblIdx);
+
+    setCfValue(trackorTypes.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
 
     var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
     var binderLbsUsedTid;
@@ -195,12 +194,31 @@ dynCalculations[trackorTypes.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx
         setCfValue(trackorTypes.binderUsageTT + '.BU_BINDER_LBS_USED', number, binderLbsUsedTid, binderLbsUsedTblIdx);
     }
 };
-dynCalculations[trackorTypes.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
+dynCalculations[trackorTypes.binderUsageTT + '.BU_DAILY'] = function () {
     var summ = 0;
     $.each(tids[trackorTypes.binderUsageTT], function (idx, tid) {
-        summ += getCfValue(trackorTypes.binderUsageTT + '.BU_DAILY', tid, tblIdx);
+        summ += getCfValue(trackorTypes.binderUsageTT + '.BU_DAILY', tid, tableIndexes[trackorTypes.binderUsageTT][0]);
     });
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
+};
+dynCalculations[trackorTypes.binderUsageTT + '.BU_BINDER_LBS_USED'] = function () {
+    var summ = 0;
+    var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
+    var tblIdxs = tableIndexes[trackorTypes.binderUsageTT].slice(1);
+
+    $.each(tids[trackorTypes.binderUsageTT], function (idx, tid) {
+        var key = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tid,
+            tableIndexes[trackorTypes.binderUsageTT][0]);
+
+        $.each(tblIdxs, function (idx, tblIdx) {
+            var tblIdxTid = baseRowData['tid_' + tblIdx];
+            if (getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
+                summ += getCfValue(trackorTypes.binderUsageTT + '.BU_BINDER_LBS_USED', tid, tblIdx);
+                return false;
+            }
+        });
+    });
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED', summ);
 };
 
 // equipmentUsageTT
@@ -258,10 +276,10 @@ dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER'] = functi
     dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
-    var number = checkInfinity(getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER_LBS') /
-        getCfValue(trackorTypes.projectTT + '.PR_TOTAL_TONNAGE_WASTE_HAUL'));
-    setCfValue(trackorTypes.projectTT + '.PR_LBS__TONS', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED'] = function () {
+    var number = checkInfinity(getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED') /
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL'));
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_LBS__TONS', number);
 };
 
 dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {

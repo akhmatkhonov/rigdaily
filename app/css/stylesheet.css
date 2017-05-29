@@ -1,5 +1,5 @@
 @media print {
-    .nonprint {
+    .nonprint, .ui-widget, .ui-widget-overlay {
         display: none;
     }
 

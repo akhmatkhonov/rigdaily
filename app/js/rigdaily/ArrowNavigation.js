@@ -38,7 +38,10 @@ ArrowNavigation.prototype.setActiveCellRowTo = function (td) {
 ArrowNavigation.prototype.initCells = function (td) {
     var _this = this;
     td.unbind('mousedown').mousedown(function () {
-        _this.setActiveCellRowTo($(this));
+        var obj = $(this);
+        if (obj.height() !== 0 && obj.is(':not(.unselectable)')) {
+            _this.setActiveCellRowTo(obj);
+        }
     }).unbind('dblclick').dblclick(function () {
         var div = $(this).find('div[contenteditable]:first');
         if (div.length !== 0) {
@@ -94,7 +97,9 @@ ArrowNavigation.prototype.init = function () {
             this.isCtrlPressed = false;
         } else if (e.which === 8 || e.which === 46) {
             var tableCell = $('td.active');
-            tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
+            if (tableCell.find('div[contenteditable]:focus').length === 0) {
+                tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
+            }
         }
     }).bind(this));
 };

@@ -118,7 +118,7 @@
                   data-reload="true"></span>
 
             <!-- Waste haul off tonnages -->
-            <span data-cf="Project.PR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-t="number"
+            <span data-cf="Rig_Daily_Report.RDR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
                   data-reload="true"></span>
         </div>
     </div>
@@ -141,7 +141,7 @@
         </tr>
         <tr style='height:45.0pt'>
             <td height=60 style='height:45.0pt'></td>
-            <td colspan=10 class=xl357 style='border-right:1.0pt solid black; background: white; padding-top: 15px'>
+            <td colspan=10 class="xl357 unselectable" style='border-right:1.0pt solid black; background: white; padding-top: 15px'>
                 <img src="css/images/onevizion_logo.png" alt="">
             </td>
         </tr>
@@ -202,9 +202,9 @@
                 data-cf="Clients.CL_CLIENT_REPRESENTATIVES_CELL" data-ed="false"></td>
             <td colspan=3 class=xl197 style='border-left:none'>Footage Drilled</td>
             <td class=xl89 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_AM_FOOTAGE_DRILLED" data-ed="false" data-reload="true"></td>
+                data-cf="Rig_Daily_Report.RDR_AM_FOOTAGE_DRILLED" data-ed="false" data-t="number" data-reload="true"></td>
             <td class=xl88 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_PM_FOOTAGE_DRILLED" data-ed="false" data-reload="true"></td>
+                data-cf="Rig_Daily_Report.RDR_PM_FOOTAGE_DRILLED" data-ed="false" data-t="number" data-reload="true"></td>
         </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
@@ -530,7 +530,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -551,7 +552,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -572,7 +574,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -593,7 +596,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -614,7 +618,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -709,18 +714,18 @@
             <td class=xl105 style='border-top:none'>Solids</td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DRILING_FLUID_SOLIDS" data-t="number"></td>
-            <td colspan=8 class=xl305 style='border-right:1.0pt solid black'>Waste Haul Off &amp; Disposal</td>
+            <td colspan=8 class=xl325 style='border-right:1.0pt solid black'>Waste Haul Off &amp; Disposal</td>
         </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
             <td class=xl85 style='border-top:none'></td>
             <td class=xl160 style='border-top:none;border-left:none'></td>
-            <td class=xl229 style='border-left:none'>Manifest</td>
-            <td class=xl230 style='border-left:none'>Tons</td>
-            <td class=xl231 style='border-left:none'>Manifest</td>
-            <td class=xl230 style='border-left:none'>Tons</td>
-            <td class=xl231 style='border-left:none'>Manifest</td>
-            <td class=xl230 style='border-left:none'>Tons</td>
+            <td class=xl325 style='border-left:none'>Manifest</td>
+            <td class=xl325 style='border-left:none'>Tons</td>
+            <td class=xl325 style='border-left:none'>Manifest</td>
+            <td class=xl325 style='border-left:none'>Tons</td>
+            <td class=xl325 style='border-left:none'>Manifest</td>
+            <td class=xl325 style='border-left:none'>Tons</td>
             <td colspan=2 class=xl290 style='border-right:1.0pt solid black;border-left:none'>Total Tonnage</td>
         </tr>
         <tr style='height:15.0pt' class="wasteHaulOffUsageBaseRow baseRow">
@@ -1039,10 +1044,10 @@
                 data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu4">
             </td>
             <td class=xl140 style='border-top:none;border-left:none'
-                data-cf="Project.PR_CUMULATIVE_TOTAL_BINDER_LBS" data-ed="false" data-t="number"
+                data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_LBS_USED" data-ed="false" data-t="number"
                 data-reload="true"></td>
             <td class=xl141 style='border-top:none;border-left:none'
-                data-cf="Project.PR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
+                data-cf="Rig_Daily_Report.RDR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
             <td colspan=2 class=xl288 width=148 style='border-right:.5pt solid black; border-left:none;width:111pt'>
                 Cumulative Total
             </td>
