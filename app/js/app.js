@@ -12,7 +12,7 @@ requirejs.config({
         }
     }
 });
-requirejs(['jquery', 'jquery-ui.min', 'apiclient', 'rigdaily'], function () {
+requirejs(['rigdaily'], function () {
     $(function () {
         // Dialogs auto centering when page resizes
         $(window).resize(function () {

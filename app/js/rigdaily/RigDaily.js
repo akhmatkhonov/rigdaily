@@ -116,15 +116,15 @@ RigDaily.prototype.startSubmitReport = function () {
 
     try {
         $.each(tids, function (ttName, tidObj) {
-            if (ttName === config.dynTT) {
+            if (ttName === trackorTypes.dynTT) {
                 return;
             }
 
             if (typeof tidObj === 'object') {
                 // Find subtable objects
                 $.each(tidObj, function (idx, tid) {
-                    var isTblIdxObject = typeof configTblIdxs[ttName] === 'object';
-                    $.each(isTblIdxObject ? configTblIdxs[ttName] : [configTblIdxs[ttName]], function (idx, tblIdx) {
+                    var isTblIdxObject = typeof tableIndexes[ttName] === 'object';
+                    $.each(isTblIdxObject ? tableIndexes[ttName] : [tableIndexes[ttName]], function (idx, tblIdx) {
                         var parent = $('tr.subtable.subtable_' + tblIdx).filter(function () {
                             return $(this).data('tid_' + tblIdx) === tid;
                         });
@@ -170,13 +170,13 @@ RigDaily.prototype.startSubmitReport = function () {
     }
 };
 RigDaily.prototype.loadReport = function (tid) {
-    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 18, true, 7);
+    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 17, true, 7);
     queue.success(function () {
         subscribeChangeDynCfs();
         $('#content').show();
     });
 
-    saveTid(config.rigDailyReportTT, tid, true);
+    saveTid(trackorTypes.rigDailyReportTT, tid, true);
 
     var key;
     var rigSiteKey;
@@ -186,11 +186,11 @@ RigDaily.prototype.loadReport = function (tid) {
     var projectKey;
 
     // rigDaily
-    var rigDailyCfs = getConfigFields(config.rigDailyReportTT);
+    var rigDailyCfs = getConfigFields(trackorTypes.rigDailyReportTT);
     var fields = [
         'TRACKOR_KEY',
-        config.rigSiteTT + '.TRACKOR_KEY',
-        config.projectTT + '.TRACKOR_KEY'
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY',
+        trackorTypes.projectTT + '.TRACKOR_KEY'
     ];
     fields = fields.concat(Object.keys(rigDailyCfs));
 
@@ -199,13 +199,13 @@ RigDaily.prototype.loadReport = function (tid) {
         successCode: 200,
         success: function (response) {
             key = response['TRACKOR_KEY'];
-            rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
-            projectKey = response[config.projectTT + '.TRACKOR_KEY'];
+            rigSiteKey = response[trackorTypes.rigSiteTT + '.TRACKOR_KEY'];
+            projectKey = response[trackorTypes.projectTT + '.TRACKOR_KEY'];
 
             fillCfs(rigDailyCfs, response);
 
-            dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
-            dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
+            dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
+            dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
 
             pushRigSiteLoad();
             pushOtherLoad();
@@ -216,21 +216,21 @@ RigDaily.prototype.loadReport = function (tid) {
     // projectManagement
     var pushProjectManagementLoad = function () {
         var contactInformationProjectManagementBaseRow = $('tr.contactInformationProjectManagementBaseRow').first();
-        var contactInformationProjectManagementBaseRowCfs = getConfigFields(config.projectManagementTT, contactInformationProjectManagementBaseRow);
+        var contactInformationProjectManagementBaseRowCfs = getConfigFields(trackorTypes.projectManagementTT, contactInformationProjectManagementBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(contactInformationProjectManagementBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.projectTT + '.TRACKOR_KEY=' + encodeURIComponent(projectKey);
+                return '/api/v3/trackor_types/' + trackorTypes.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.projectTT + '.TRACKOR_KEY=' + encodeURIComponent(projectKey);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.projectManagementTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.projectManagementTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.projectManagementTT], 1, 6, contactInformationProjectManagementBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.projectManagementTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.projectManagementTT], 1, 6, contactInformationProjectManagementBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.projectManagementTT, row);
                     fillCfs(rowCfs, elem);
                 });
             }
@@ -239,7 +239,7 @@ RigDaily.prototype.loadReport = function (tid) {
 
     // rigSite
     var pushRigSiteLoad = function () {
-        var rigSiteCfs = getConfigFields(config.rigSiteTT);
+        var rigSiteCfs = getConfigFields(trackorTypes.rigSiteTT);
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = [
@@ -249,7 +249,7 @@ RigDaily.prototype.loadReport = function (tid) {
                 ];
                 fields = fields.concat(Object.keys(rigSiteCfs));
 
-                return '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                return '/api/v3/trackor_types/' + trackorTypes.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
                     '&TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
             },
             successCode: 200,
@@ -269,12 +269,12 @@ RigDaily.prototype.loadReport = function (tid) {
 
     // client
     var pushClientLoad = function () {
-        var clientsCfs = getConfigFields(config.clientsTT);
+        var clientsCfs = getConfigFields(trackorTypes.clientsTT);
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(clientsCfs);
 
-                return '/api/v3/trackor_types/' + config.clientsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                return '/api/v3/trackor_types/' + trackorTypes.clientsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
                     '&TRACKOR_KEY=' + encodeURIComponent(clientKey);
             },
             successCode: 200,
@@ -287,11 +287,11 @@ RigDaily.prototype.loadReport = function (tid) {
 
     // manager
     var pushManagerLoad = function () {
-        var workersCfs = getConfigFields(config.workersTT);
+        var workersCfs = getConfigFields(trackorTypes.workersTT);
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(workersCfs);
-                return '/api/v3/trackor_types/' + config.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                return '/api/v3/trackor_types/' + trackorTypes.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
                     '&TRACKOR_KEY=' + encodeURIComponent(managerKey);
             },
             successCode: 200,
@@ -304,11 +304,11 @@ RigDaily.prototype.loadReport = function (tid) {
 
     // contractor
     var pushContractorLoad = function () {
-        var contractorCfs = getConfigFields(config.contractorsTT);
+        var contractorCfs = getConfigFields(trackorTypes.contractorsTT);
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(contractorCfs);
-                return '/api/v3/trackor_types/' + config.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                return '/api/v3/trackor_types/' + trackorTypes.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
                     '&TRACKOR_KEY=' + encodeURIComponent(contractorKey);
             },
             successCode: 200,
@@ -322,45 +322,45 @@ RigDaily.prototype.loadReport = function (tid) {
     var pushOtherLoad = function () {
         // holeDesignAndVolume
         var holeDesignAndVolumeBaseRow = $('tr.holeDesignAndVolumeBaseRow');
-        var holeDesignAndVolumeCfs = getConfigFields(config.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
+        var holeDesignAndVolumeCfs = getConfigFields(trackorTypes.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(holeDesignAndVolumeCfs);
-                return '/api/v3/trackor_types/' + config.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigSiteTT + '.TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
+                return '/api/v3/trackor_types/' + trackorTypes.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigSiteTT + '.TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.holeDesignAndVolumeTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.holeDesignAndVolumeTT, row);
                     fillCfs(rowCfs, elem);
                 });
 
-                dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, configTblIdxs[config.holeDesignAndVolumeTT]);
+                dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, tableIndexes[trackorTypes.holeDesignAndVolumeTT]);
             }
         }));
 
         // labTesting
         var labTestingBaseRow = $('tr.labTestingBaseRow');
-        var labTestingBaseRowCfs = getConfigFields(config.labTestingTT, labTestingBaseRow);
+        var labTestingBaseRowCfs = getConfigFields(trackorTypes.labTestingTT, labTestingBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(labTestingBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.labTestingTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.labTestingTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.labTestingTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.labTestingTT, row);
                     fillCfs(rowCfs, elem);
                 });
             }
@@ -368,13 +368,13 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // apiScreenSize
         var apiScreenSizeBaseRow = $('tr.apiScreenSizeBaseRow');
-        var apiScreenSizeBaseRowCfs = getConfigFields(config.apiScreenSizeTT, apiScreenSizeBaseRow);
+        var apiScreenSizeBaseRowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, apiScreenSizeBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(apiScreenSizeBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
@@ -382,10 +382,10 @@ RigDaily.prototype.loadReport = function (tid) {
                 var endIdx = 11;
 
                 $.each(response.splice(0, 3), function (idx, elem) {
-                    saveTid(config.apiScreenSizeTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.apiScreenSizeTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.apiScreenSizeTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, row);
                     fillCfs(rowCfs, elem);
 
                     if (startIdx === 7) {
@@ -398,7 +398,7 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // fieldTesting
         var fieldTestingBaseRow = $('tr.fieldTestingBaseRow');
-        var fieldTestingBaseRowCfs = getConfigFields(config.fieldTestingTT, fieldTestingBaseRow, configTblIdxs[config.fieldTestingTT][0]);
+        var fieldTestingBaseRowCfs = getConfigFields(trackorTypes.fieldTestingTT, fieldTestingBaseRow, tableIndexes[trackorTypes.fieldTestingTT][0]);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
@@ -407,8 +407,8 @@ RigDaily.prototype.loadReport = function (tid) {
                 ];
                 fields = fields.concat(Object.keys(fieldTestingBaseRowCfs));
 
-                return '/api/v3/trackor_types/' + config.fieldTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.fieldTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
@@ -420,7 +420,7 @@ RigDaily.prototype.loadReport = function (tid) {
                         return true;
                     }
 
-                    saveTid(config.fieldTestingTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.fieldTestingTT, elem['TRACKOR_ID'], false);
                     if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
                         groups[elem['FT_TESTING_NAME']] = [];
                     }
@@ -456,9 +456,9 @@ RigDaily.prototype.loadReport = function (tid) {
                         var startIdx = tblIdxIdx === 0 ? 4 : 8;
                         var endIdx = tblIdxIdx === 0 ? 7 : 11;
 
-                        var row = appendSubtableRow(configTblIdxs[config.fieldTestingTT][tblIdxIdx],
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx],
                             startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
-                        var rowCfs = getConfigFields(config.fieldTestingTT, row, configTblIdxs[config.fieldTestingTT][tblIdxIdx]);
+                        var rowCfs = getConfigFields(trackorTypes.fieldTestingTT, row, tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx]);
                         fillCfs(rowCfs, elem);
                     });
                 });
@@ -467,21 +467,21 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // retorts
         var retortsBaseRow = $('tr.retortsBaseRow');
-        var retortsBaseRowCfs = getConfigFields(config.retortsTT, retortsBaseRow);
+        var retortsBaseRowCfs = getConfigFields(trackorTypes.retortsTT, retortsBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(retortsBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response, function (idx, elem) {
-                    saveTid(config.retortsTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.retortsTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.retortsTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.retortsTT, row);
                     fillCfs(rowCfs, elem);
                 });
             }
@@ -489,18 +489,18 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // wasteHaulOffUsage
         var wasteHaulOffUsageBaseRow = $('tr.wasteHaulOffUsageBaseRow');
-        var wasteHaulOffUsageBaseRowCfs = getConfigFields(config.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
+        var wasteHaulOffUsageBaseRowCfs = getConfigFields(trackorTypes.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(wasteHaulOffUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 22), function (idx, elem) {
-                    saveTid(config.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
 
                     var tblIdxIdx;
                     var startIdx;
@@ -520,33 +520,33 @@ RigDaily.prototype.loadReport = function (tid) {
                         endIdx = 9;
                     }
 
-                    var row = appendSubtableRow(configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
                         wasteHaulOffUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.wasteHaulOffUsageTT, row, configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx]);
+                    var rowCfs = getConfigFields(trackorTypes.wasteHaulOffUsageTT, row, tableIndexes[trackorTypes.wasteHaulOffUsageTT][tblIdxIdx]);
                     fillCfs(rowCfs, elem);
                 });
 
-                dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS']();
+                dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS']();
             }
         }));
 
         // consumablesUsageTT
         var consumablesUsageBaseRow = $('tr.consumablesUsageBaseRow');
-        var consumablesUsageBaseRowCfs = getConfigFields(config.consumablesUsageTT, consumablesUsageBaseRow);
+        var consumablesUsageBaseRowCfs = getConfigFields(trackorTypes.consumablesUsageTT, consumablesUsageBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(consumablesUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response, function (idx, elem) {
-                    saveTid(config.consumablesUsageTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.consumablesUsageTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.consumablesUsageTT], 1, 10, consumablesUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.consumablesUsageTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.consumablesUsageTT], 1, 10, consumablesUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.consumablesUsageTT, row);
                     fillCfs(rowCfs, elem);
                 });
             }
@@ -554,11 +554,11 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // binderUsageTT
         var binderUsageBaseRow = $('tr.binderUsageBaseRow');
-        var binderUsageBaseRowCfs = getConfigFields(config.binderUsageTT, binderUsageBaseRow);
+        var binderUsageBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderUsageBaseRow);
         var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
-        var binderLbsUsedBaseRowCfs = getConfigFields(config.binderUsageTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderUsageTT][1]);
+        var binderLbsUsedBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderLbsUsedBaseRow.parent(), tableIndexes[trackorTypes.binderUsageTT][1]);
         var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
-        var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderUsageTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderUsageTT][1]);
+        var binderLbsUsedUnitBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderLbsUsedUnitBaseRow, tableIndexes[trackorTypes.binderUsageTT][1]);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
@@ -566,26 +566,26 @@ RigDaily.prototype.loadReport = function (tid) {
                 fields = fields.concat(Object.keys(binderLbsUsedBaseRowCfs));
                 fields = fields.concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
 
-                return '/api/v3/trackor_types/' + config.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.binderUsageTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.binderUsageTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.binderUsageTT][0], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.binderUsageTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.binderUsageTT][0], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.binderUsageTT, row);
                     fillCfs(rowCfs, elem);
 
                     // binderLbs
-                    var tblIdx = configTblIdxs[config.binderUsageTT].slice(1)[idx];
+                    var tblIdx = tableIndexes[trackorTypes.binderUsageTT].slice(1)[idx];
                     var tdIdxs = 2 + idx;
 
                     var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
                     var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
-                    var row1Cfs = getConfigFields(config.binderUsageTT, row1, tblIdx);
-                    var row2Cfs = getConfigFields(config.binderUsageTT, row2, tblIdx);
+                    var row1Cfs = getConfigFields(trackorTypes.binderUsageTT, row1, tblIdx);
+                    var row2Cfs = getConfigFields(trackorTypes.binderUsageTT, row2, tblIdx);
 
                     fillCfs(row1Cfs, elem);
                     fillCfs(row2Cfs, elem);
@@ -595,21 +595,21 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // equipmentUsageTT
         var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
-        var equipmentUsageBaseRowCfs = getConfigFields(config.equipmentUsageTT, equipmentUsageBaseRow);
+        var equipmentUsageBaseRowCfs = getConfigFields(trackorTypes.equipmentUsageTT, equipmentUsageBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(equipmentUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 9), function (idx, elem) {
-                    saveTid(config.equipmentUsageTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.equipmentUsageTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.equipmentUsageTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.equipmentUsageTT, row);
                     fillCfs(rowCfs, elem);
                 });
             }
@@ -617,27 +617,27 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // techniciansUsageTT, contactInformation
         var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
-        var techniciansUsageBaseRowCfs = getConfigFields(config.techniciansUsageTT, techniciansUsageBaseRow);
+        var techniciansUsageBaseRowCfs = getConfigFields(trackorTypes.techniciansUsageTT, techniciansUsageBaseRow);
         var contactInformationBaseRow = $('tr.contactInformationBaseRow');
-        var contactInformationBaseRowCfs = getConfigFields(config.techniciansUsageTT, contactInformationBaseRow);
+        var contactInformationBaseRowCfs = getConfigFields(trackorTypes.techniciansUsageTT, contactInformationBaseRow);
 
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
-                return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                return '/api/v3/trackor_types/' + trackorTypes.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
             },
             successCode: 200,
             success: function (response) {
                 $.each(response.splice(0, 3), function (idx, elem) {
-                    saveTid(config.techniciansUsageTT, elem['TRACKOR_ID'], false);
+                    saveTid(trackorTypes.techniciansUsageTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.techniciansUsageTT, row);
                     fillCfs(rowCfs, elem);
 
-                    row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
-                    rowCfs = getConfigFields(config.techniciansUsageTT, row);
+                    row = appendSubtableRow(tableIndexes[trackorTypes.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
+                    rowCfs = getConfigFields(trackorTypes.techniciansUsageTT, row);
                     fillCfs(rowCfs, elem);
                 });
 
@@ -648,21 +648,21 @@ RigDaily.prototype.loadReport = function (tid) {
         var pushSupplyRequestLoad = function () {
             // supplyRequestTT
             var supplyRequestBaseRow = $('tr.supplyRequestBaseRow').first();
-            var supplyRequestBaseRowCfs = getConfigFields(config.supplyRequestTT, supplyRequestBaseRow);
+            var supplyRequestBaseRowCfs = getConfigFields(trackorTypes.supplyRequestTT, supplyRequestBaseRow);
 
             queue.push(new ApiClientQueueRequestOptions({
                 url: function () {
                     var fields = Object.keys(supplyRequestBaseRowCfs);
-                    return '/api/v3/trackor_types/' + config.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                        '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                    return '/api/v3/trackor_types/' + trackorTypes.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                        '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
                 },
                 successCode: 200,
                 success: function (response) {
                     $.each(response, function (idx, elem) {
-                        saveTid(config.supplyRequestTT, elem['TRACKOR_ID'], false);
+                        saveTid(trackorTypes.supplyRequestTT, elem['TRACKOR_ID'], false);
 
-                        var row = appendSubtableRow(configTblIdxs[config.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
-                        var rowCfs = getConfigFields(config.supplyRequestTT, row);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
                         fillCfs(rowCfs, elem);
                     });
                 }
@@ -675,11 +675,11 @@ RigDaily.prototype.loadReport = function (tid) {
 RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     var fields = [
         'TRACKOR_KEY',
-        config.rigSiteTT + '.TRACKOR_KEY',
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY',
         'RDR_REPORT_DATE'
     ];
     var sort = [
-        config.rigSiteTT + '.TRACKOR_KEY:desc',
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY:desc',
         'RDR_REPORT_DATE:desc'
     ];
 
@@ -687,14 +687,14 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     var filter = {};
 
     if (siteFilter.val() !== '') {
-        var key = config.rigSiteTT + '.TRACKOR_KEY';
+        var key = trackorTypes.rigSiteTT + '.TRACKOR_KEY';
         filter[key] = siteFilter.val();
     }
 
     var perPage = 15;
     this.client.request(new ApiClientRequestOptions({
         modalLoadingMessage: 'Loading reports...',
-        url: '/api/v3/trackor_types/' + config.rigDailyReportTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
+        url: '/api/v3/trackor_types/' + trackorTypes.rigDailyReportTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
         + '&page=' + page + '&per_page=' + perPage + '&sort=' + encodeURIComponent(sort.join(',')) + '&' + $.param(filter),
         successCode: 200,
         success: (function (response) {
@@ -711,13 +711,13 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
                 var tid = obj['TRACKOR_ID'];
                 var tr = $('<tr></tr>');
                 tr.click((function () {
-                    $('span.site').empty().text(obj[config.rigSiteTT + '.TRACKOR_KEY']);
+                    $('span.site').empty().text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']);
 
                     selectReportDialog.dialog('close');
                     this.loadReport(tid);
                 }).bind(this));
 
-                $('<td></td>').text(obj[config.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
+                $('<td></td>').text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
                 var reportDate = dateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
                 $('<td></td>').text(reportDate.getUTCDate() + 1).appendTo(tr);
                 $('<td></td>').text(dateUtils.objGetMonthName(reportDate)).appendTo(tr);
@@ -766,7 +766,7 @@ RigDaily.prototype.startSelectReport = function (selectReportDialog) {
 
     this.client.request(new ApiClientRequestOptions({
         modalLoadingMessage: 'Loading sites...',
-        url: '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
+        url: '/api/v3/trackor_types/' + trackorTypes.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
         + '&sort=' + encodeURIComponent(sort.join(',')),
         successCode: 200,
         success: (function (response) {

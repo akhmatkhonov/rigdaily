@@ -123,7 +123,7 @@ function isCfLocked(cf) {
     }
 
     var tr = cf.obj.closest('tr');
-    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
 
     if (!$.isArray(locks[cf.tt])) {
@@ -148,6 +148,9 @@ function fillCf(cf, value) {
         cf.obj.text(value);
     } else if (cf.type === 'memo') {
         cf.obj.html(value !== null ? value.replace("\n", '<br>') : '');
+    } else if (cf.type === 'date') {
+        var date = dateUtils.remoteDateToObj(value);
+        cf.obj.text(dateUtils.formatDate(date));
     } else {
         cf.obj.text(value);
     }
@@ -199,6 +202,17 @@ function fillCf(cf, value) {
                     div.trigger('change');
                 }
             });
+            div.on('focus', function () {
+                if (div.data('focused') === true) {
+                    return;
+                }
+
+                div.data('focused', true);
+                $(this).closest('td').trigger('mousedown');
+
+                div.focus();
+                div.data('focused', false);
+            });
 
             if (cf.type !== 'memo') {
                 div.keypress(function (e) {
@@ -245,8 +259,11 @@ function fillCf(cf, value) {
                                 div.empty().text(dateText);
                             }
                         });
+                    if (date !== null) {
+                        input.datepicker('setDate', date);
+                    }
                     input.insertAfter(div);
-                    div.prop('contenteditable', false).text(dateUtils.remoteDateFormat(div.text()));
+                    div.prop('contenteditable', false);
                     cf.obj.unbind('click').click(function () {
                         input.datepicker('show');
                     });
@@ -262,7 +279,7 @@ function fillCf(cf, value) {
     if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
         subscribeObj.change(function () {
             var tr = cf.obj.closest('tr');
-            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
             var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
             dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
         }).trigger('change');
@@ -270,13 +287,13 @@ function fillCf(cf, value) {
 }
 
 function subscribeChangeDynCfs() {
-    var cfs = getConfigFields(config.dynTT);
+    var cfs = getConfigFields(trackorTypes.dynTT);
     $.each(cfs, function (cfName, cfArr) {
         $.each(cfArr, function (idx, cf) {
             if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
                 cf.obj.change(function () {
                     var tr = cf.obj.closest('tr');
-                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
                     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
                     dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
                 }).trigger('change');

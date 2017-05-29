@@ -479,7 +479,7 @@ ApiClientRequestQueue.prototype.processNext = function () {
                 }
                 this.client.loadingUi.showLoading(this.message + ' ' + percent + '%');
             }
-            console.log('Queue request success (' + this.completeRequests + ' of ' + this.totalRequests + ' assumed)');
+            console.log('Queued request success (' + this.completeRequests + ' of ' + this.totalRequests + ' assumed)');
             if (typeof successCallback === 'function') {
                 successCallback.call(this, data);
             }

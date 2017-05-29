@@ -1,4 +1,4 @@
-var config = {
+var trackorTypes = {
     rigDailyReportTT: 'Rig_Daily_Report',
     rigSiteTT: 'Rig_Site',
     clientsTT: 'Clients',
@@ -24,16 +24,17 @@ var config = {
     // For dynamic calculations
     dynTT: 'Dynamic'
 };
-var configTblIdxs = {};
-configTblIdxs[config.holeDesignAndVolumeTT] = 'hd';
-configTblIdxs[config.labTestingTT] = 'lt';
-configTblIdxs[config.apiScreenSizeTT] = 'ass';
-configTblIdxs[config.fieldTestingTT] = ['ftam', 'ftpm'];
-configTblIdxs[config.retortsTT] = 'rtrs';
-configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
-configTblIdxs[config.consumablesUsageTT] = 'cu';
-configTblIdxs[config.binderUsageTT] = ['bu', 'blu1', 'blu2', 'blu3', 'blu4'];
-configTblIdxs[config.equipmentUsageTT] = 'equ';
-configTblIdxs[config.techniciansUsageTT] = 'tecu';
-configTblIdxs[config.supplyRequestTT] = 'sr';
-configTblIdxs[config.projectManagementTT] = 'pm';
+
+var tableIndexes = {};
+tableIndexes[trackorTypes.holeDesignAndVolumeTT] = 'hd';
+tableIndexes[trackorTypes.labTestingTT] = 'lt';
+tableIndexes[trackorTypes.apiScreenSizeTT] = 'ass';
+tableIndexes[trackorTypes.fieldTestingTT] = ['ftam', 'ftpm'];
+tableIndexes[trackorTypes.retortsTT] = 'rtrs';
+tableIndexes[trackorTypes.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
+tableIndexes[trackorTypes.consumablesUsageTT] = 'cu';
+tableIndexes[trackorTypes.binderUsageTT] = ['bu', 'blu1', 'blu2', 'blu3', 'blu4'];
+tableIndexes[trackorTypes.equipmentUsageTT] = 'equ';
+tableIndexes[trackorTypes.techniciansUsageTT] = 'tecu';
+tableIndexes[trackorTypes.supplyRequestTT] = 'sr';
+tableIndexes[trackorTypes.projectManagementTT] = 'pm';
