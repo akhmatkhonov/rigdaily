@@ -32,6 +32,11 @@
     }
 }
 
+div.cancelWaiting {
+    display: none;
+    margin: 10px;
+}
+
 td.active {
     outline: 2px solid black;
 }
@@ -81,7 +86,7 @@ div[contenteditable="true"] {
     white-space: normal;
 }
 
-button.retry {
+button.retry, button.cancel {
     margin-top: 10px;
 }
 

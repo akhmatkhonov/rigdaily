@@ -2,7 +2,9 @@ function ApiClientErrorQueueUI(client) {
     // Init error dialog
     this.handle = $('#apiClientErrorDialog');
     this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
-    this.handle.find('button.retry').button().click((function () {
+    this.cancelWaitingDiv = this.handle.find('div.cancelWaiting');
+    this.retryButton = this.handle.find('button.retry').button().click((function () {
+        this.cancelButton.button('option', 'disabled', true);
         this.handle.dialog('close');
         this.tbodyHandle.children().each(function (idx, tr) {
             var options = $(tr).data('requestOptions');
@@ -16,11 +18,59 @@ function ApiClientErrorQueueUI(client) {
         });
         this.tbodyHandle.children().remove();
     }).bind(this));
+    this.cancelButton = this.handle.find('button.cancel').button().click((function () {
+        this.cancelling = true;
+        this.cancelWaitingDiv.show();
+        this.retryButton.button('option', 'disabled', true);
+        this.cancelButton.button('option', 'disabled', true);
+
+        // Cancel all queues and subscribe to cancel
+        var subscribedQueueRefs = [];
+        this.tbodyHandle.children().each((function (idx, tr) {
+            var options = $(tr).data('requestOptions');
+            if (typeof options === 'object' && options.queue !== null &&
+                $.inArray(options.queue, subscribedQueueRefs) === -1) {
+                subscribedQueueRefs.push(options.queue);
+                options.queue.cancel((function () {
+                    subscribedQueueRefs.splice(0, 1);
+                    if (subscribedQueueRefs.length === 0) {
+                        this.cancelling = false;
+
+                        this.tbodyHandle.children().remove();
+                        this.cancelWaitingDiv.hide();
+                        this.retryButton.button('option', 'disabled', false);
+                        this.cancelButton.button('option', 'disabled', true);
+                        this.handle.dialog('close');
+                    }
+                }).bind(this));
+            }
+        }).bind(this));
+
+        if (subscribedQueueRefs.length === 0) {
+            this.cancelling = false;
+
+            this.tbodyHandle.children().remove();
+            this.cancelWaitingDiv.hide();
+            this.retryButton.button('option', 'disabled', false);
+            this.cancelButton.button('option', 'disabled', true);
+            this.handle.dialog('close');
+        }
+    }).bind(this));
+    this.cancelling = false;
     this.tbodyHandle = this.handle.find('table.error_requests tbody');
 }
 ApiClientErrorQueueUI.prototype.push = function (options) {
+    if (this.cancelling) {
+        return;
+    }
+
     if (options.queue !== null) {
         options.queue.erroredRequests++;
+
+        if (options.queue.allowCancel) {
+            // Enable cancel button if queue is cancellable
+            this.cancelButton.button('option', 'disabled', false);
+        }
     }
 
     var fullUrl = options.getUrl();

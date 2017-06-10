@@ -250,7 +250,9 @@ function ApiClientErrorQueueUI(client) {
     // Init error dialog
     this.handle = $('#apiClientErrorDialog');
     this.handle.dialog(ApiClientAuthUI.dlgOptsNoClosable);
-    this.handle.find('button.retry').button().click((function () {
+    this.cancelWaitingDiv = this.handle.find('div.cancelWaiting');
+    this.retryButton = this.handle.find('button.retry').button().click((function () {
+        this.cancelButton.button('option', 'disabled', true);
         this.handle.dialog('close');
         this.tbodyHandle.children().each(function (idx, tr) {
             var options = $(tr).data('requestOptions');
@@ -264,11 +266,59 @@ function ApiClientErrorQueueUI(client) {
         });
         this.tbodyHandle.children().remove();
     }).bind(this));
+    this.cancelButton = this.handle.find('button.cancel').button().click((function () {
+        this.cancelling = true;
+        this.cancelWaitingDiv.show();
+        this.retryButton.button('option', 'disabled', true);
+        this.cancelButton.button('option', 'disabled', true);
+
+        // Cancel all queues and subscribe to cancel
+        var subscribedQueueRefs = [];
+        this.tbodyHandle.children().each((function (idx, tr) {
+            var options = $(tr).data('requestOptions');
+            if (typeof options === 'object' && options.queue !== null &&
+                $.inArray(options.queue, subscribedQueueRefs) === -1) {
+                subscribedQueueRefs.push(options.queue);
+                options.queue.cancel((function () {
+                    subscribedQueueRefs.splice(0, 1);
+                    if (subscribedQueueRefs.length === 0) {
+                        this.cancelling = false;
+
+                        this.tbodyHandle.children().remove();
+                        this.cancelWaitingDiv.hide();
+                        this.retryButton.button('option', 'disabled', false);
+                        this.cancelButton.button('option', 'disabled', true);
+                        this.handle.dialog('close');
+                    }
+                }).bind(this));
+            }
+        }).bind(this));
+
+        if (subscribedQueueRefs.length === 0) {
+            this.cancelling = false;
+
+            this.tbodyHandle.children().remove();
+            this.cancelWaitingDiv.hide();
+            this.retryButton.button('option', 'disabled', false);
+            this.cancelButton.button('option', 'disabled', true);
+            this.handle.dialog('close');
+        }
+    }).bind(this));
+    this.cancelling = false;
     this.tbodyHandle = this.handle.find('table.error_requests tbody');
 }
 ApiClientErrorQueueUI.prototype.push = function (options) {
+    if (this.cancelling) {
+        return;
+    }
+
     if (options.queue !== null) {
         options.queue.erroredRequests++;
+
+        if (options.queue.allowCancel) {
+            // Enable cancel button if queue is cancellable
+            this.cancelButton.button('option', 'disabled', false);
+        }
     }
 
     var fullUrl = options.getUrl();
@@ -401,7 +451,7 @@ ApiClientRequestOptions.prototype.getXHR = function () {
     return this.xhr;
 };
 
-function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete, concurrentLimit) {
+function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete, concurrentLimit, allowCancel) {
     this.client = client;
     this.message = message;
     this.totalRequests = totalRequests;
@@ -412,8 +462,23 @@ function ApiClientRequestQueue(client, message, totalRequests, showPercentComple
     this.completeRequests = 0;
     this.successCallback = null;
     this.concurrentLimit = concurrentLimit;
+    this.allowCancel = allowCancel || false;
+    this.cancelled = false;
+    this.cancelCallback = null;
     this.xhr = null;
 }
+ApiClientRequestQueue.prototype.cancel = function (callback) {
+    if (this.allowCancel) {
+        this.cancelled = true;
+        this.cancelCallback = callback;
+        this.client.loadingUi.hideLoading();
+
+        if (this.inProgressRequests === 0 && typeof this.cancelCallback === 'function') {
+            this.cancelCallback.call(this);
+            this.cancelCallback = null;
+        }
+    }
+};
 ApiClientRequestQueue.prototype.success = function (successCallback) {
     this.successCallback = successCallback;
     return this;
@@ -430,9 +495,18 @@ ApiClientRequestQueue.prototype.start = function () {
     this.inProgressRequests = 0;
     this.erroredRequests = 0;
     this.completeRequests = 0;
+    this.cancelled = false;
     this.processNext();
 };
 ApiClientRequestQueue.prototype.processNext = function () {
+    if (this.cancelled) {
+        if (this.inProgressRequests === 0 && typeof this.cancelCallback === 'function') {
+            this.cancelCallback.call(this);
+            this.cancelCallback = null;
+        }
+        return;
+    }
+
     // Can be called from ErrorQueueUI or AuthUI
     if (this.inProgressRequests >= this.concurrentLimit) {
         return;

@@ -1,4 +1,4 @@
-function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete, concurrentLimit) {
+function ApiClientRequestQueue(client, message, totalRequests, showPercentComplete, concurrentLimit, allowCancel) {
     this.client = client;
     this.message = message;
     this.totalRequests = totalRequests;
@@ -9,8 +9,23 @@ function ApiClientRequestQueue(client, message, totalRequests, showPercentComple
     this.completeRequests = 0;
     this.successCallback = null;
     this.concurrentLimit = concurrentLimit;
+    this.allowCancel = allowCancel || false;
+    this.cancelled = false;
+    this.cancelCallback = null;
     this.xhr = null;
 }
+ApiClientRequestQueue.prototype.cancel = function (callback) {
+    if (this.allowCancel) {
+        this.cancelled = true;
+        this.cancelCallback = callback;
+        this.client.loadingUi.hideLoading();
+
+        if (this.inProgressRequests === 0 && typeof this.cancelCallback === 'function') {
+            this.cancelCallback.call(this);
+            this.cancelCallback = null;
+        }
+    }
+};
 ApiClientRequestQueue.prototype.success = function (successCallback) {
     this.successCallback = successCallback;
     return this;
@@ -27,9 +42,18 @@ ApiClientRequestQueue.prototype.start = function () {
     this.inProgressRequests = 0;
     this.erroredRequests = 0;
     this.completeRequests = 0;
+    this.cancelled = false;
     this.processNext();
 };
 ApiClientRequestQueue.prototype.processNext = function () {
+    if (this.cancelled) {
+        if (this.inProgressRequests === 0 && typeof this.cancelCallback === 'function') {
+            this.cancelCallback.call(this);
+            this.cancelCallback = null;
+        }
+        return;
+    }
+
     // Can be called from ErrorQueueUI or AuthUI
     if (this.inProgressRequests >= this.concurrentLimit) {
         return;
