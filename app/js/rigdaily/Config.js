@@ -38,3 +38,19 @@ tableIndexes[trackorTypes.equipmentUsageTT] = 'equ';
 tableIndexes[trackorTypes.techniciansUsageTT] = 'tecu';
 tableIndexes[trackorTypes.supplyRequestTT] = 'sr';
 tableIndexes[trackorTypes.projectManagementTT] = 'pm';
+
+var relations = {};
+relations[trackorTypes.wasteHaulOffUsageTT] = function () {
+    var obj = {};
+    obj[trackorTypes.rigDailyReportTT] = {
+        'TRACKOR_KEY': getCfValue(trackorTypes.rigDailyReportTT + '.TRACKOR_KEY')
+    };
+    return obj;
+};
+relations[trackorTypes.supplyRequestTT] = function () {
+    var obj = {};
+    obj[trackorTypes.rigDailyReportTT] = {
+        'TRACKOR_KEY': getCfValue(trackorTypes.rigDailyReportTT + '.TRACKOR_KEY')
+    };
+    return obj;
+};

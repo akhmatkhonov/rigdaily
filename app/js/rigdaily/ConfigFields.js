@@ -108,6 +108,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'name': shortCfName,
             'obj': obj,
             'tIdx': tblIdx,
+            'checkEmptyForNewTrackor': obj.data('chefnt') + '' === 'true',
             'orig_data': obj.data('orig_data'),
             'reload': obj.data('reload') + '' === 'true',
             'forceSubmit': obj.data('submit') + '' === 'true',
@@ -293,6 +294,73 @@ function getFirstTblIdx(tt) {
     return $.isArray(tableIndexes[tt]) ? tableIndexes[tt][0] : tableIndexes[tt];
 }
 
+function fillCellsForNewTrackor(ttName, maxRows, response, callback) {
+    response = response.slice(0, maxRows);
+    $.each(response, function (idx, elem) {
+        callback(idx, elem['TRACKOR_ID'], elem);
+    });
+
+    var remainder = maxRows - response.length;
+    if (remainder > 0) {
+        for (var i = response.length; i < maxRows; i++) {
+            callback(i, generateTrackorId(ttName));
+        }
+    }
+}
+
+function makeEmptyCfsObject(cfs) {
+    var obj = {};
+    $.each(cfs, function (idx, cfArr) {
+        $.each(cfArr, function (ifx, cf) {
+            if (cf.required) {
+                switch (cf.type) {
+                    case 'number': {
+                        obj[cf.name] = 0;
+                        break;
+                    }
+                    case 'date': {
+                        obj[cf.name] = '00/00/00';
+                        break;
+                    }
+                    default: {
+                        obj[cf.name] = '';
+                        break;
+                    }
+                }
+            } else {
+                obj[cf.name] = '';
+            }
+        });
+    });
+    return obj;
+}
+
+function checkCfsFilledForNewTrackorCreate(cfs, data, tid, tblIdx) {
+    var isCfsFilledCorrectly = true;
+    $.each(cfs, function (idx, cfArr) {
+        $.each(cfArr, function (idx, cf) {
+            if (cf.checkEmptyForNewTrackor) {
+                if (typeof data[cf.name] === 'undefined' || ('' + data[cf.name]).length === 0) {
+                    isCfsFilledCorrectly = false;
+                    return false;
+                }
+                try {
+                    if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
+                        fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
+                    }
+                } catch (e) {
+                    isCfsFilledCorrectly = false;
+                    return false;
+                }
+            }
+        });
+        if (!isCfsFilledCorrectly) {
+            return false;
+        }
+    });
+    return isCfsFilledCorrectly;
+}
+
 function subscribeChangeDynCfs() {
     var cfs = getConfigFields(trackorTypes.dynTT);
     $.each(cfs, function (cfName, cfArr) {
@@ -438,7 +506,7 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
-function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
+function convertEditableCfsToDataObject(cfs, tid, tblIdx, allData) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
@@ -453,14 +521,17 @@ function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
                     fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
                 }
 
-                if (cf.orig_data !== val) {
-                    if (cf.type === 'date') {
-                        // Reformat date
-                        var dateObj = dateUtils.localDateToObj(val);
-                        val = dateUtils.objToRemoteDate(dateObj);
-                    }
+                if (cf.type === 'date') {
+                    // Reformat date
+                    var dateObj = dateUtils.localDateToObj(val);
+                    val = dateUtils.objToRemoteDate(dateObj);
+                }
 
+                if (cf.orig_data !== val) {
                     result[cf.name] = val;
+                }
+                if (typeof allData === 'object') {
+                    allData[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
                 result[cf.name] = cf.obj.text();
@@ -468,4 +539,72 @@ function convertEditableCfsToDataObject(cfs, tid, tblIdx) {
         });
     });
     return result;
+}
+
+function getTrackorTypeRelations(ttName, tid, tblIdx) {
+    var result = [];
+    if (typeof relations[ttName] === 'function') {
+        var obj = relations[ttName](tid, tblIdx);
+        $.each(obj, function (parentTtName, filterCfs) {
+            result.push({
+                'trackor_type': parentTtName,
+                'filter': filterCfs
+            });
+        });
+    }
+    return result;
+}
+
+function generateTrackorId(ttName) {
+    var newTid = -10000000;
+    $.each(tids[ttName], function (idx, tid) {
+        if (tid < 0) {
+            newTid--;
+        }
+    });
+    return newTid;
+}
+
+function updateCfsTid(cfs, tblIdx, oldTid, newTid) {
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            var tr = cf.obj.closest('tr.subtable.subtable_' + tblIdx);
+            if (tr.data('tid_' + tblIdx) + '' === oldTid + '') {
+                tr.data('tid_' + tblIdx, newTid);
+            }
+        });
+    });
+}
+
+function updateTtTid(ttName, oldTid, newTid) {
+    $.each(tids[ttName], function (idx, tid) {
+        if (tid === oldTid) {
+            tids[ttName][idx] = newTid;
+            return false;
+        }
+    });
+}
+
+function getFieldNamesForReload(cfs) {
+    var fields = [];
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            if (cf.reload) {
+                fields.push(cf.name);
+            }
+        });
+    });
+    return fields;
+}
+
+function updateOriginalCfsData(cfs, data) {
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            // Update orig_data
+            if (typeof data[cf.name] !== 'undefined') {
+                cf.orig_data = data[cf.name];
+                cf.obj.data('orig_data', data[cf.name]);
+            }
+        });
+    });
 }

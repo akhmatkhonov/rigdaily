@@ -73,10 +73,23 @@ RigDaily.prototype.startSubmitReport = function () {
     var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7);
     queue.success(function () {
         isReportEdited = false;
-        // TODO: When submit completed, we should update orig_data values
     });
 
-    var makeRequests = function (tid, data, cfs) {
+    var makeReloadFieldsRequest = function (tid, cfs) {
+        var fields = getFieldNamesForReload(cfs);
+        if (fields.length !== 0) {
+            queue.push(new ApiClientQueueRequestOptions({
+                type: 'GET',
+                contentType: 'application/json',
+                url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
+                successCode: 200,
+                success: function (response) {
+                    fillCfs(cfs, response);
+                }
+            }));
+        }
+    };
+    var makeRequests = function (tid, ttName, tblIdx, data, cfs) {
         if (Object.keys(data).length === 0) {
             return;
         }
@@ -90,26 +103,46 @@ RigDaily.prototype.startSubmitReport = function () {
             processData: false,
             successCode: 200,
             success: function () {
-                var fields = [];
-                $.each(cfs, function (idx, cfObj) {
-                    $.each(cfObj, function (idx, cf) {
-                        if (cf.reload) {
-                            fields.push(cf.name);
-                        }
-                    });
-                });
+                updateOriginalCfsData(cfs, data);
+                makeReloadFieldsRequest(tid, cfs);
+            }
+        }));
+    };
+    var makeCreateRequest = function (tid, ttName, tblIdx, data, cfs) {
+        queue.push(new ApiClientQueueRequestOptions({
+            type: 'POST',
+            data: JSON.stringify({
+                'fields': data,
+                'parents': getTrackorTypeRelations(ttName, tid, tblIdx)
+            }),
+            dataType: 'json',
+            processData: false,
+            contentType: 'application/json',
+            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors',
+            successCode: 201,
+            success: function (response) {
+                var newTid = response['TRACKOR_ID'];
+                updateCfsTid(cfs, tblIdx, tid, newTid);
+                updateTtTid(ttName, tid, newTid);
 
-                if (fields.length !== 0) {
-                    queue.push(new ApiClientQueueRequestOptions({
-                        type: 'GET',
-                        contentType: 'application/json',
-                        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
-                        successCode: 200,
-                        success: function (response) {
-                            fillCfs(cfs, response);
-                        }
-                    }));
-                }
+                updateOriginalCfsData(cfs, data);
+                makeReloadFieldsRequest(newTid, cfs);
+            }
+        }));
+    };
+    var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
+        queue.push(new ApiClientQueueRequestOptions({
+            type: 'DELETE',
+            contentType: 'application/json',
+            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors?trackor_id=' + encodeURIComponent(tid),
+            successCode: 200,
+            success: function () {
+                var newTid = generateTrackorId(ttName);
+                updateCfsTid(cfs, tblIdx, tid, newTid);
+                updateTtTid(ttName, tid, newTid);
+
+                var data = makeEmptyCfsObject(cfs);
+                fillCfs(cfs, data);
             }
         }));
     };
@@ -130,15 +163,27 @@ RigDaily.prototype.startSubmitReport = function () {
                         });
                         if (parent.length !== 0) {
                             var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
-                            var data = convertEditableCfsToDataObject(cfs, tid, isTblIdxObject ? tblIdx : undefined);
-                            makeRequests(tid, data, cfs);
+                            var dataAll = {};
+                            var data = convertEditableCfsToDataObject(cfs, tid, isTblIdxObject ? tblIdx : undefined, dataAll);
+                            if (!checkCfsFilledForNewTrackorCreate(cfs, dataAll, tid, tblIdx)) {
+                                if (tid < 0) {
+                                    // New trackor and no field values
+                                } else if (tid > 0) {
+                                    // Existing trackor and no field values -> delete
+                                    makeDeleteRequest(tid, ttName, tblIdx, cfs);
+                                }
+                            } else if (tid < 0) {
+                                makeCreateRequest(tid, ttName, tblIdx, dataAll, cfs);
+                            } else {
+                                makeRequests(tid, ttName, tblIdx, data, cfs);
+                            }
                         }
                     });
                 });
             } else {
                 var cfs = getConfigFields(ttName);
                 var data = convertEditableCfsToDataObject(cfs);
-                makeRequests(tidObj, data, cfs);
+                makeRequests(tidObj, ttName, undefined, data, cfs);
             }
         });
     } catch (e) {
@@ -169,6 +214,7 @@ RigDaily.prototype.startSubmitReport = function () {
         this.alertDialog('Nothing to submit');
     }
 };
+
 RigDaily.prototype.loadReport = function (tid) {
     var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 17, true, 7);
     queue.success(function () {
@@ -499,8 +545,8 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                $.each(response.splice(0, 22), function (idx, elem) {
-                    saveTid(trackorTypes.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
+                fillCellsForNewTrackor(trackorTypes.wasteHaulOffUsageTT, 22, response, function (idx, tid, elem) {
+                    saveTid(trackorTypes.wasteHaulOffUsageTT, tid, false);
 
                     var tblIdxIdx;
                     var startIdx;
@@ -521,9 +567,9 @@ RigDaily.prototype.loadReport = function (tid) {
                     }
 
                     var row = appendSubtableRow(tableIndexes[trackorTypes.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
-                        wasteHaulOffUsageBaseRow, elem['TRACKOR_ID']);
+                        wasteHaulOffUsageBaseRow, tid);
                     var rowCfs = getConfigFields(trackorTypes.wasteHaulOffUsageTT, row, tableIndexes[trackorTypes.wasteHaulOffUsageTT][tblIdxIdx]);
-                    fillCfs(rowCfs, elem);
+                    fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
                 });
 
                 dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS']();
@@ -658,12 +704,12 @@ RigDaily.prototype.loadReport = function (tid) {
                 },
                 successCode: 200,
                 success: function (response) {
-                    $.each(response, function (idx, elem) {
-                        saveTid(trackorTypes.supplyRequestTT, elem['TRACKOR_ID'], false);
+                    fillCellsForNewTrackor(trackorTypes.supplyRequestTT, 10, response, function (idx, tid, elem) {
+                        saveTid(trackorTypes.supplyRequestTT, tid, false);
 
-                        var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, tid);
                         var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
-                        fillCfs(rowCfs, elem);
+                        fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
                     });
                 }
             }));
