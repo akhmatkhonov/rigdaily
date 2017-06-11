@@ -38,6 +38,8 @@ function RigDaily() {
 }
 RigDaily.prototype.changeReport = function () {
     tids = {};
+    locks = {};
+    edited = {};
     isReportEdited = false;
     $(window).off('beforeunload');
 
@@ -75,7 +77,7 @@ RigDaily.prototype.startSubmitReport = function () {
         isReportEdited = false;
     });
 
-    var makeReloadFieldsRequest = function (tid, cfs) {
+    var makeReloadFieldsRequest = function (ttName, tid, cfs) {
         var fields = getFieldNamesForReload(cfs);
         if (fields.length !== 0) {
             queue.push(new ApiClientQueueRequestOptions({
@@ -84,7 +86,14 @@ RigDaily.prototype.startSubmitReport = function () {
                 url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
                 successCode: 200,
                 success: function (response) {
-                    fillCfs(cfs, response);
+                    var fields = getLockableFieldNames(cfs);
+                    if (fields.length !== 0) {
+                        requestTrackorLocks(queue, tid, ttName, fields, function () {
+                            fillCfs(cfs, response);
+                        });
+                    } else {
+                        fillCfs(cfs, response);
+                    }
                 }
             }));
         }
@@ -94,57 +103,31 @@ RigDaily.prototype.startSubmitReport = function () {
             return;
         }
 
-        queue.push(new ApiClientQueueRequestOptions({
-            type: 'PUT',
-            contentType: 'application/json',
-            url: '/api/v3/trackors/' + encodeURIComponent(tid),
-            data: JSON.stringify(data),
-            dataType: 'json',
-            processData: false,
-            successCode: 200,
-            success: function () {
-                updateOriginalCfsData(cfs, data);
-                makeReloadFieldsRequest(tid, cfs);
-            }
-        }));
+        requestUpdateTrackorById(queue, tid, data, function () {
+            updateOriginalCfsData(cfs, data);
+            makeReloadFieldsRequest(ttName, tid, cfs);
+        });
     };
     var makeCreateRequest = function (tid, ttName, tblIdx, data, cfs) {
-        queue.push(new ApiClientQueueRequestOptions({
-            type: 'POST',
-            data: JSON.stringify({
-                'fields': data,
-                'parents': getTrackorTypeRelations(ttName, tid, tblIdx)
-            }),
-            dataType: 'json',
-            processData: false,
-            contentType: 'application/json',
-            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors',
-            successCode: 201,
-            success: function (response) {
-                var newTid = response['TRACKOR_ID'];
-                updateCfsTid(cfs, tblIdx, tid, newTid);
-                updateTtTid(ttName, tid, newTid);
+        var parents = getTrackorTypeRelations(ttName, tid, tblIdx);
+        requestCreateTrackor(queue, ttName, data, parents, function (response) {
+            var newTid = response['TRACKOR_ID'];
+            updateCfsTid(cfs, tblIdx, tid, newTid);
+            updateTtTid(ttName, tid, newTid);
 
-                updateOriginalCfsData(cfs, data);
-                makeReloadFieldsRequest(newTid, cfs);
-            }
-        }));
+            updateOriginalCfsData(cfs, data);
+            makeReloadFieldsRequest(ttName, newTid, cfs);
+        });
     };
     var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
-        queue.push(new ApiClientQueueRequestOptions({
-            type: 'DELETE',
-            contentType: 'application/json',
-            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors?trackor_id=' + encodeURIComponent(tid),
-            successCode: 200,
-            success: function () {
-                var newTid = generateTrackorId(ttName);
-                updateCfsTid(cfs, tblIdx, tid, newTid);
-                updateTtTid(ttName, tid, newTid);
+        requestDeleteTrackor(queue, ttName, tid, function () {
+            var newTid = generateTrackorId(ttName);
+            updateCfsTid(cfs, tblIdx, tid, newTid);
+            updateTtTid(ttName, tid, newTid);
 
-                var data = makeEmptyCfsObject(cfs);
-                fillCfs(cfs, data);
-            }
-        }));
+            var data = makeEmptyCfsObject(cfs);
+            fillCfs(cfs, data);
+        });
     };
 
     try {
@@ -402,12 +385,17 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(trackorTypes.labTestingTT, elem['TRACKOR_ID'], false);
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
+                });
+                requestTrackorsLocks(queue, tids, trackorTypes.labTestingTT, labTestingBaseRowCfs, function () {
+                    $.each(response.splice(0, 4), function (idx, elem) {
+                        saveTid(trackorTypes.labTestingTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(tableIndexes[trackorTypes.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.labTestingTT, row);
-                    fillCfs(rowCfs, elem);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.labTestingTT, row);
+                        fillCfs(rowCfs, elem);
+                    });
                 });
             }
         }));
@@ -704,12 +692,17 @@ RigDaily.prototype.loadReport = function (tid) {
                 },
                 successCode: 200,
                 success: function (response) {
-                    fillCellsForNewTrackor(trackorTypes.supplyRequestTT, 10, response, function (idx, tid, elem) {
-                        saveTid(trackorTypes.supplyRequestTT, tid, false);
+                    var tids = $.map(response, function (elem) {
+                        return elem['TRACKOR_ID'];
+                    });
+                    requestTrackorsLocks(queue, tids, trackorTypes.supplyRequestTT, supplyRequestBaseRowCfs, function () {
+                        fillCellsForNewTrackor(trackorTypes.supplyRequestTT, 10, response, function (idx, tid, elem) {
+                            saveTid(trackorTypes.supplyRequestTT, tid, false);
 
-                        var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, tid);
-                        var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
-                        fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
+                            var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, tid);
+                            var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
+                            fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
+                        });
                     });
                 }
             }));
@@ -1349,7 +1342,12 @@ var loseDataMessage = 'You will lose any unsaved data. Continue?';
 var isReportEdited = false;
 var tids = {};
 var locks = {};
+var edited = {};
 var dateUtils = new ApiDateUtils();
+
+function beforeUnloadHandler() {
+    return loseDataMessage;
+}
 
 function RequiredFieldsNotPresentException(focusObj) {
     this.message = 'Required fields not present!';
@@ -1480,8 +1478,7 @@ function isCfLocked(cf) {
         return false;
     }
 
-    var lockVal = $.isArray(locks[cf.tt][tid]) ? locks[cf.tt][tid][cf.name] : undefined;
-    return lockVal !== undefined ? lockVal : false;
+    return $.isArray(locks[cf.tt][tid]) && typeof locks[cf.tt][tid][cf.name] !== 'undefined';
 }
 
 function fillCf(cf, value) {
@@ -1528,12 +1525,40 @@ function fillCf(cf, value) {
 
             // Init editable
             div.on('blur keyup paste', function () {
-                if (!isReportEdited && cf.orig_data !== div.text()) {
-                    isReportEdited = true;
+                var tr = cf.obj.closest('tr');
+                var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
+                var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+                var isChanged = '' + cf.obj.data('orig_data') !== div.text();
 
-                    $(window).on('beforeunload', function () {
-                        return loseDataMessage;
-                    });
+                if (isChanged) {
+                    if (typeof edited[cf.tt] === 'undefined') {
+                        edited[cf.tt] = {};
+                    }
+                    if (typeof edited[cf.tt][cf.name] === 'undefined') {
+                        edited[cf.tt][cf.name] = [];
+                    }
+                    if ($.inArray(tid, edited[cf.tt][cf.name]) === -1) {
+                        edited[cf.tt][cf.name].push(tid);
+                    }
+                } else {
+                    var ttCheck = typeof edited[cf.tt] !== 'undefined';
+                    var cfCheck = ttCheck && typeof edited[cf.tt][cf.name] !== 'undefined';
+
+                    if (cfCheck && $.inArray(tid, edited[cf.tt][cf.name]) !== -1) {
+                        edited[cf.tt][cf.name].splice(edited[cf.tt][cf.name].indexOf(tid), 1);
+                    }
+                    if (cfCheck && edited[cf.tt][cf.name].length === 0) {
+                        delete edited[cf.tt][cf.name];
+                    }
+                    if (ttCheck && Object.keys(edited[cf.tt]).length === 0) {
+                        delete edited[cf.tt];
+                    }
+                }
+
+                var prevIsReportEdited = isReportEdited;
+                isReportEdited = Object.keys(edited).length !== 0;
+                if (prevIsReportEdited !== isReportEdited) {
+                    $(window)[isReportEdited ? 'on' : 'off']('beforeunload', beforeUnloadHandler);
                 }
 
                 var triggerChange = true;
@@ -1943,6 +1968,18 @@ function getFieldNamesForReload(cfs) {
     return fields;
 }
 
+function getLockableFieldNames(cfs) {
+    var fields = [];
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            if (cf.lockable) {
+                fields.push(cf.name);
+            }
+        });
+    });
+    return fields;
+}
+
 function updateOriginalCfsData(cfs, data) {
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
@@ -1953,6 +1990,107 @@ function updateOriginalCfsData(cfs, data) {
             }
         });
     });
+}
+
+function requestUpdateTrackorById(queue, tid, data, callback) {
+    queue.push(new ApiClientQueueRequestOptions({
+        type: 'PUT',
+        contentType: 'application/json',
+        url: '/api/v3/trackors/' + encodeURIComponent(tid),
+        data: JSON.stringify(data),
+        dataType: 'json',
+        processData: false,
+        successCode: 200,
+        success: callback
+    }));
+}
+
+function requestCreateTrackor(queue, ttName, fields, parents, callback) {
+    queue.push(new ApiClientQueueRequestOptions({
+        type: 'POST',
+        data: JSON.stringify({
+            'fields': fields,
+            'parents': parents
+        }),
+        dataType: 'json',
+        processData: false,
+        contentType: 'application/json',
+        url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors',
+        successCode: 201,
+        success: callback
+    }));
+}
+
+function requestDeleteTrackor(queue, ttName, tid, callback) {
+    queue.push(new ApiClientQueueRequestOptions({
+        type: 'DELETE',
+        contentType: 'application/json',
+        url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors?trackor_id=' + encodeURIComponent(tid),
+        successCode: 200,
+        success: callback
+    }));
+}
+
+function requestTrackorLocks(queue, ttName, tid, fields, callback) {
+    queue.push(new ApiClientQueueRequestOptions({
+        type: 'GET',
+        contentType: 'application/json',
+        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '/locks?fields=' + encodeURIComponent(fields.join(',')),
+        successCode: 200,
+        success: function (response) {
+            $.each(response, function (idx, elem) {
+                var field_name = elem['field_name'];
+                if (elem['locked'] && $.inArray(field_name, fields) !== -1) {
+                    if (!$.isArray(locks[ttName])) {
+                        locks[ttName] = {};
+                    }
+                    if (!$.isArray(locks[ttName][tid])) {
+                        locks[ttName][tid] = [];
+                    }
+                    locks[ttName][tid].push(field_name);
+                }
+            });
+            callback();
+        }
+    }));
+}
+
+function requestTrackorsLocks(queue, tids, ttName, cfs, callback) {
+    // TODO: remove
+    callback();
+    return;
+
+    var fields = getLockableFieldNames(cfs);
+    if (fields.length !== 0) {
+        queue.push(new ApiClientQueueRequestOptions({
+            type: 'GET',
+            contentType: 'application/json',
+            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors/locks?fields=' + encodeURIComponent(fields.join(','))
+            + '&trackors=' + encodeURIComponent(tids.join(',')),
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    var field_name = elem['field_name'];
+                    var tid = elem['trackor_id'];
+
+                    if (elem['locked'] &&
+                        $.inArray(field_name, fields) !== -1 &&
+                        $.inArray(tid, tids) !== -1) {
+                        if (!$.isArray(locks[ttName])) {
+                            locks[ttName] = {};
+                        }
+                        if (!$.isArray(locks[ttName][tid])) {
+                            locks[ttName][tid] = [];
+                        }
+                        locks[ttName][tid].push(field_name);
+                    }
+                });
+                callback();
+            }
+        }));
+    } else {
+        callback();
+    }
 }
 
 function ArrowNavigation() {
