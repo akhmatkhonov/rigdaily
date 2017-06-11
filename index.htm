@@ -5,45 +5,51 @@
     <link rel="stylesheet" href="css/stylesheet.css">
     <link rel="stylesheet" href="css/jquery-ui.min.css">
     <link rel="shortcut icon" type="image/gif" href="css/images/onevizion_world_icon.ico"/>
-    <title>Rig Daily Report (Onevizion)</title>
+    <title>Rig Daily Report (OneVizion)</title>
 
-    <script type="text/javascript" src="js/jquery-3.2.0.min.js"></script>
-    <script type="text/javascript" src="js/jquery-ui.min.js"></script>
-    <script type="text/javascript" src="js/apiclient.js"></script>
-    <script type="text/javascript" src="js/rigdaily.js"></script>
+    <script type="text/javascript" data-main="js/app.js" src="js/require.min.js"></script>
 </head>
 <body>
 
 <!-- Api Client -->
-<div id="apiClientAuthDialog" title="Rig Daily Report (Onevizion)" style="display: none">
+<div id="apiClientAuthDialog" title="Rig Daily Report (OneVizion)" style="display: none">
     <span>
         Endpoint: <span class="endpoint"></span>
     </span>
     <input name="username" placeholder="UN/E-Mail" type="text" value="">
     <input name="password" placeholder="Password" type="password" value="">
-    <div class="ui-widget" style="display: none; margin-top: 10px">
+    <div class="ui-widget error" style="display: none; margin-top: 10px">
         <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
             <p>
                 <span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
-                <span class="error"></span>
+                <span class="error_text"></span>
             </p>
         </div>
     </div>
     <button class="authorize">Log In</button>
 </div>
-<div id="apiClientErrorDialog" title="Rig Daily Report (Onevizion)" style="display: none">
-    <span>
-        Endpoint: <span class="url"></span>
-    </span>
-    <div class="ui-widget" style="margin-top: 10px">
-        <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
-            <p>
-                <span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
-                <span class="error"></span>
-            </p>
-        </div>
+<div id="apiClientErrorDialog" title="Request failures" style="display: none">
+    <span class="progress"></span>
+    <div style="margin-top: 10px">
+        <table class="error_requests">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>URL</th>
+                <th>Code</th>
+                <th>Message</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
     </div>
-    <button class="retry">Retry request</button>
+    <button class="retry">Retry all</button>
+    <button class="cancel" disabled="disabled">Cancel</button>
+    <div class="cancelWaiting">
+        <img src="css/images/ajax-loader-mini.gif" alt="">
+        Waiting for pending requests...
+    </div>
 </div>
 <div class="apiClientModalLoading">
     <span style="position: relative">Please wait...</span>
@@ -51,7 +57,7 @@
 <!-- Api Client end -->
 
 <!-- Rig daily -->
-<div id="selectReportDialog" title="Rig Daily Report (Onevizion)" style="display: none">
+<div id="selectReportDialog" title="Rig Daily Report (OneVizion)" style="display: none">
     <div style="margin-bottom: 10px; text-align: center;">Select report</div>
     <label>
         Filter by site:
@@ -96,14 +102,30 @@
 
         <!-- Hidden cfs -->
         <div style="display: none;">
-            <!-- Equipment & Technicians Daily + Cumulative Total -->
+            <span data-cf="Rig_Daily_Report.TRACKOR_KEY" data-ed="false"></span>
+
+            <!-- Equipment & Technicians Daily -->
             <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
                   data-reload="true"></span>
             <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
+
+            <!-- Running totals (Month) -->
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+            <span data-cf="Project.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"
+                  data-reload="true"></span>
+
+            <!-- Waste haul off tonnages -->
+            <span data-cf="Rig_Daily_Report.RDR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
                   data-reload="true"></span>
         </div>
     </div>
@@ -126,7 +148,8 @@
         </tr>
         <tr style='height:45.0pt'>
             <td height=60 style='height:45.0pt'></td>
-            <td colspan=10 class=xl357 style='border-right:1.0pt solid black; background: white; padding-top: 15px'>
+            <td colspan=10 class="xl357 unselectable"
+                style='border-right:1.0pt solid black; background: white; padding-top: 15px'>
                 <img src="css/images/onevizion_logo.png" alt="">
             </td>
         </tr>
@@ -134,7 +157,7 @@
             <td style='height:15.0pt'></td>
             <td class=xl85 style='border-top:none'>Date</td>
             <td colspan=2 class=xl360 style='border-left:none'
-                data-cf="Dynamic.REPORT_DATE" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_REPORT_DATE" data-ed="false" data-t="date"></td>
             <td colspan=5 rowspan=2 class=xl361
                 style='border-bottom:.5pt solid black;font-size: 17pt;letter-spacing: 5px;color: white; font-weight: normal'>
                 RIG DAILY
@@ -146,8 +169,8 @@
             <td class=xl85 style='border-top:none'>Time</td>
             <td colspan=2 class=xl367 style='border-left:none'
                 data-cf="Rig_Daily_Report.RDR_TIME_OF_CREATION" data-ed="false"></td>
-            <td colspan=2 class=xl372 style='border-right:1.0pt solid black'
-                data-cf="Rig_Daily_Report.RDR_REPORT_DAY" data-ed="false"></td>
+            <td colspan=2 class=xl360 style='border-right:1.0pt solid black'
+                data-cf="Dynamic.REPORT_ID" data-ed="false"></td>
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
@@ -187,9 +210,11 @@
                 data-cf="Clients.CL_CLIENT_REPRESENTATIVES_CELL" data-ed="false"></td>
             <td colspan=3 class=xl197 style='border-left:none'>Footage Drilled</td>
             <td class=xl89 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_AM_FOOTAGE_DRILLED" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_AM_FOOTAGE_DRILLED" data-ed="false" data-t="number"
+                data-reload="true"></td>
             <td class=xl88 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_PM_FOOTAGE_DRILLED" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_PM_FOOTAGE_DRILLED" data-ed="false" data-t="number"
+                data-reload="true"></td>
         </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
@@ -477,8 +502,8 @@
             <td width="93" style="width:70pt"></td>
             <td width="78" style="width:59pt"></td>
             <td width="77" style="width:58pt"></td>
-            <td width="65" style="width:60pt"></td>
-            <td width="148" style="width:111pt"></td>
+            <td width="65" style="width:71pt"></td>
+            <td width="148" style="width:101pt"></td>
             <td width="85" style="width:64pt"></td>
             <td width="83" style="width:62pt"></td>
             <td width="65" style="width:49pt"></td>
@@ -515,7 +540,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -536,7 +562,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -557,7 +584,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -578,7 +606,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -599,7 +628,8 @@
                 data-cf="Field_Testing.FT_WEIGHT_2" data-t="number" data-tIdx="ftam"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_3" data-t="number" data-tIdx="ftam"></td>
-            <td class=xl310 style='border-top:none'></td>
+            <td class=xl106 style='border-top:none'
+                data-cf="Field_Testing.FT_TESTING_NAME" data-ed="false" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Field_Testing.FT_WEIGHT_1" data-t="number" data-tIdx="ftpm"></td>
             <td class=xl155 style='border-top:none;border-left:none'
@@ -694,18 +724,18 @@
             <td class=xl105 style='border-top:none'>Solids</td>
             <td class=xl155 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DRILING_FLUID_SOLIDS" data-t="number"></td>
-            <td colspan=8 class=xl305 style='border-right:1.0pt solid black'>Waste Haul Off &amp; Disposal</td>
+            <td colspan=8 class=xl325 style='border-right:1.0pt solid black'>Waste Haul Off &amp; Disposal</td>
         </tr>
         <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
             <td class=xl85 style='border-top:none'></td>
             <td class=xl160 style='border-top:none;border-left:none'></td>
-            <td class=xl229 style='border-left:none'>Manifest</td>
-            <td class=xl230 style='border-left:none'>Tons</td>
-            <td class=xl231 style='border-left:none'>Manifest</td>
-            <td class=xl230 style='border-left:none'>Tons</td>
-            <td class=xl231 style='border-left:none'>Manifest</td>
-            <td class=xl230 style='border-left:none'>Tons</td>
+            <td class=xl325 style='border-left:none'>Manifest</td>
+            <td class=xl325 style='border-left:none'>Tons</td>
+            <td class=xl325 style='border-left:none'>Manifest</td>
+            <td class=xl325 style='border-left:none'>Tons</td>
+            <td class=xl325 style='border-left:none'>Manifest</td>
+            <td class=xl325 style='border-left:none'>Tons</td>
             <td colspan=2 class=xl290 style='border-right:1.0pt solid black;border-left:none'>Total Tonnage</td>
         </tr>
         <tr style='height:15.0pt' class="wasteHaulOffUsageBaseRow baseRow">
@@ -713,35 +743,35 @@
             <td class=xl105 style='border-top:none'></td>
             <td class=xl161 style='border-top:none;border-left:none'></td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td class=xl226 style='border-top:none;border-left:none'>Daily</td>
             <td class=xl227 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_DAILY_TOTAL_TONNAGE" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_DAILY_TOTAL_TONNAGE" data-t="number" data-ed="false"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
             <td class=xl105 style='border-top:none'></td>
             <td class=xl161 style='border-top:none;border-left:none'></td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl290 style='border-right:1.0pt solid black;border-left:none'>Cumulative Total</td>
@@ -751,34 +781,34 @@
             <td class=xl105 style='border-top:none'></td>
             <td class=xl161 style='border-top:none;border-left:none'></td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Month_Report.RMR_TOTAL_TONNAGE_WASTE_HAUL" data-ed="false" data-reload="true"></td>
+                data-cf="Dynamic.PREV_WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
             <td class=xl105 style='border-top:none'></td>
             <td class=xl161 style='border-top:none;border-left:none'></td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl290 style='border-right:1.0pt solid black;border-left:none'>Total Loads to Date</td>
@@ -788,19 +818,20 @@
             <td class=xl105 style='border-top:none'></td>
             <td class=xl161 style='border-top:none;border-left:none'></td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl293 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number" data-ed="false"
+                data-submit="true"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -808,15 +839,15 @@
                 Additional Volume (bbl) To Be Treated
             </td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 rowspan=3 class=xl295
@@ -828,15 +859,15 @@
             <td class=xl164 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DRILING_FLUID_WASTE_WATER" data-t="number"></td>
             <td class=xl232 style='border-top:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou1"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou1" data-chefnt="true"></td>
             <td class=xl233 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou1"></td>
             <td class=xl233 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou2" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
             <td class=xl234 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
         </tr>
@@ -846,17 +877,19 @@
             <td class=xl165 style='border-top:none;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_DRILING_FLUID_MUD" data-t="number"></td>
             <td class=xl237 style='border-top:none;border-left:none'>Cost / Ton</td>
-            <td class=xl238 style='border-top:none;border-left:none'>
+            <td class=xl168 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
                 <span style="float: right; margin-right: 5px"
-                      data-cf="Rig_Daily_Report.RDR_WHOU_COST_TON" data-ed="false" data-reload="true"></span>
+                      data-cf="Rig_Daily_Report.RDR_WHOU_COST_TON" data-t="number"></span>
+            </td>
+            <td class=xl237 style='border-top:none;border-left:none'>Running Total:</td>
+            <td class=xl168 style='border-top:none;border-left:none'>
+                <span style="float: left">$</span>
+                <span style="float: right; margin-right: 5px"
+                      data-cf="Dynamic.WHL_DAILY_TOTAL" data-t="number" data-ed="false"></span>
             </td>
             <td class=xl163 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou2"></td>
-            <td class=xl163 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou2"></td>
-            <td class=xl163 style='border-top:none;border-left:none'
-                data-cf="Waste_Haul_Off_Usage.Waste_Haul_Off.TRACKOR_KEY" data-ed="false" data-tIdx="whou3"></td>
+                data-cf="Waste_Haul_Off_Usage.WHOU_WASTE_HAUL_OFF_MANIFEST" data-tIdx="whou3" data-chefnt="true"></td>
             <td class=xl163 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
         </tr>
@@ -911,7 +944,7 @@
                       data-cf="Consumables_Usage.Consumables.CONS_COST" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl166 style='border-top:none;border-left:none'
-                data-cf="Consumables_Usage.CONU_INITIAL" data-t="number"></td>
+                data-cf="Consumables_Usage.CONU_INITIAL" data-t="number" data-ed="false"></td>
             <td class=xl167 style='border-top:none;border-left:none'
                 data-cf="Consumables_Usage.CONU_DELIVERED" data-t="number"></td>
             <td class=xl126 style='border-top:none;border-left:none'
@@ -967,7 +1000,7 @@
                       data-cf="Binder_Usage.Binder.BIND_COST" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl166 style='border-top:none;border-left:none'
-                data-cf="Binder_Usage.BU_INITIAL" data-t="number"></td>
+                data-cf="Binder_Usage.BU_INITIAL" data-t="number" data-ed="false"></td>
             <td class=xl167 style='border-top:none;border-left:none'
                 data-cf="Binder_Usage.BU_DELIVERED" data-t="number"></td>
             <td class=xl126 style='border-top:none;border-left:none'
@@ -992,13 +1025,13 @@
             <td style='height:15.0pt'></td>
             <td class=xl196 style='border-top:none'>Binder Lbs Used</td>
             <td class=xl96 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu1"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu1"></td>
             <td class=xl96 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu2"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu2"></td>
             <td class=xl96 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu3"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu3"></td>
             <td class=xl188 style='border-top:none;border-left:none'
-                data-cf="Binder_Lbs_Used.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu4"></td>
+                data-cf="Binder_Usage.Binder.TRACKOR_KEY" data-ed="false" data-tIdx="blu4"></td>
             <td class=xl193 style='border-top:none;border-left:none'>Cumulative Total Lbs</td>
             <td class=xl138 style='border-top:none;border-left:none'>Lbs / Ton</td>
             <td colspan=2 class=xl193 style='border-left:none'>Previous</td>
@@ -1008,47 +1041,23 @@
         <tr style='height:15.0pt' class="binderLbsUsedUnitBaseRow baseRow">
             <td style='height:15.0pt'></td>
             <td class=xl139 style='border-top:none'></td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu1"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu1"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu1"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu1">
             </td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu2"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu2"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu2"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu2">
             </td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu3"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu3"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu3"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu3">
             </td>
-            <td class=xl89 style='border-top:none;border-left:none'>
-                <span data-cf="Dynamic.BLU_USED_UNIT" data-ed="false" data-t="number" data-tIdx="blu4"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_USED" data-ed="false" data-t="number" data-tIdx="blu4"
-                      data-submit="true"
-                      style="display: none"></span>
-                <span data-cf="Binder_Lbs_Used.BLU_UNIT" data-ed="false" data-t="number" data-tIdx="blu4"
-                      data-submit="true"
-                      style="display: none"></span>
+            <td class=xl89 style='border-top:none;border-left:none'
+                data-cf="Binder_Usage.BU_BINDER_LBS_USED" data-ed="false" data-t="number" data-tIdx="blu4">
             </td>
             <td class=xl140 style='border-top:none;border-left:none'
-                data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER_LBS" data-ed="false" data-t="number"
+                data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_LBS_USED" data-ed="false" data-t="number"
                 data-reload="true"></td>
             <td class=xl141 style='border-top:none;border-left:none'
-                data-cf="Rig_Month_Report.RMR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
+                data-cf="Rig_Daily_Report.RDR_LBS__TONS" data-ed="false" data-t="number" data-reload="true"></td>
             <td colspan=2 class=xl288 width=148 style='border-right:.5pt solid black; border-left:none;width:111pt'>
                 Cumulative Total
             </td>
@@ -1116,7 +1125,7 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false"
+                <span data-cf="Dynamic.RT_TOTAL_CONSUMABLES" data-ed="false"
                       data-t="number" data-reload="true"></span>
             </td>
         </tr>
@@ -1145,7 +1154,7 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
+                <span data-cf="Dynamic.RT_TOTAL_BINDER" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1202,7 +1211,7 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+                <span data-cf="Dynamic.RT_TOTAL_WHLOFF" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1231,7 +1240,7 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false"
+                <span data-cf="Dynamic.RT_TOTAL" data-ed="false"
                       data-t="number" data-reload="true"></span>
             </td>
         </tr>
@@ -1256,7 +1265,7 @@
             </td>
             <td colspan=2 class=xl282 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Rig_Month_Report.RMR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"
+                <span data-cf="Project.PR_TOTAL_EST_COST__FT" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1276,7 +1285,7 @@
             </td>
             <td colspan=5 class=xl189 style='border-right:1.0pt solid black;border-left:none'>Safety Notes</td>
         </tr>
-        <tr style='height:15.0pt' class="staticRow safeNotesBaseRow baseRow">
+        <tr style='height:15.0pt' class="staticRow baseRow">
             <td style='height:15.0pt'></td>
             <td class=xl85 style='border-top:none' data-cf="Equipment_Usage.Equipment.EQ_ITEM_NAME"
                 data-ed="false"></td>
@@ -1290,8 +1299,8 @@
                 <span style="float: left">$</span>
                 <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
+            <td colspan=5 rowspan=7 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
+                data-cf="Rig_Daily_Report.RDR_SAFE_NOTES" data-t="memo">
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1308,19 +1317,13 @@
                 <span style="float: left">$</span>
                 <span data-cf="Equipment_Usage.EQU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
-            </td>
         </tr>
-        <tr style='height:15.0pt' class="staticRow">
+        <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
             <td class=xl189>Technicians</td>
             <td class=xl190 style='border-left:none'>Daily Cost</td>
             <td class=xl190 style='border-left:none'>Quantity</td>
             <td class=xl190 style='border-left:none'>Total</td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
-            </td>
         </tr>
         <tr style='height:15.0pt' class="techniciansUsageBaseRow baseRow">
             <td style='height:15.0pt'></td>
@@ -1335,9 +1338,6 @@
             <td class=xl145 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
                 <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
-            </td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
             </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
@@ -1354,9 +1354,6 @@
                 <span style="float: left">$</span>
                 <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
-            </td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -1372,19 +1369,13 @@
                 <span style="float: left">$</span>
                 <span data-cf="Technicians_Usage.TECU_TOTAL" data-ed="false" data-t="number"></span>
             </td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
-            </td>
         </tr>
-        <tr style='height:15.75pt' class="staticRow">
+        <tr style='height:15.75pt'>
             <td style='height:15.75pt'></td>
             <td class=xl149>Daily Total All In</td>
             <td colspan=3 class=xl256>
                 <span style="float: left">$</span>
                 <span data-cf="Dynamic.RT_DAILY_EQTECH" data-ed="false" data-t="number"></span>
-            </td>
-            <td colspan=5 class=xl240 style='border-right:1.0pt solid black;border-bottom:1.0pt solid black'
-                data-cf="Safe_Notes.SN_NOTES">
             </td>
         </tr>
         </tbody>
@@ -1408,7 +1399,7 @@
         </tr>
         <tr style='height:15.0pt'>
             <td style='height:15.0pt'></td>
-            <td colspan=5 class=xl262>Contact Information</td>
+            <td colspan=5 class=xl262>Contact Information Project Management</td>
             <td colspan=5 class=xl264 style='border-right:1.0pt solid black'>Supply Request</td>
         </tr>
         <tr style='height:15.0pt'>
@@ -1420,17 +1411,151 @@
             <td class=xl188 style='border-left:none'>Quantity</td>
             <td class=xl150 style='border-left:none' colspan="2">When</td>
         </tr>
-        <tr style='height:15.0pt' class="contactInformationBaseRow supplyRequestBaseRow baseRow">
+        <tr style='height:15.0pt' class="contactInformationProjectManagementBaseRow supplyRequestBaseRow baseRow">
             <td style='height:15.0pt'></td>
-            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID" data-ed="false"></td>
-            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME" data-ed="false"></td>
-            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE" data-ed="false"></td>
+            <td class=xl85 style='border-top:none' data-cf="Project_Management.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Project_Management.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none'
+                data-cf="Project_Management.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
             <td class=xl169 style='border-top:none' colspan="2"
-                data-cf="Supply_Request.SR_ITEM_NAME" data-ed="false" data-lockable="true"></td>
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
             <td class=xl170 style='border-top:none;border-left:none'
                 data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
             <td class=xl171 style='border-top:none;border-left:none' colspan="2"
-                data-cf="Supply_Request.SR_WHEN" data-ed="false"></td>
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Project_Management.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Project_Management.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none'
+                data-cf="Project_Management.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Project_Management.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Project_Management.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none'
+                data-cf="Project_Management.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Project_Management.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Project_Management.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none'
+                data-cf="Project_Management.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td colspan=5 class=xl262>Contact Information Workers</td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none'>Title</td>
+            <td colspan=2 class=xl188 style='border-left:none'>Name</td>
+            <td colspan=2 class=xl188 style='border-left:none'>Cell</td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="contactInformationBaseRow baseRow staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
+        </tr>
+        <tr style='height:15.0pt' class="staticRow">
+            <td style='height:15.0pt'></td>
+            <td class=xl85 style='border-top:none' data-cf="Technicians_Usage.Workers.TRACKOR_CLASS_ID"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_NAME"
+                data-ed="false"></td>
+            <td colspan=2 class=xl188 style='border-left:none' data-cf="Technicians_Usage.Workers.WOR_WORKER_CELL_PHONE"
+                data-ed="false"></td>
+            <td class=xl169 style='border-top:none' colspan="2"
+                data-cf="Supply_Request.SR_ITEM_NAME" data-lockable="true" data-chefnt="true" data-reload="true"></td>
+            <td class=xl170 style='border-top:none;border-left:none'
+                data-cf="Supply_Request.SR_QUANTITY" data-t="number"></td>
+            <td class=xl171 style='border-top:none;border-left:none' colspan="2"
+                data-cf="Supply_Request.SR_WHEN" data-t="date" data-chefnt="true"></td>
         </tr>
         </tbody>
     </table>
