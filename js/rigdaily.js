@@ -1,11 +1,906 @@
-'use strict';
+function RigDaily() {
+    this.client = new ApiClient('https://energy.onevizion.com').authSuccess(function (username) {
+        $('span.loggedin').empty().text(username);
+    });
 
-ApiClient.endpoint = 'https://energy.onevizion.com';
+    this.arrowNavigation = new ArrowNavigation();
+    this.arrowNavigation.init();
 
-var config = {
+    // http://stackoverflow.com/a/24693866
+    $.datepicker._findPos = function (obj) {
+        var position;
+        if (obj.type === 'hidden') {
+            obj = $(obj).closest('td');
+        }
+        position = $(obj).offset();
+        return [position.left, position.top];
+    };
+
+    this.selectReportDialog = this.initSelectReportDialog();
+    this.startSelectReport(this.selectReportDialog);
+
+    $('#submitReportData').button().click((function () {
+        this.startSubmitReport();
+    }).bind(this));
+
+    $('#changeReport').button().click((function () {
+        if (isReportEdited) {
+            this.confirmDialog(loseDataMessage, this.changeReport);
+        } else {
+            this.changeReport();
+        }
+    }).bind(this));
+    $('#print').button({
+        icon: 'ui-icon-print'
+    }).click(function () {
+        window.print();
+    });
+}
+RigDaily.prototype.changeReport = function () {
+    tids = {};
+    isReportEdited = false;
+    $(window).off('beforeunload');
+
+    // Clear content
+    $('tr.subtable:not(.baseRow):not(.staticRow)').remove();
+    $('tr.subtable.baseRow, tr.subtable.staticRow').removeClass(function (index, classNames) {
+        var classes = classNames.split(' ');
+        var result = [];
+        $.each(classes, function (idx, className) {
+            if (className.indexOf('subtable') === 0) {
+                result.push(className);
+            }
+        });
+        return result.join(' ');
+    }).each(function (idx, elem) {
+        var tr = $(elem);
+        $.each(tr.data(), function (key) {
+            if (key.indexOf('tid_') === 0) {
+                tr.removeData(key);
+            }
+        })
+    });
+    $('[data-cf]').empty();
+    $('#content').hide();
+
+    this.arrowNavigation.currentRow = 2;
+    this.arrowNavigation.currentCell = 1;
+    this.arrowNavigation.updateCell();
+
+    this.selectReportLoadPage(this.selectReportDialog, 1);
+};
+RigDaily.prototype.startSubmitReport = function () {
+    var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7, true);
+    queue.success(function () {
+        isReportEdited = false;
+    });
+
+    var makeReloadFieldsRequest = function (tid, cfs) {
+        var fields = getFieldNamesForReload(cfs);
+        if (fields.length !== 0) {
+            queue.push(new ApiClientQueueRequestOptions({
+                type: 'GET',
+                contentType: 'application/json',
+                url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
+                successCode: 200,
+                success: function (response) {
+                    fillCfs(cfs, response);
+                }
+            }));
+        }
+    };
+    var makeRequests = function (tid, ttName, tblIdx, data, cfs) {
+        if (Object.keys(data).length === 0) {
+            return;
+        }
+
+        queue.push(new ApiClientQueueRequestOptions({
+            type: 'PUT',
+            contentType: 'application/json',
+            url: '/api/v3/trackors/' + encodeURIComponent(tid),
+            data: JSON.stringify(data),
+            dataType: 'json',
+            processData: false,
+            successCode: 200,
+            success: function () {
+                updateOriginalCfsData(cfs, data);
+                makeReloadFieldsRequest(tid, cfs);
+            }
+        }));
+    };
+    var makeCreateRequest = function (tid, ttName, tblIdx, data, cfs) {
+        queue.push(new ApiClientQueueRequestOptions({
+            type: 'POST',
+            data: JSON.stringify({
+                'fields': data,
+                'parents': getTrackorTypeRelations(ttName, tid, tblIdx)
+            }),
+            dataType: 'json',
+            processData: false,
+            contentType: 'application/json',
+            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors',
+            successCode: 201,
+            success: function (response) {
+                var newTid = response['TRACKOR_ID'];
+                updateCfsTid(cfs, tblIdx, tid, newTid);
+                updateTtTid(ttName, tid, newTid);
+
+                updateOriginalCfsData(cfs, data);
+                makeReloadFieldsRequest(newTid, cfs);
+            }
+        }));
+    };
+    var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
+        queue.push(new ApiClientQueueRequestOptions({
+            type: 'DELETE',
+            contentType: 'application/json',
+            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors?trackor_id=' + encodeURIComponent(tid),
+            successCode: 200,
+            success: function () {
+                var newTid = generateTrackorId(ttName);
+                updateCfsTid(cfs, tblIdx, tid, newTid);
+                updateTtTid(ttName, tid, newTid);
+
+                var data = makeEmptyCfsObject(cfs);
+                fillCfs(cfs, data);
+            }
+        }));
+    };
+
+    try {
+        $.each(tids, function (ttName, tidObj) {
+            if (ttName === trackorTypes.dynTT) {
+                return;
+            }
+
+            if (typeof tidObj === 'object') {
+                // Find subtable objects
+                $.each(tidObj, function (idx, tid) {
+                    var isTblIdxObject = typeof tableIndexes[ttName] === 'object';
+                    $.each(isTblIdxObject ? tableIndexes[ttName] : [tableIndexes[ttName]], function (idx, tblIdx) {
+                        var parent = $('tr.subtable.subtable_' + tblIdx).filter(function () {
+                            return $(this).data('tid_' + tblIdx) === tid;
+                        });
+                        if (parent.length !== 0) {
+                            var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
+                            var dataAll = {};
+                            var data = convertEditableCfsToDataObject(cfs, tid, isTblIdxObject ? tblIdx : undefined, dataAll);
+                            if (!checkCfsFilledForNewTrackorCreate(cfs, dataAll, tid, tblIdx)) {
+                                if (tid < 0) {
+                                    // New trackor and no field values
+                                } else if (tid > 0) {
+                                    // Existing trackor and no field values -> delete
+                                    makeDeleteRequest(tid, ttName, tblIdx, cfs);
+                                }
+                            } else if (tid < 0) {
+                                makeCreateRequest(tid, ttName, tblIdx, dataAll, cfs);
+                            } else {
+                                makeRequests(tid, ttName, tblIdx, data, cfs);
+                            }
+                        }
+                    });
+                });
+            } else {
+                var cfs = getConfigFields(ttName);
+                var data = convertEditableCfsToDataObject(cfs);
+                makeRequests(tidObj, ttName, undefined, data, cfs);
+            }
+        });
+    } catch (e) {
+        if (e instanceof RequiredFieldsNotPresentException || e instanceof FieldValidateFailedException) {
+            this.arrowNavigation.setActiveCellRowTo(e.focusObj.closest('td'));
+            e.focusObj.focus().tooltip({
+                items: 'div',
+                content: e.message,
+                open: function (event, ui) {
+                    $(ui.tooltip).mousemove(function () {
+                        e.focusObj.tooltip('close');
+                    });
+                },
+                close: function () {
+                    e.focusObj.tooltip('destroy');
+                }
+            }).trigger('mouseover');
+            return;
+        } else {
+            throw e;
+        }
+    }
+
+    if (!queue.isEmpty()) {
+        queue.totalRequests = queue.queue.length;
+        queue.start();
+    } else {
+        this.alertDialog('Nothing to submit');
+    }
+};
+
+RigDaily.prototype.loadReport = function (tid) {
+    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 17, true, 7);
+    queue.success(function () {
+        subscribeChangeDynCfs();
+        $('#content').show();
+    });
+
+    saveTid(trackorTypes.rigDailyReportTT, tid, true);
+
+    var key;
+    var rigSiteKey;
+    var clientKey;
+    var managerKey;
+    var contractorKey;
+    var projectKey;
+
+    // rigDaily
+    var rigDailyCfs = getConfigFields(trackorTypes.rigDailyReportTT);
+    var fields = [
+        'TRACKOR_KEY',
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY',
+        trackorTypes.projectTT + '.TRACKOR_KEY'
+    ];
+    fields = fields.concat(Object.keys(rigDailyCfs));
+
+    queue.push(new ApiClientQueueRequestOptions({
+        url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
+        successCode: 200,
+        success: function (response) {
+            key = response['TRACKOR_KEY'];
+            rigSiteKey = response[trackorTypes.rigSiteTT + '.TRACKOR_KEY'];
+            projectKey = response[trackorTypes.projectTT + '.TRACKOR_KEY'];
+
+            fillCfs(rigDailyCfs, response);
+
+            dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
+            dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
+
+            pushRigSiteLoad();
+            pushOtherLoad();
+            pushProjectManagementLoad();
+        }
+    }));
+
+    // projectManagement
+    var pushProjectManagementLoad = function () {
+        var contactInformationProjectManagementBaseRow = $('tr.contactInformationProjectManagementBaseRow').first();
+        var contactInformationProjectManagementBaseRowCfs = getConfigFields(trackorTypes.projectManagementTT, contactInformationProjectManagementBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(contactInformationProjectManagementBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.projectTT + '.TRACKOR_KEY=' + encodeURIComponent(projectKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(trackorTypes.projectManagementTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.projectManagementTT], 1, 6, contactInformationProjectManagementBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.projectManagementTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        }));
+    };
+
+    // rigSite
+    var pushRigSiteLoad = function () {
+        var rigSiteCfs = getConfigFields(trackorTypes.rigSiteTT);
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = [
+                    'RS_CLIENT',
+                    'RS_RIG_MANAGER',
+                    'RS_RIG_CONTRACTOR'
+                ];
+                fields = fields.concat(Object.keys(rigSiteCfs));
+
+                return '/api/v3/trackor_types/' + trackorTypes.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                clientKey = response['RS_CLIENT'];
+                managerKey = response['RS_RIG_MANAGER'];
+                contractorKey = response['RS_RIG_CONTRACTOR'];
+                fillCfs(rigSiteCfs, response);
+
+                pushClientLoad();
+                pushManagerLoad();
+                pushContractorLoad();
+            }
+        }));
+    };
+
+    // client
+    var pushClientLoad = function () {
+        var clientsCfs = getConfigFields(trackorTypes.clientsTT);
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(clientsCfs);
+
+                return '/api/v3/trackor_types/' + trackorTypes.clientsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(clientKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                fillCfs(clientsCfs, response);
+            }
+        }));
+    };
+
+    // manager
+    var pushManagerLoad = function () {
+        var workersCfs = getConfigFields(trackorTypes.workersTT);
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(workersCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(managerKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                fillCfs(workersCfs, response);
+            }
+        }));
+    };
+
+    // contractor
+    var pushContractorLoad = function () {
+        var contractorCfs = getConfigFields(trackorTypes.contractorsTT);
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(contractorCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&TRACKOR_KEY=' + encodeURIComponent(contractorKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                response = response[0];
+                fillCfs(contractorCfs, response);
+            }
+        }));
+    };
+
+    var pushOtherLoad = function () {
+        // holeDesignAndVolume
+        var holeDesignAndVolumeBaseRow = $('tr.holeDesignAndVolumeBaseRow');
+        var holeDesignAndVolumeCfs = getConfigFields(trackorTypes.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(holeDesignAndVolumeCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigSiteTT + '.TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(trackorTypes.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.holeDesignAndVolumeTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+
+                dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, tableIndexes[trackorTypes.holeDesignAndVolumeTT]);
+            }
+        }));
+
+        // labTesting
+        var labTestingBaseRow = $('tr.labTestingBaseRow');
+        var labTestingBaseRowCfs = getConfigFields(trackorTypes.labTestingTT, labTestingBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(labTestingBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(trackorTypes.labTestingTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.labTestingTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        }));
+
+        // apiScreenSize
+        var apiScreenSizeBaseRow = $('tr.apiScreenSizeBaseRow');
+        var apiScreenSizeBaseRowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, apiScreenSizeBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(apiScreenSizeBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                var startIdx = 7;
+                var endIdx = 11;
+
+                $.each(response.splice(0, 3), function (idx, elem) {
+                    saveTid(trackorTypes.apiScreenSizeTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, row);
+                    fillCfs(rowCfs, elem);
+
+                    if (startIdx === 7) {
+                        startIdx = 6;
+                        endIdx = 10;
+                    }
+                });
+            }
+        }));
+
+        // fieldTesting
+        var fieldTestingBaseRow = $('tr.fieldTestingBaseRow');
+        var fieldTestingBaseRowCfs = getConfigFields(trackorTypes.fieldTestingTT, fieldTestingBaseRow, tableIndexes[trackorTypes.fieldTestingTT][0]);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = [
+                    'FT_SHIFT'
+                ];
+                fields = fields.concat(Object.keys(fieldTestingBaseRowCfs));
+
+                return '/api/v3/trackor_types/' + trackorTypes.fieldTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                var groups = {};
+
+                // Group by FT_TESTING_NAME
+                $.each(response, function (idx, elem) {
+                    if (elem['FT_SHIFT'].length === 0) {
+                        return true;
+                    }
+
+                    saveTid(trackorTypes.fieldTestingTT, elem['TRACKOR_ID'], false);
+                    if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
+                        groups[elem['FT_TESTING_NAME']] = [];
+                    }
+                    groups[elem['FT_TESTING_NAME']].push(elem);
+                });
+
+                // Sort by FT_SHIFT
+                $.each(groups, function (groupName, elem) {
+                    var sortedGroup = elem.sort(function (a, b) {
+                        return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
+                    });
+
+                    var grepAM = $.grep(sortedGroup, function (elem) {
+                        return elem['FT_SHIFT'] === 'AM';
+                    });
+                    var grepPM = $.grep(sortedGroup, function (elem) {
+                        return elem['FT_SHIFT'] === 'PM';
+                    });
+                    if (grepAM.length === 0) {
+                        sortedGroup.unshift({
+                            'FT_TESTING_NAME': groupName,
+                            'FT_SHIFT': 'AM'
+                        });
+                    }
+                    if (grepPM.length === 0) {
+                        sortedGroup.push({
+                            'FT_SHIFT': 'PM'
+                        });
+                    }
+
+                    $.each(sortedGroup, function (idx, elem) {
+                        var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
+                        var startIdx = tblIdxIdx === 0 ? 4 : 8;
+                        var endIdx = tblIdxIdx === 0 ? 7 : 11;
+
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx],
+                            startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.fieldTestingTT, row, tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx]);
+                        fillCfs(rowCfs, elem);
+                    });
+                });
+            }
+        }));
+
+        // retorts
+        var retortsBaseRow = $('tr.retortsBaseRow');
+        var retortsBaseRowCfs = getConfigFields(trackorTypes.retortsTT, retortsBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(retortsBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    saveTid(trackorTypes.retortsTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.retortsTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        }));
+
+        // wasteHaulOffUsage
+        var wasteHaulOffUsageBaseRow = $('tr.wasteHaulOffUsageBaseRow');
+        var wasteHaulOffUsageBaseRowCfs = getConfigFields(trackorTypes.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(wasteHaulOffUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                fillCellsForNewTrackor(trackorTypes.wasteHaulOffUsageTT, 22, response, function (idx, tid, elem) {
+                    saveTid(trackorTypes.wasteHaulOffUsageTT, tid, false);
+
+                    var tblIdxIdx;
+                    var startIdx;
+                    var endIdx;
+
+                    if (idx >= 0 && idx <= 6) {
+                        tblIdxIdx = 0;
+                        startIdx = 4;
+                        endIdx = 5;
+                    } else if (idx >= 7 && idx <= 13) {
+                        tblIdxIdx = 1;
+                        startIdx = 6;
+                        endIdx = 7;
+                    } else {
+                        tblIdxIdx = 2;
+                        startIdx = 8;
+                        endIdx = 9;
+                    }
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
+                        wasteHaulOffUsageBaseRow, tid);
+                    var rowCfs = getConfigFields(trackorTypes.wasteHaulOffUsageTT, row, tableIndexes[trackorTypes.wasteHaulOffUsageTT][tblIdxIdx]);
+                    fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
+                });
+
+                dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS']();
+            }
+        }));
+
+        // consumablesUsageTT
+        var consumablesUsageBaseRow = $('tr.consumablesUsageBaseRow');
+        var consumablesUsageBaseRowCfs = getConfigFields(trackorTypes.consumablesUsageTT, consumablesUsageBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(consumablesUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response, function (idx, elem) {
+                    saveTid(trackorTypes.consumablesUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.consumablesUsageTT], 1, 10, consumablesUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.consumablesUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        }));
+
+        // binderUsageTT
+        var binderUsageBaseRow = $('tr.binderUsageBaseRow');
+        var binderUsageBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderUsageBaseRow);
+        var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
+        var binderLbsUsedBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderLbsUsedBaseRow.parent(), tableIndexes[trackorTypes.binderUsageTT][1]);
+        var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
+        var binderLbsUsedUnitBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderLbsUsedUnitBaseRow, tableIndexes[trackorTypes.binderUsageTT][1]);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(binderUsageBaseRowCfs);
+                fields = fields.concat(Object.keys(binderLbsUsedBaseRowCfs));
+                fields = fields.concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
+
+                return '/api/v3/trackor_types/' + trackorTypes.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 4), function (idx, elem) {
+                    saveTid(trackorTypes.binderUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.binderUsageTT][0], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.binderUsageTT, row);
+                    fillCfs(rowCfs, elem);
+
+                    // binderLbs
+                    var tblIdx = tableIndexes[trackorTypes.binderUsageTT].slice(1)[idx];
+                    var tdIdxs = 2 + idx;
+
+                    var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
+                    var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
+                    var row1Cfs = getConfigFields(trackorTypes.binderUsageTT, row1, tblIdx);
+                    var row2Cfs = getConfigFields(trackorTypes.binderUsageTT, row2, tblIdx);
+
+                    fillCfs(row1Cfs, elem);
+                    fillCfs(row2Cfs, elem);
+                });
+            }
+        }));
+
+        // equipmentUsageTT
+        var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
+        var equipmentUsageBaseRowCfs = getConfigFields(trackorTypes.equipmentUsageTT, equipmentUsageBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(equipmentUsageBaseRowCfs);
+                return '/api/v3/trackor_types/' + trackorTypes.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 9), function (idx, elem) {
+                    saveTid(trackorTypes.equipmentUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.equipmentUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+            }
+        }));
+
+        // techniciansUsageTT, contactInformation
+        var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
+        var techniciansUsageBaseRowCfs = getConfigFields(trackorTypes.techniciansUsageTT, techniciansUsageBaseRow);
+        var contactInformationBaseRow = $('tr.contactInformationBaseRow');
+        var contactInformationBaseRowCfs = getConfigFields(trackorTypes.techniciansUsageTT, contactInformationBaseRow);
+
+        queue.push(new ApiClientQueueRequestOptions({
+            url: function () {
+                var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
+                return '/api/v3/trackor_types/' + trackorTypes.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                    '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+            },
+            successCode: 200,
+            success: function (response) {
+                $.each(response.splice(0, 3), function (idx, elem) {
+                    saveTid(trackorTypes.techniciansUsageTT, elem['TRACKOR_ID'], false);
+
+                    var row = appendSubtableRow(tableIndexes[trackorTypes.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
+                    var rowCfs = getConfigFields(trackorTypes.techniciansUsageTT, row);
+                    fillCfs(rowCfs, elem);
+
+                    row = appendSubtableRow(tableIndexes[trackorTypes.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
+                    rowCfs = getConfigFields(trackorTypes.techniciansUsageTT, row);
+                    fillCfs(rowCfs, elem);
+                });
+
+                pushSupplyRequestLoad();
+            }
+        }));
+
+        var pushSupplyRequestLoad = function () {
+            // supplyRequestTT
+            var supplyRequestBaseRow = $('tr.supplyRequestBaseRow').first();
+            var supplyRequestBaseRowCfs = getConfigFields(trackorTypes.supplyRequestTT, supplyRequestBaseRow);
+
+            queue.push(new ApiClientQueueRequestOptions({
+                url: function () {
+                    var fields = Object.keys(supplyRequestBaseRowCfs);
+                    return '/api/v3/trackor_types/' + trackorTypes.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
+                        '&' + trackorTypes.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
+                },
+                successCode: 200,
+                success: function (response) {
+                    fillCellsForNewTrackor(trackorTypes.supplyRequestTT, 10, response, function (idx, tid, elem) {
+                        saveTid(trackorTypes.supplyRequestTT, tid, false);
+
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, tid);
+                        var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
+                        fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
+                    });
+                }
+            }));
+        };
+    };
+
+    queue.start();
+};
+RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
+    var fields = [
+        'TRACKOR_KEY',
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY',
+        'RDR_REPORT_DATE'
+    ];
+    var sort = [
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY:desc',
+        'RDR_REPORT_DATE:desc'
+    ];
+
+    var siteFilter = selectReportDialog.find('select.site');
+    var filter = {};
+
+    if (siteFilter.val() !== '') {
+        var key = trackorTypes.rigSiteTT + '.TRACKOR_KEY';
+        filter[key] = siteFilter.val();
+    }
+
+    var perPage = 15;
+    this.client.request(new ApiClientRequestOptions({
+        modalLoadingMessage: 'Loading reports...',
+        url: '/api/v3/trackor_types/' + trackorTypes.rigDailyReportTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
+        + '&page=' + page + '&per_page=' + perPage + '&sort=' + encodeURIComponent(sort.join(',')) + '&' + $.param(filter),
+        successCode: 200,
+        success: (function (response) {
+            var buttonPrev = selectReportDialog.find('button.reportsPrev');
+            var buttonNext = selectReportDialog.find('button.reportsNext');
+
+            buttonPrev.button('option', 'disabled', page === 1);
+            buttonPrev.data('page', page - 1);
+            buttonNext.button('option', 'disabled', response.length < perPage);
+            buttonNext.data('page', page + 1);
+
+            var table = selectReportDialog.find('table.reports tbody').empty();
+            $.each(response, (function (idx, obj) {
+                var tid = obj['TRACKOR_ID'];
+                var tr = $('<tr></tr>');
+                tr.click((function () {
+                    $('span.site').empty().text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']);
+
+                    selectReportDialog.dialog('close');
+                    this.loadReport(tid);
+                }).bind(this));
+
+                $('<td></td>').text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
+                var reportDate = dateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
+                $('<td></td>').text(reportDate.getUTCDate() + 1).appendTo(tr);
+                $('<td></td>').text(dateUtils.objGetMonthName(reportDate)).appendTo(tr);
+                $('<td></td>').text(reportDate.getUTCFullYear()).appendTo(tr);
+
+                var link = $('<a>Open</a>').attr('href', 'javascript:void(0)');
+                $('<td></td>').append(link).appendTo(tr);
+
+                table.append(tr);
+            }).bind(this));
+            if (response.length === 0) {
+                var tr = $('<tr></tr>').addClass('nodata');
+                $('<td colspan="5"></td>').text('No reports').appendTo(tr);
+
+                table.append(tr);
+            }
+
+            // Selectmenu z-index bug fix
+            var siteFilter = selectReportDialog.find('select.site');
+            if (siteFilter.is(':ui-selectmenu')) {
+                siteFilter.selectmenu('destroy');
+            }
+            siteFilter.selectmenu();
+
+            selectReportDialog.dialog('open');
+        }).bind(this)
+    }));
+};
+RigDaily.prototype.startSelectReport = function (selectReportDialog) {
+    var siteFilter = selectReportDialog.find('select.site');
+
+    // Load sites
+    var fields = [
+        'TRACKOR_KEY'
+    ];
+    var sort = [
+        'TRACKOR_KEY'
+    ];
+
+    var appendOpt = function (value, text) {
+        $('<option></option>').attr('value', value).text(text).appendTo(siteFilter);
+    };
+
+    siteFilter.empty();
+    appendOpt('', '-- Any site --');
+
+    this.client.request(new ApiClientRequestOptions({
+        modalLoadingMessage: 'Loading sites...',
+        url: '/api/v3/trackor_types/' + trackorTypes.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
+        + '&sort=' + encodeURIComponent(sort.join(',')),
+        successCode: 200,
+        success: (function (response) {
+            $.each(response, function (idx, obj) {
+                appendOpt(obj['TRACKOR_KEY'], obj['TRACKOR_KEY']);
+            });
+            this.selectReportLoadPage(selectReportDialog, 1);
+        }).bind(this)
+    }));
+};
+RigDaily.prototype.initSelectReportDialog = function () {
+    var selectReportDialog = $('#selectReportDialog');
+    selectReportDialog.dialog({
+        width: 'auto',
+        height: 'auto',
+        modal: true,
+        autoOpen: false,
+        resizable: false,
+        draggable: false,
+        closeOnEscape: false,
+        open: function (event, ui) {
+            $(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+        }
+    });
+
+    selectReportDialog.find('select.site').selectmenu().on('selectmenuchange', (function () {
+        selectReportDialog.dialog('close');
+        this.selectReportLoadPage(selectReportDialog, 1);
+    }).bind(this));
+
+    var _this = this;
+    selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click(function () {
+        selectReportDialog.dialog('close');
+        _this.selectReportLoadPage(selectReportDialog, $(this).data('page'));
+    });
+
+    return selectReportDialog;
+};
+RigDaily.prototype.alertDialog = function (message, callback, title) {
+    if (typeof(title) !== 'string') {
+        title = 'Information';
+    }
+
+    var div = $('<div></div>');
+    div.html(message).dialog({
+        title: title,
+        resizable: false,
+        modal: true,
+        buttons: {
+            'OK': function () {
+                div.dialog('close');
+            }
+        },
+        close: (function () {
+            div.remove();
+            if (typeof(callback) === 'function') {
+                callback.call(this);
+            }
+        }).bind(this)
+    });
+};
+RigDaily.prototype.confirmDialog = function (message, callback, title) {
+    if (typeof(title) !== 'string') {
+        title = 'Confirm';
+    }
+
+    var div = $('<div></div>');
+    div.html(message).dialog({
+        title: title,
+        resizable: false,
+        modal: true,
+        buttons: {
+            'OK': (function () {
+                div.dialog('close');
+                callback.call(this);
+            }).bind(this),
+            'Cancel': function () {
+                div.dialog('close');
+            }
+        },
+        close: function () {
+            div.remove();
+        }
+    });
+};
+
+var trackorTypes = {
     rigDailyReportTT: 'Rig_Daily_Report',
-    rigMonthReportTT: 'Rig_Month_Report',
-    rigYearReportTT: 'Rig_Year_Report',
     rigSiteTT: 'Rig_Site',
     clientsTT: 'Clients',
     workersTT: 'Workers',
@@ -15,13 +910,11 @@ var config = {
     apiScreenSizeTT: 'Api_Screen_Size',
     fieldTestingTT: 'Field_Testing',
     retortsTT: 'Retorts',
-    wasteHaulOffTT: 'Waste_Haul_Off',
     wasteHaulOffUsageTT: 'Waste_Haul_Off_Usage',
     consumablesUsageTT: 'Consumables_Usage',
     consumablesTT: 'Consumables',
     binderTT: 'Binder',
     binderUsageTT: 'Binder_Usage',
-    binderLbsUsedTT: 'Binder_Lbs_Used',
     equipmentTT: 'Equipment',
     equipmentUsageTT: 'Equipment_Usage',
     techniciansUsageTT: 'Technicians_Usage',
@@ -32,236 +925,238 @@ var config = {
     // For dynamic calculations
     dynTT: 'Dynamic'
 };
-var configTblIdxs = {};
-configTblIdxs[config.holeDesignAndVolumeTT] = 'hd';
-configTblIdxs[config.labTestingTT] = 'lt';
-configTblIdxs[config.apiScreenSizeTT] = 'ass';
-configTblIdxs[config.fieldTestingTT] = ['ftam', 'ftpm'];
-configTblIdxs[config.retortsTT] = 'rtrs';
-configTblIdxs[config.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
-configTblIdxs[config.consumablesUsageTT] = 'cu';
-configTblIdxs[config.binderUsageTT] = 'bu';
-configTblIdxs[config.binderLbsUsedTT] = ['blu1', 'blu2', 'blu3', 'blu4'];
-configTblIdxs[config.equipmentUsageTT] = 'equ';
-configTblIdxs[config.techniciansUsageTT] = 'tecu';
-configTblIdxs[config.supplyRequestTT] = 'sr';
-configTblIdxs[config.projectManagementTT] = 'pm';
 
-var loseDataMessage = 'You will lose any unsaved data. Continue?';
+var tableIndexes = {};
+tableIndexes[trackorTypes.holeDesignAndVolumeTT] = 'hd';
+tableIndexes[trackorTypes.labTestingTT] = 'lt';
+tableIndexes[trackorTypes.apiScreenSizeTT] = 'ass';
+tableIndexes[trackorTypes.fieldTestingTT] = ['ftam', 'ftpm'];
+tableIndexes[trackorTypes.retortsTT] = 'rtrs';
+tableIndexes[trackorTypes.wasteHaulOffUsageTT] = ['whou1', 'whou2', 'whou3'];
+tableIndexes[trackorTypes.consumablesUsageTT] = 'cu';
+tableIndexes[trackorTypes.binderUsageTT] = ['bu', 'blu1', 'blu2', 'blu3', 'blu4'];
+tableIndexes[trackorTypes.equipmentUsageTT] = 'equ';
+tableIndexes[trackorTypes.techniciansUsageTT] = 'tecu';
+tableIndexes[trackorTypes.supplyRequestTT] = 'sr';
+tableIndexes[trackorTypes.projectManagementTT] = 'pm';
 
-var isReportEdited = false;
-var tids = {};
-var locks = {};
+var relations = {};
+relations[trackorTypes.wasteHaulOffUsageTT] = function () {
+    var obj = {};
+    obj[trackorTypes.rigDailyReportTT] = {
+        'TRACKOR_KEY': getCfValue(trackorTypes.rigDailyReportTT + '.TRACKOR_KEY')
+    };
+    return obj;
+};
+relations[trackorTypes.supplyRequestTT] = function () {
+    var obj = {};
+    obj[trackorTypes.rigDailyReportTT] = {
+        'TRACKOR_KEY': getCfValue(trackorTypes.rigDailyReportTT + '.TRACKOR_KEY')
+    };
+    return obj;
+};
 
-function getRigMonthIndex(name) {
-    switch (name) {
-        case 'January':
-            return 1;
-        case 'February':
-            return 2;
-        case 'March':
-            return 3;
-        case 'April':
-            return 4;
-        case 'May':
-            return 5;
-        case 'June':
-            return 6;
-        case 'July':
-            return 7;
-        case 'August':
-            return 8;
-        case 'September':
-            return 9;
-        case 'October':
-            return 10;
-        case 'November':
-            return 11;
-        case 'December':
-            return 12;
+var fieldValidators = {};
+
+fieldValidators[trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
+    var prevDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH');
+    var currentDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
+    if (prevDepth > currentDepth) {
+        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
     }
-}
-
-function RequiredFieldsNotPresentException(focusObj) {
-    this.message = 'Required fields not present!';
-    this.focusObj = focusObj;
-}
-
-// Dynamic calculating cells
+};
+fieldValidators[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
+    var prevDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH');
+    var currentDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+    if (prevDepth > currentDepth) {
+        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+    }
+};
 var dynCalculations = {};
 
 // rigDailyReportTT
-dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
-    setCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED',
-        getCfValue(config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH') -
-        getCfValue(config.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH'));
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_REPORT_DATE'] = function () {
+    var reportDateStr = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_REPORT_DATE');
+    var reportDate = dateUtils.localDateToObj(reportDateStr);
+    setCfValue(trackorTypes.dynTT + '.REPORT_ID', reportDate.getDate());
 };
-dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
-    setCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED',
-        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
-        getCfValue(config.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED',
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH'));
 
-    dynCalculations[config.dynTT + '.RT_TOTAL']();
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH',
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'));
 };
-dynCalculations[config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED',
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
+
+    dynCalculations[trackorTypes.dynTT + '.RT_TOTAL']();
 };
-dynCalculations[config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = function () {
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
+    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
+};
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = function () {
+    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
 };
 
 // Rig pumps
-dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
-    setCfValue(config.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
-        getCfValue(config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
-        getCfValue(config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'));
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'));
 };
-dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'] = dynCalculations[config.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'];
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PUMP_2_GPM_PM'] = dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'];
 
 // labTestingTT
-dynCalculations[config.labTestingTT + '.LABT_WATER'] = function (tid, tblIdx) {
-    var water = getCfValue(config.labTestingTT + '.LABT_WATER', tid, tblIdx);
-    var oil = getCfValue(config.labTestingTT + '.LABT_OIL', tid, tblIdx);
-    setCfValue(config.labTestingTT + '.LABT_SOLIDS', (100 - water - oil), tid, tblIdx);
+dynCalculations[trackorTypes.labTestingTT + '.LABT_WATER'] = function (tid, tblIdx) {
+    var water = getCfValue(trackorTypes.labTestingTT + '.LABT_WATER', tid, tblIdx);
+    var oil = getCfValue(trackorTypes.labTestingTT + '.LABT_OIL', tid, tblIdx);
+    setCfValue(trackorTypes.labTestingTT + '.LABT_SOLIDS', (100 - water - oil), tid, tblIdx);
 };
-dynCalculations[config.labTestingTT + '.LABT_OIL'] = dynCalculations[config.labTestingTT + '.LABT_WATER'];
+dynCalculations[trackorTypes.labTestingTT + '.LABT_OIL'] = dynCalculations[trackorTypes.labTestingTT + '.LABT_WATER'];
 
 // holeDesignAndVolumeTT
-dynCalculations[config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL'] = function (tid, tblIdx) {
+dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL'] = function (tid, tblIdx) {
     var newVal = 0;
-    $.each(tids[config.holeDesignAndVolumeTT], function (idx, tid) {
-        newVal += getCfValue(config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', tid, tblIdx);
+    $.each(tids[trackorTypes.holeDesignAndVolumeTT], function (idx, tid) {
+        newVal += getCfValue(trackorTypes.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', tid, tblIdx);
     });
-    setCfValue(config.rigSiteTT + '.RS_GAUGE_HOLE_TOTAL', newVal);
+    setCfValue(trackorTypes.rigSiteTT + '.RS_GAUGE_HOLE_TOTAL', newVal);
 };
-dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'] = function (tid, tblIdx) {
+dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'] = function (tid, tblIdx) {
     var prevDepth;
-    $.each(tids[config.holeDesignAndVolumeTT], function (idx, tid) {
-        var hole = getCfValue(config.holeDesignAndVolumeTT + '.HDV_HOLE', tid, tblIdx);
-        var depth = getCfValue(config.holeDesignAndVolumeTT + '.HDV_DEPTH', tid, tblIdx);
+    $.each(tids[trackorTypes.holeDesignAndVolumeTT], function (idx, tid) {
+        var hole = getCfValue(trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE', tid, tblIdx);
+        var depth = getCfValue(trackorTypes.holeDesignAndVolumeTT + '.HDV_DEPTH', tid, tblIdx);
 
         var gaugeBbl = Math.pow(hole, 2) * 0.000972;
         gaugeBbl *= typeof prevDepth !== 'undefined' ? depth - prevDepth : depth;
         prevDepth = depth;
 
-        setCfValue(config.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', gaugeBbl, tid, tblIdx);
+        setCfValue(trackorTypes.holeDesignAndVolumeTT + '.HDV_GAUGE_BBL', gaugeBbl, tid, tblIdx);
     });
 };
-dynCalculations[config.holeDesignAndVolumeTT + '.HDV_DEPTH'] = dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'];
+dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_DEPTH'] = dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'];
 
 // retortsTT
-dynCalculations[config.retortsTT + '.RET_AM_OIL'] = function (tid, tblIdx) {
-    var water = getCfValue(config.retortsTT + '.RET_AM_WATER', tid, tblIdx);
-    var oil = getCfValue(config.retortsTT + '.RET_AM_OIL', tid, tblIdx);
-    setCfValue(config.retortsTT + '.RET_AM_SOLIDS', (100 - water - oil), tid, tblIdx);
+dynCalculations[trackorTypes.retortsTT + '.RET_AM_OIL'] = function (tid, tblIdx) {
+    var water = getCfValue(trackorTypes.retortsTT + '.RET_AM_WATER', tid, tblIdx);
+    var oil = getCfValue(trackorTypes.retortsTT + '.RET_AM_OIL', tid, tblIdx);
+    setCfValue(trackorTypes.retortsTT + '.RET_AM_SOLIDS', (100 - water - oil), tid, tblIdx);
 };
-dynCalculations[config.retortsTT + '.RET_AM_WATER'] = dynCalculations[config.retortsTT + '.RET_AM_OIL'];
-dynCalculations[config.retortsTT + '.RET_PM_OIL'] = function (tid, tblIdx) {
-    var water = getCfValue(config.retortsTT + '.RET_PM_WATER', tid, tblIdx);
-    var oil = getCfValue(config.retortsTT + '.RET_PM_OIL', tid, tblIdx);
-    setCfValue(config.retortsTT + '.RET_PM_SOLIDS', (100 - water - oil), tid, tblIdx);
+dynCalculations[trackorTypes.retortsTT + '.RET_AM_WATER'] = dynCalculations[trackorTypes.retortsTT + '.RET_AM_OIL'];
+dynCalculations[trackorTypes.retortsTT + '.RET_PM_OIL'] = function (tid, tblIdx) {
+    var water = getCfValue(trackorTypes.retortsTT + '.RET_PM_WATER', tid, tblIdx);
+    var oil = getCfValue(trackorTypes.retortsTT + '.RET_PM_OIL', tid, tblIdx);
+    setCfValue(trackorTypes.retortsTT + '.RET_PM_SOLIDS', (100 - water - oil), tid, tblIdx);
 };
-dynCalculations[config.retortsTT + '.RET_PM_WATER'] = dynCalculations[config.retortsTT + '.RET_PM_OIL'];
+dynCalculations[trackorTypes.retortsTT + '.RET_PM_WATER'] = dynCalculations[trackorTypes.retortsTT + '.RET_PM_OIL'];
 
 // wasteHaulOffUsageTT
-dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
+dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
     var newValue = 0;
-    $.each(tids[config.wasteHaulOffUsageTT], function (idx, tid) {
-        $.each(configTblIdxs[config.wasteHaulOffUsageTT], function (idx, tblIdx) {
-            var val = getCfValue(config.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx);
+    $.each(tids[trackorTypes.wasteHaulOffUsageTT], function (idx, tid) {
+        $.each(tableIndexes[trackorTypes.wasteHaulOffUsageTT], function (idx, tblIdx) {
+            var val = getCfValue(trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx);
             if (val !== null) {
                 newValue += val;
+                return false;
             }
         });
     });
 
-    setCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
+    newValue *= getCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_COST_TON');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL', newValue);
 };
 
-dynCalculations[config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL') -
-        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'];
+
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(trackorTypes.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
 };
 
-dynCalculations[config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
-    var number = getCfValue(config.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
-        getCfValue(config.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(config.dynTT + '.WHL_TOTAL_TONNAGE', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
+    var number = getCfValue(trackorTypes.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_TOTAL_LOADS_TO_DATE', number);
 };
 
 // consumablesUsageTT
-dynCalculations[config.consumablesUsageTT + '.CONU_INITIAL'] = function (tid, tblIdx) {
-    var newValue = getCfValue(config.consumablesUsageTT + '.CONU_INITIAL', tid, tblIdx) +
-        getCfValue(config.consumablesUsageTT + '.CONU_DELIVERED', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', newValue, tid, tblIdx);
+dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_INITIAL'] = function (tid, tblIdx) {
+    var newValue = getCfValue(trackorTypes.consumablesUsageTT + '.CONU_INITIAL', tid, tblIdx) +
+        getCfValue(trackorTypes.consumablesUsageTT + '.CONU_DELIVERED', tid, tblIdx);
+    setCfValue(trackorTypes.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', newValue, tid, tblIdx);
 };
-dynCalculations[config.consumablesUsageTT + '.CONU_DELIVERED'] = dynCalculations[config.consumablesUsageTT + '.CONU_INITIAL'];
-dynCalculations[config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
-    var used = getCfValue(config.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
-    var totalDelivered = getCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_BALANCE', totalDelivered - used, tid, tblIdx);
+dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_DELIVERED'] = dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_INITIAL'];
+dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
+    var used = getCfValue(trackorTypes.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
+    var totalDelivered = getCfValue(trackorTypes.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
+    setCfValue(trackorTypes.consumablesUsageTT + '.CONU_BALANCE', totalDelivered - used, tid, tblIdx);
 };
-dynCalculations[config.consumablesUsageTT + '.CONU_BALANCE'] = function (tid, tblIdx) {
-    var cost = getCfValue(config.consumablesUsageTT + '.' + config.consumablesTT + '.CONS_COST', tid, tblIdx);
-    var totalDelivered = getCfValue(config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
-    var balance = getCfValue(config.consumablesUsageTT + '.CONU_BALANCE', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
+dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_BALANCE'] = function (tid, tblIdx) {
+    var cost = getCfValue(trackorTypes.consumablesUsageTT + '.' + trackorTypes.consumablesTT + '.CONS_COST', tid, tblIdx);
+    var totalDelivered = getCfValue(trackorTypes.consumablesUsageTT + '.CONU_TOTAL_DELIVERED', tid, tblIdx);
+    var balance = getCfValue(trackorTypes.consumablesUsageTT + '.CONU_BALANCE', tid, tblIdx);
+    setCfValue(trackorTypes.consumablesUsageTT + '.CONU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
 };
-dynCalculations[config.consumablesUsageTT + '.CONU_USED'] = function (tid, tblIdx) {
-    dynCalculations[config.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'](tid, tblIdx);
+dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_USED'] = function (tid, tblIdx) {
+    dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_TOTAL_DELIVERED'](tid, tblIdx);
 
-    var cost = getCfValue(config.consumablesUsageTT + '.' + config.consumablesTT + '.CONS_COST', tid, tblIdx);
-    var used = getCfValue(config.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
-    setCfValue(config.consumablesUsageTT + '.CONU_DAILY', cost * used, tid, tblIdx);
+    var cost = getCfValue(trackorTypes.consumablesUsageTT + '.' + trackorTypes.consumablesTT + '.CONS_COST', tid, tblIdx);
+    var used = getCfValue(trackorTypes.consumablesUsageTT + '.CONU_USED', tid, tblIdx);
+    setCfValue(trackorTypes.consumablesUsageTT + '.CONU_DAILY', cost * used, tid, tblIdx);
 };
-dynCalculations[config.consumablesUsageTT + '.CONU_DAILY'] = function (tid, tblIdx) {
+dynCalculations[trackorTypes.consumablesUsageTT + '.CONU_DAILY'] = function (tid, tblIdx) {
     var summ = 0;
-    $.each(tids[config.consumablesUsageTT], function (idx, tid) {
-        summ += getCfValue(config.consumablesUsageTT + '.CONU_DAILY', tid, tblIdx);
+    $.each(tids[trackorTypes.consumablesUsageTT], function (idx, tid) {
+        summ += getCfValue(trackorTypes.consumablesUsageTT + '.CONU_DAILY', tid, tblIdx);
     });
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES', summ);
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES', summ);
 };
 
 // binderUsageTT
-dynCalculations[config.binderUsageTT + '.BU_INITIAL'] = function (tid, tblIdx) {
-    var newValue = getCfValue(config.binderUsageTT + '.BU_INITIAL', tid, tblIdx) +
-        getCfValue(config.binderUsageTT + '.BU_DELIVERED', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', newValue, tid, tblIdx);
+dynCalculations[trackorTypes.binderUsageTT + '.BU_INITIAL'] = function (tid, tblIdx) {
+    var newValue = getCfValue(trackorTypes.binderUsageTT + '.BU_INITIAL', tid, tblIdx) +
+        getCfValue(trackorTypes.binderUsageTT + '.BU_DELIVERED', tid, tblIdx);
+    setCfValue(trackorTypes.binderUsageTT + '.BU_TOTAL_DELIVERED', newValue, tid, tblIdx);
 };
-dynCalculations[config.binderUsageTT + '.BU_DELIVERED'] = dynCalculations[config.binderUsageTT + '.BU_INITIAL'];
-dynCalculations[config.binderUsageTT + '.BU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
-    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
-    var totalDelivered = getCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_BALANCE', totalDelivered - used, tid, tblIdx);
+dynCalculations[trackorTypes.binderUsageTT + '.BU_DELIVERED'] = dynCalculations[trackorTypes.binderUsageTT + '.BU_INITIAL'];
+dynCalculations[trackorTypes.binderUsageTT + '.BU_TOTAL_DELIVERED'] = function (tid, tblIdx) {
+    var used = getCfValue(trackorTypes.binderUsageTT + '.BU_USED', tid, tblIdx);
+    var totalDelivered = getCfValue(trackorTypes.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
+    setCfValue(trackorTypes.binderUsageTT + '.BU_BALANCE', totalDelivered - used, tid, tblIdx);
 };
-dynCalculations[config.binderUsageTT + '.BU_BALANCE'] = function (tid, tblIdx) {
-    var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
-    var totalDelivered = getCfValue(config.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
-    var balance = getCfValue(config.binderUsageTT + '.BU_BALANCE', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
+dynCalculations[trackorTypes.binderUsageTT + '.BU_BALANCE'] = function (tid, tblIdx) {
+    var cost = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.BIND_COST', tid, tblIdx);
+    var totalDelivered = getCfValue(trackorTypes.binderUsageTT + '.BU_TOTAL_DELIVERED', tid, tblIdx);
+    var balance = getCfValue(trackorTypes.binderUsageTT + '.BU_BALANCE', tid, tblIdx);
+    setCfValue(trackorTypes.binderUsageTT + '.BU_TOTAL', (totalDelivered - balance) * cost, tid, tblIdx);
 };
-dynCalculations[config.binderUsageTT + '.BU_USED'] = function (tid, tblIdx) {
-    dynCalculations[config.binderUsageTT + '.BU_TOTAL_DELIVERED'](tid, tblIdx);
+dynCalculations[trackorTypes.binderUsageTT + '.BU_USED'] = function (tid, tblIdx) {
+    dynCalculations[trackorTypes.binderUsageTT + '.BU_TOTAL_DELIVERED'](tid, tblIdx);
+    dynCalculations[trackorTypes.binderUsageTT + '.BU_UNIT'](tid, tblIdx);
+};
+dynCalculations[trackorTypes.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
+    var key = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tid, tblIdx);
+    var cost = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.BIND_COST', tid, tblIdx);
+    var used = getCfValue(trackorTypes.binderUsageTT + '.BU_USED', tid, tblIdx);
+    var unit = getCfValue(trackorTypes.binderUsageTT + '.BU_UNIT', tid, tblIdx);
 
-    var cost = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.BIND_COST', tid, tblIdx);
-    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
-    setCfValue(config.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
-
-    dynCalculations[config.binderUsageTT + '.BU_UNIT'](tid, tblIdx);
-};
-dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
-    var key = getCfValue(config.binderUsageTT + '.' + config.binderTT + '.TRACKOR_KEY', tid, tblIdx);
-    var used = getCfValue(config.binderUsageTT + '.BU_USED', tid, tblIdx);
-    var unit = getCfValue(config.binderUsageTT + '.BU_UNIT', tid, tblIdx);
+    setCfValue(trackorTypes.binderUsageTT + '.BU_DAILY', cost * used, tid, tblIdx);
 
     var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
     var binderLbsUsedTid;
     var binderLbsUsedTblIdx;
 
-    $.each(configTblIdxs[config.binderLbsUsedTT], function (idx, tblIdx) {
+    $.each(tableIndexes[trackorTypes.binderUsageTT].slice(1), function (idx, tblIdx) {
         var tblIdxTid = baseRowData['tid_' + tblIdx];
-        if (getCfValue(config.binderLbsUsedTT + '.' + config.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
+        if (getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
             binderLbsUsedTid = tblIdxTid;
             binderLbsUsedTblIdx = tblIdx;
             return false;
@@ -269,187 +1164,223 @@ dynCalculations[config.binderUsageTT + '.BU_UNIT'] = function (tid, tblIdx) {
     });
 
     if (binderLbsUsedTid && binderLbsUsedTblIdx) {
-        setCfValue(config.binderLbsUsedTT + '.BLU_UNIT', unit, binderLbsUsedTid, binderLbsUsedTblIdx);
-        setCfValue(config.binderLbsUsedTT + '.BLU_USED', used, binderLbsUsedTid, binderLbsUsedTblIdx);
+        var number = used * unit;
+        setCfValue(trackorTypes.binderUsageTT + '.BU_BINDER_LBS_USED', number, binderLbsUsedTid, binderLbsUsedTblIdx);
     }
 };
-dynCalculations[config.binderUsageTT + '.BU_DAILY'] = function (tid, tblIdx) {
+dynCalculations[trackorTypes.binderUsageTT + '.BU_DAILY'] = function () {
     var summ = 0;
-    $.each(tids[config.binderUsageTT], function (idx, tid) {
-        summ += getCfValue(config.binderUsageTT + '.BU_DAILY', tid, tblIdx);
+    $.each(tids[trackorTypes.binderUsageTT], function (idx, tid) {
+        summ += getCfValue(trackorTypes.binderUsageTT + '.BU_DAILY', tid, tableIndexes[trackorTypes.binderUsageTT][0]);
     });
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL', summ);
 };
+dynCalculations[trackorTypes.binderUsageTT + '.BU_BINDER_LBS_USED'] = function () {
+    var summ = 0;
+    var baseRowData = $('tr.binderLbsUsedUnitBaseRow').data();
+    var tblIdxs = tableIndexes[trackorTypes.binderUsageTT].slice(1);
 
-// binderLbsUsedTT
-dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'] = function (tid, tblIdx) {
-    var number = getCfValue(config.binderLbsUsedTT + '.BLU_UNIT', tid, tblIdx) +
-        getCfValue(config.binderLbsUsedTT + '.BLU_USED', tid, tblIdx);
-    setCfValue(config.dynTT + '.BLU_USED_UNIT', number, tid, tblIdx);
+    $.each(tids[trackorTypes.binderUsageTT], function (idx, tid) {
+        var key = getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tid,
+            tableIndexes[trackorTypes.binderUsageTT][0]);
+
+        $.each(tblIdxs, function (idx, tblIdx) {
+            var tblIdxTid = baseRowData['tid_' + tblIdx];
+            if (getCfValue(trackorTypes.binderUsageTT + '.' + trackorTypes.binderTT + '.TRACKOR_KEY', tblIdxTid, tblIdx) === key) {
+                summ += getCfValue(trackorTypes.binderUsageTT + '.BU_BINDER_LBS_USED', tid, tblIdx);
+                return false;
+            }
+        });
+    });
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED', summ);
 };
-dynCalculations[config.binderLbsUsedTT + '.BLU_USED'] = dynCalculations[config.binderLbsUsedTT + '.BLU_UNIT'];
 
 // equipmentUsageTT
-dynCalculations[config.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
-    var number = getCfValue(config.equipmentUsageTT + '.EQU_QUANTITY', tid, tblIdx) *
-        getCfValue(config.equipmentUsageTT + '.' + config.equipmentTT + '.EQ_DAILY_COST', tid, tblIdx);
-    setCfValue(config.equipmentUsageTT + '.EQU_TOTAL', number, tid, tblIdx);
+dynCalculations[trackorTypes.equipmentUsageTT + '.EQU_QUANTITY'] = function (tid, tblIdx) {
+    var number = getCfValue(trackorTypes.equipmentUsageTT + '.EQU_QUANTITY', tid, tblIdx) *
+        getCfValue(trackorTypes.equipmentUsageTT + '.' + trackorTypes.equipmentTT + '.EQ_DAILY_COST', tid, tblIdx);
+    setCfValue(trackorTypes.equipmentUsageTT + '.EQU_TOTAL', number, tid, tblIdx);
 };
-dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'] = function () {
+dynCalculations[trackorTypes.equipmentUsageTT + '.EQU_TOTAL'] = function () {
     // Daily Total All In
     var dailyTotalEquip = 0;
-    $.each(tids[config.equipmentUsageTT], function (idx, tid) {
-        dailyTotalEquip += getCfValue(config.equipmentUsageTT + '.EQU_TOTAL', tid, configTblIdxs[config.equipmentUsageTT]);
+    $.each(tids[trackorTypes.equipmentUsageTT], function (idx, tid) {
+        dailyTotalEquip += getCfValue(trackorTypes.equipmentUsageTT + '.EQU_TOTAL', tid, tableIndexes[trackorTypes.equipmentUsageTT]);
     });
 
     var dailyTotalTech = 0;
-    $.each(tids[config.techniciansUsageTT], function (idx, tid) {
-        dailyTotalTech += getCfValue(config.techniciansUsageTT + '.TECU_TOTAL', tid, configTblIdxs[config.techniciansUsageTT]);
+    $.each(tids[trackorTypes.techniciansUsageTT], function (idx, tid) {
+        dailyTotalTech += getCfValue(trackorTypes.techniciansUsageTT + '.TECU_TOTAL', tid, tableIndexes[trackorTypes.techniciansUsageTT]);
     });
 
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_EQUIPMENT', dailyTotalEquip);
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_TECHNICIANS', dailyTotalTech);
-    setCfValue(config.dynTT + '.RT_DAILY_EQTECH', dailyTotalEquip + dailyTotalTech);
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_EQUIPMENT', dailyTotalEquip);
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_TECHNICIANS', dailyTotalTech);
+    setCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH', dailyTotalEquip + dailyTotalTech);
 };
 
 // techniciansUsageTT
-dynCalculations[config.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, tblIdx) {
-    var number = getCfValue(config.techniciansUsageTT + '.TECU_QUANTITY', tid, tblIdx) *
-        getCfValue(config.techniciansUsageTT + '.' + config.workersTT + '.WOR_DAILY_COST', tid, tblIdx);
-    setCfValue(config.techniciansUsageTT + '.TECU_TOTAL', number, tid, tblIdx);
+dynCalculations[trackorTypes.techniciansUsageTT + '.TECU_QUANTITY'] = function (tid, tblIdx) {
+    var number = getCfValue(trackorTypes.techniciansUsageTT + '.TECU_QUANTITY', tid, tblIdx) *
+        getCfValue(trackorTypes.techniciansUsageTT + '.' + trackorTypes.workersTT + '.WOR_DAILY_COST', tid, tblIdx);
+    setCfValue(trackorTypes.techniciansUsageTT + '.TECU_TOTAL', number, tid, tblIdx);
 };
-dynCalculations[config.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[config.equipmentUsageTT + '.EQU_TOTAL'];
+dynCalculations[trackorTypes.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[trackorTypes.equipmentUsageTT + '.EQU_TOTAL'];
 
 // Running totals
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
-    setCfValue(config.dynTT + '.RT_PREV_CONSUMABLES', number);
+dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(trackorTypes.dynTT + '.RT_PREV_CONSUMABLES', number);
 
-    number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(config.dynTT + '.PREV', number);
+    number = (getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(trackorTypes.dynTT + '.PREV', number);
 
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
+    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.RT_PREV_BINDER', number);
+dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER'] = function () {
+    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(trackorTypes.dynTT + '.RT_PREV_BINDER', number);
 
-    number = (getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(config.dynTT + '.PREV', number);
+    number = (getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
+        (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
+    setCfValue(trackorTypes.dynTT + '.PREV', number);
 
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS'] = function () {
-    var number = checkInfinity(getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_BINDER_LBS') /
-        getCfValue(config.rigMonthReportTT + '.RMR_TOTAL_TONNAGE_WASTE_HAUL'));
-    setCfValue(config.rigMonthReportTT + '.RMR_LBS__TONS', number);
+    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS');
-    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
-
-    number -= getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.dynTT + '.RT_PREV_EQTECH', number);
-};
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_EQUIPMENT'];
-
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_WASTE_HAUL') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
-    setCfValue(config.dynTT + '.RT_PREV_WHLOFF', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED'] = function () {
+    var number = checkInfinity(getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED') /
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL'));
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_LBS__TONS', number);
 };
 
-dynCalculations[config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = getCfValue(config.rigMonthReportTT + '.RMR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
-    setCfValue(config.dynTT + '.RT_PREV', number);
+dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS');
+    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_EQTECH', number);
+
+    number -= getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(trackorTypes.dynTT + '.RT_PREV_EQTECH', number);
+};
+dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'];
+
+dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(trackorTypes.dynTT + '.RT_PREV_WHLOFF', number);
+};
+
+dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(trackorTypes.dynTT + '.RT_PREV', number);
 };
 
 // Daily running totals
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 
-    number = getCfValue(config.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
-    setCfValue(config.dynTT + '.RT_TOTAL_CONSUMABLES', number);
+    number = getCfValue(trackorTypes.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_CONSUMABLES', number);
 
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') +
-        getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.CUMULATIVE_TOTAL', number);
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') +
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(trackorTypes.dynTT + '.CUMULATIVE_TOTAL', number);
 };
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
-    var number = getCfValue(config.dynTT + '.RT_PREV_BINDER') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(config.dynTT + '.RT_TOTAL_BINDER', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
+    var number = getCfValue(trackorTypes.dynTT + '.RT_PREV_BINDER') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_BINDER', number);
 
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 
-    dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-
-dynCalculations[config.dynTT + '.RT_DAILY_EQTECH'] = function () {
-    var number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
-
-    number = getCfValue(config.dynTT + '.RT_PREV_EQTECH') + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.dynTT + '.RT_TOTAL_EQTECH', number);
+    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
 };
 
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(config.dynTT + '.RT_PREV_WHLOFF') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
-    setCfValue(config.dynTT + '.RT_TOTAL_WHLOFF', number);
+dynCalculations[trackorTypes.dynTT + '.RT_DAILY_EQTECH'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 
-    number = getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL')
-        + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
-        + getCfValue(config.dynTT + '.RT_DAILY_EQTECH');
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
+    number = getCfValue(trackorTypes.dynTT + '.RT_PREV_EQTECH') + getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_EQTECH', number);
 };
 
-dynCalculations[config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = checkInfinity(getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
-        (getCfValue(config.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(config.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
-    setCfValue(config.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
+    setCfValue(trackorTypes.dynTT + '.WHL_DAILY_TOTAL', number);
 
-    number = getCfValue(config.dynTT + '.RT_PREV') + getCfValue(config.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
-    setCfValue(config.dynTT + '.RT_TOTAL', number);
+    number += getCfValue(trackorTypes.dynTT + '.RT_PREV_WHLOFF');
+    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_WHLOFF', number);
+
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL')
+        + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL')
+        + getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 };
 
-dynCalculations[config.dynTT + '.RT_TOTAL'] = function () {
-    var number = checkInfinity(getCfValue(config.dynTT + '.RT_TOTAL') /
-        getCfValue(config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
-    setCfValue(config.rigMonthReportTT + '.RMR_TOTAL_EST_COST__FT', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = checkInfinity(getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
+        (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
+
+    number = getCfValue(trackorTypes.dynTT + '.RT_PREV') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(trackorTypes.dynTT + '.RT_TOTAL', number);
 };
-//
+
+dynCalculations[trackorTypes.dynTT + '.RT_TOTAL'] = function () {
+    var number = checkInfinity(getCfValue(trackorTypes.dynTT + '.RT_TOTAL') /
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
+    setCfValue(trackorTypes.projectTT + '.PR_TOTAL_EST_COST__FT', number);
+};
+var loseDataMessage = 'You will lose any unsaved data. Continue?';
+
+var isReportEdited = false;
+var tids = {};
+var locks = {};
+var dateUtils = new ApiDateUtils();
+
+function RequiredFieldsNotPresentException(focusObj) {
+    this.message = 'Required fields not present!';
+    this.focusObj = focusObj;
+}
+
+function FieldValidateFailedException(message, name, tid, tblIdx) {
+    this.message = message;
+    this.focusObj = findCf(name, tid, tblIdx).children('div[contenteditable]');
+}
 
 function checkInfinity(number) {
     return number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY ? 0 : number;
 }
 
-function getCfValue(name, tid, tblIdx) {
+function findCf(name, tid, tblIdx) {
     var cfs = $('[data-cf="' + name + '"]');
-
     if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
         cfs = cfs.filter(function () {
             var cf = $(this);
             return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
         });
     }
+    if (cfs.length === 0) {
+        console.log('Config field ' + name + '[' + tid + ':' + tblIdx + '] not found');
+    }
+    return cfs;
+}
+
+function getCfValue(name, tid, tblIdx) {
+    var cfs = findCf(name, tid, tblIdx);
 
     if (cfs.length === 0) {
         return null;
@@ -459,18 +1390,17 @@ function getCfValue(name, tid, tblIdx) {
 
     var dataType = cfs.data('t');
     var value = cfs[0].innerText.trim();
-    return dataType === 'number' ? parseFloat(value) : value;
+    if (dataType === 'number') {
+        value = parseFloat(value);
+        if (isNaN(value)) {
+            value = 0;
+        }
+    }
+    return value;
 }
 
 function setCfValue(name, value, tid, tblIdx) {
-    var cfs = $('[data-cf="' + name + '"]');
-
-    if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
-        cfs = cfs.filter(function () {
-            var cf = $(this);
-            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
-        });
-    }
+    var cfs = findCf(name, tid, tblIdx);
 
     var dataType = cfs.data('t');
     if (dataType === 'number') {
@@ -524,6 +1454,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'name': shortCfName,
             'obj': obj,
             'tIdx': tblIdx,
+            'checkEmptyForNewTrackor': obj.data('chefnt') + '' === 'true',
             'orig_data': obj.data('orig_data'),
             'reload': obj.data('reload') + '' === 'true',
             'forceSubmit': obj.data('submit') + '' === 'true',
@@ -542,7 +1473,7 @@ function isCfLocked(cf) {
     }
 
     var tr = cf.obj.closest('tr');
-    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
 
     if (!$.isArray(locks[cf.tt])) {
@@ -567,6 +1498,9 @@ function fillCf(cf, value) {
         cf.obj.text(value);
     } else if (cf.type === 'memo') {
         cf.obj.html(value !== null ? value.replace("\n", '<br>') : '');
+    } else if (cf.type === 'date') {
+        var date = dateUtils.remoteDateToObj(value);
+        cf.obj.text(dateUtils.formatDate(date));
     } else {
         cf.obj.text(value);
     }
@@ -618,6 +1552,17 @@ function fillCf(cf, value) {
                     div.trigger('change');
                 }
             });
+            div.on('focus', function () {
+                if (div.data('focused') === true) {
+                    return;
+                }
+
+                div.data('focused', true);
+                $(this).closest('td').trigger('mousedown');
+
+                div.focus();
+                div.data('focused', false);
+            });
 
             if (cf.type !== 'memo') {
                 div.keypress(function (e) {
@@ -664,8 +1609,11 @@ function fillCf(cf, value) {
                                 div.empty().text(dateText);
                             }
                         });
+                    if (date !== null) {
+                        input.datepicker('setDate', date);
+                    }
                     input.insertAfter(div);
-                    div.prop('contenteditable', false).text(fromRemoteDate(div.text()));
+                    div.prop('contenteditable', false);
                     cf.obj.unbind('click').click(function () {
                         input.datepicker('show');
                     });
@@ -681,21 +1629,92 @@ function fillCf(cf, value) {
     if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
         subscribeObj.change(function () {
             var tr = cf.obj.closest('tr');
-            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
             var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
             dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
         }).trigger('change');
     }
 }
 
+function getFirstTblIdx(tt) {
+    return $.isArray(tableIndexes[tt]) ? tableIndexes[tt][0] : tableIndexes[tt];
+}
+
+function fillCellsForNewTrackor(ttName, maxRows, response, callback) {
+    response = response.slice(0, maxRows);
+    $.each(response, function (idx, elem) {
+        callback(idx, elem['TRACKOR_ID'], elem);
+    });
+
+    var remainder = maxRows - response.length;
+    if (remainder > 0) {
+        for (var i = response.length; i < maxRows; i++) {
+            callback(i, generateTrackorId(ttName));
+        }
+    }
+}
+
+function makeEmptyCfsObject(cfs) {
+    var obj = {};
+    $.each(cfs, function (idx, cfArr) {
+        $.each(cfArr, function (ifx, cf) {
+            if (cf.required) {
+                switch (cf.type) {
+                    case 'number': {
+                        obj[cf.name] = 0;
+                        break;
+                    }
+                    case 'date': {
+                        obj[cf.name] = '00/00/00';
+                        break;
+                    }
+                    default: {
+                        obj[cf.name] = '';
+                        break;
+                    }
+                }
+            } else {
+                obj[cf.name] = '';
+            }
+        });
+    });
+    return obj;
+}
+
+function checkCfsFilledForNewTrackorCreate(cfs, data, tid, tblIdx) {
+    var isCfsFilledCorrectly = true;
+    $.each(cfs, function (idx, cfArr) {
+        $.each(cfArr, function (idx, cf) {
+            if (cf.checkEmptyForNewTrackor) {
+                if (typeof data[cf.name] === 'undefined' || ('' + data[cf.name]).length === 0) {
+                    isCfsFilledCorrectly = false;
+                    return false;
+                }
+                try {
+                    if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
+                        fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
+                    }
+                } catch (e) {
+                    isCfsFilledCorrectly = false;
+                    return false;
+                }
+            }
+        });
+        if (!isCfsFilledCorrectly) {
+            return false;
+        }
+    });
+    return isCfsFilledCorrectly;
+}
+
 function subscribeChangeDynCfs() {
-    var cfs = getConfigFields(config.dynTT);
+    var cfs = getConfigFields(trackorTypes.dynTT);
     $.each(cfs, function (cfName, cfArr) {
         $.each(cfArr, function (idx, cf) {
             if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
                 cf.obj.change(function () {
                     var tr = cf.obj.closest('tr');
-                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : configTblIdxs[cf.tt];
+                    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
                     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
                     dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
                 }).trigger('change');
@@ -711,66 +1730,6 @@ function fillCfs(cfs, response) {
                 fillCf(cf, response[cfName]);
             });
         }
-    });
-}
-
-function init() {
-    ApiClient.authSuccessCallback = function (un) {
-        $('span.loggedin').empty().text(un);
-    };
-
-    var selectReportDialog = initSelectReportDialog();
-    startSelectReport(selectReportDialog);
-
-    $('#submitReportData').button().click(function () {
-        startSubmitReport();
-    });
-
-    var changeReport = function () {
-        tids = {};
-
-        isReportEdited = false;
-        $(window).off('beforeunload');
-
-        // Clear content
-        $('tr.subtable:not(.baseRow):not(.staticRow)').remove();
-        $('tr.subtable.baseRow, tr.subtable.staticRow').removeClass(function (index, classNames) {
-            var classes = classNames.split(' ');
-            var result = [];
-            $.each(classes, function (idx, className) {
-                if (className.indexOf('subtable') === 0) {
-                    result.push(className);
-                }
-            });
-            return result.join(' ');
-        }).each(function (idx, elem) {
-            var tr = $(elem);
-            $.each(tr.data(), function (key) {
-                if (key.indexOf('tid_') === 0) {
-                    tr.removeData(key);
-                }
-            })
-        });
-        $('[data-cf]').empty();
-        $('#content').hide();
-
-        ArrowNavigation.currentRow = 2;
-        ArrowNavigation.currentCell = 1;
-        ArrowNavigation.updateCell();
-
-        selectReportLoadPage(selectReportDialog, 1);
-    };
-    $('#changeReport').button().click(function () {
-        if (isReportEdited) {
-            confirmDialog(loseDataMessage, changeReport);
-        } else {
-            changeReport();
-        }
-    });
-    $('#print').button({
-        icon: 'ui-icon-print'
-    }).click(function () {
-        window.print();
     });
 }
 
@@ -889,29 +1848,11 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
         row.data('tid_' + tblIdx, tid);
     }
 
-    ArrowNavigation.initCells(row.find('td'));
+    rigDaily.arrowNavigation.initCells(row.find('td'));
     return row;
 }
 
-function toRemoteDate(dateStr) {
-    if (dateStr === null || dateStr.length === 0) {
-        return null;
-    }
-
-    var parts = dateStr.split('/');
-    return $.datepicker.formatDate('yy-mm-dd', new Date(parts[2], parts[0] - 1, parts[1]));
-}
-
-function fromRemoteDate(dateStr) {
-    if (dateStr === null || dateStr.length === 0) {
-        return '';
-    }
-
-    var parts = dateStr.split('-');
-    return $.datepicker.formatDate('mm/dd/yy', new Date(parts[0], parts[1] - 1, parts[2]));
-}
-
-function convertEditableCfsToDataObject(cfs) {
+function convertEditableCfsToDataObject(cfs, tid, tblIdx, allData) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
@@ -922,13 +1863,21 @@ function convertEditableCfsToDataObject(cfs) {
                     throw new RequiredFieldsNotPresentException(focusObj);
                 }
 
-                if (cf.orig_data !== val) {
-                    if (cf.type === 'date') {
-                        // Reformat date
-                        val = toRemoteDate(val);
-                    }
+                if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
+                    fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
+                }
 
+                if (cf.type === 'date') {
+                    // Reformat date
+                    var dateObj = dateUtils.localDateToObj(val);
+                    val = dateUtils.objToRemoteDate(dateObj);
+                }
+
+                if (cf.orig_data !== val) {
                     result[cf.name] = val;
+                }
+                if (typeof allData === 'object') {
+                    allData[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
                 result[cf.name] = cf.obj.text();
@@ -938,922 +1887,178 @@ function convertEditableCfsToDataObject(cfs) {
     return result;
 }
 
-function startSubmitReport() {
-    var requestQueue = [];
-    var makeRequests = function (tid, data, cfs) {
-        if (Object.keys(data).length === 0) {
-            return;
-        }
-
-        requestQueue.push({
-            type: 'PUT',
-            contentType: 'application/json',
-            url: '/api/v3/trackors/' + encodeURIComponent(tid),
-            data: JSON.stringify(data),
-            dataType: 'json',
-            processData: false,
-            successCode: 200,
-            success: function () {
-                var fields = [];
-                $.each(cfs, function (idx, cfObj) {
-                    $.each(cfObj, function (idx, cf) {
-                        if (cf.reload) {
-                            fields.push(cf.name);
-                        }
-                    });
-                });
-
-                if (fields.length !== 0) {
-                    requestQueue.push({
-                        type: 'GET',
-                        contentType: 'application/json',
-                        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
-                        successCode: 200,
-                        success: function (response) {
-                            fillCfs(cfs, response);
-                        }
-                    });
-                }
-            }
-        });
-    };
-
-    try {
-        $.each(tids, function (ttName, tidObj) {
-            if (ttName === config.dynTT) {
-                return;
-            }
-
-            if (typeof tidObj === 'object') {
-                // Find subtable objects
-                $.each(tidObj, function (idx, tid) {
-                    var isTblIdxObject = typeof configTblIdxs[ttName] === 'object';
-                    $.each(isTblIdxObject ? configTblIdxs[ttName] : [configTblIdxs[ttName]], function (idx, tblIdx) {
-                        var parent = $('tr.subtable.subtable_' + tblIdx).filter(function () {
-                            return $(this).data('tid_' + tblIdx) === tid;
-                        });
-                        if (parent.length !== 0) {
-                            var cfs = getConfigFields(ttName, parent, isTblIdxObject ? tblIdx : undefined);
-                            var data = convertEditableCfsToDataObject(cfs);
-                            makeRequests(tid, data, cfs);
-                        }
-                    });
-                });
-            } else {
-                var cfs = getConfigFields(ttName);
-                var data = convertEditableCfsToDataObject(cfs);
-                makeRequests(tidObj, data, cfs);
-            }
-        });
-    } catch (e) {
-        if (e instanceof RequiredFieldsNotPresentException) {
-            alertDialog(e.message, function () {
-                e.focusObj.focus();
+function getTrackorTypeRelations(ttName, tid, tblIdx) {
+    var result = [];
+    if (typeof relations[ttName] === 'function') {
+        var obj = relations[ttName](tid, tblIdx);
+        $.each(obj, function (parentTtName, filterCfs) {
+            result.push({
+                'trackor_type': parentTtName,
+                'filter': filterCfs
             });
-            return;
+        });
+    }
+    return result;
+}
+
+function generateTrackorId(ttName) {
+    var newTid = -10000000;
+    $.each(tids[ttName], function (idx, tid) {
+        if (tid < 0) {
+            newTid--;
         }
+    });
+    return newTid;
+}
+
+function updateCfsTid(cfs, tblIdx, oldTid, newTid) {
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            var tr = cf.obj.closest('tr.subtable.subtable_' + tblIdx);
+            if (tr.data('tid_' + tblIdx) + '' === oldTid + '') {
+                tr.data('tid_' + tblIdx, newTid);
+            }
+        });
+    });
+}
+
+function updateTtTid(ttName, oldTid, newTid) {
+    $.each(tids[ttName], function (idx, tid) {
+        if (tid === oldTid) {
+            tids[ttName][idx] = newTid;
+            return false;
+        }
+    });
+}
+
+function getFieldNamesForReload(cfs) {
+    var fields = [];
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            if (cf.reload) {
+                fields.push(cf.name);
+            }
+        });
+    });
+    return fields;
+}
+
+function updateOriginalCfsData(cfs, data) {
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            // Update orig_data
+            if (typeof data[cf.name] !== 'undefined') {
+                cf.orig_data = data[cf.name];
+                cf.obj.data('orig_data', data[cf.name]);
+            }
+        });
+    });
+}
+
+function ArrowNavigation() {
+    this.currentRow = 2;
+    this.currentCell = 1;
+    this.isCtrlPressed = false;
+}
+ArrowNavigation.prototype.updateCell = function () {
+    $('td.active').removeClass('active').find('div[contenteditable]').blur();
+
+    var rows = $('#content').find('tr');
+    if (this.currentRow > rows.length - 1) {
+        this.currentRow = rows.length - 1;
     }
 
-    if (requestQueue.length !== 0) {
-        ApiClient.startRequestQueueWork(requestQueue, requestQueue.length, 'Submitting report data...', function () {
-            isReportEdited = false;
-            // TODO: When submit completed, we should update orig_data values
-        });
-    } else {
-        alertDialog('Nothing to submit');
-    }
-}
-
-function loadReport(tid) {
-    saveTid(config.rigDailyReportTT, tid, true);
-
-    var requestQueue = [];
-    var key;
-    var rigSiteKey;
-    var clientKey;
-    var managerKey;
-    var contractorKey;
-    var projectKey;
-
-    // rigDaily
-    var rigDailyCfs = getConfigFields(config.rigDailyReportTT);
-    var rigMonthCfs = getConfigFields(config.rigMonthReportTT, undefined, undefined, true);
-    var rigYearCfs = getConfigFields(config.rigYearReportTT, undefined, undefined, true);
-    var fields = [
-        'TRACKOR_KEY',
-        config.rigSiteTT + '.TRACKOR_KEY',
-        config.projectTT + '.TRACKOR_KEY'
-    ];
-    fields = fields.concat(Object.keys(rigDailyCfs));
-    fields = fields.concat(Object.keys(rigMonthCfs));
-    fields = fields.concat(Object.keys(rigYearCfs));
-
-    requestQueue.push({
-        url: '/api/v3/trackors/' + tid + '?fields=' + encodeURIComponent(fields.join(',')),
-        successCode: 200,
-        success: function (response) {
-            key = response['TRACKOR_KEY'];
-            rigSiteKey = response[config.rigSiteTT + '.TRACKOR_KEY'];
-            projectKey = response[config.projectTT + '.TRACKOR_KEY'];
-
-            fillCfs(rigDailyCfs, response);
-            fillCfs(rigMonthCfs, response);
-            fillCfs(rigYearCfs, response);
-
-            dynCalculations[config.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
-            dynCalculations[config.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
-
-            pushRigSiteLoad();
-            pushOtherLoad();
-            pushProjectManagementLoad();
-        }
-    });
-
-    // projectManagement
-    var pushProjectManagementLoad = function () {
-        var contactInformationProjectManagementBaseRow = $('tr.contactInformationProjectManagementBaseRow').first();
-        var contactInformationProjectManagementBaseRowCfs = getConfigFields(config.projectManagementTT, contactInformationProjectManagementBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(contactInformationProjectManagementBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.projectManagementTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.projectTT + '.TRACKOR_KEY=' + encodeURIComponent(projectKey);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.projectManagementTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.projectManagementTT], 1, 6, contactInformationProjectManagementBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.projectManagementTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
-    };
-
-    // rigSite
-    var pushRigSiteLoad = function () {
-        var rigSiteCfs = getConfigFields(config.rigSiteTT);
-        requestQueue.push({
-            url: function () {
-                var fields = [
-                    'RS_CLIENT',
-                    'RS_RIG_MANAGER',
-                    'RS_RIG_CONTRACTOR'
-                ];
-                fields = fields.concat(Object.keys(rigSiteCfs));
-
-                return '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&TRACKOR_KEY=' + encodeURIComponent(rigSiteKey);
-            },
-            successCode: 200,
-            success: function (response) {
-                response = response[0];
-                clientKey = response['RS_CLIENT'];
-                managerKey = response['RS_RIG_MANAGER'];
-                contractorKey = response['RS_RIG_CONTRACTOR'];
-                fillCfs(rigSiteCfs, response);
-
-                pushClientLoad();
-                pushManagerLoad();
-                pushContractorLoad();
-            }
-        });
-    };
-
-    // client
-    var pushClientLoad = function () {
-        var clientsCfs = getConfigFields(config.clientsTT);
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(clientsCfs);
-
-                return '/api/v3/trackor_types/' + config.clientsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&TRACKOR_KEY=' + encodeURIComponent(clientKey);
-            },
-            successCode: 200,
-            success: function (response) {
-                response = response[0];
-                fillCfs(clientsCfs, response);
-            }
-        });
-    };
-
-    // manager
-    var pushManagerLoad = function () {
-        var workersCfs = getConfigFields(config.workersTT);
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(workersCfs);
-                return '/api/v3/trackor_types/' + config.workersTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&TRACKOR_KEY=' + encodeURIComponent(managerKey);
-            },
-            successCode: 200,
-            success: function (response) {
-                response = response[0];
-                fillCfs(workersCfs, response);
-            }
-        });
-    };
-
-    // contractor
-    var pushContractorLoad = function () {
-        var contractorCfs = getConfigFields(config.contractorsTT);
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(contractorCfs);
-                return '/api/v3/trackor_types/' + config.contractorsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&TRACKOR_KEY=' + encodeURIComponent(contractorKey);
-            },
-            successCode: 200,
-            success: function (response) {
-                response = response[0];
-                fillCfs(contractorCfs, response);
-            }
-        });
-    };
-
-    var pushOtherLoad = function () {
-        // holeDesignAndVolume
-        var holeDesignAndVolumeBaseRow = $('tr.holeDesignAndVolumeBaseRow');
-        var holeDesignAndVolumeCfs = getConfigFields(config.holeDesignAndVolumeTT, holeDesignAndVolumeBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(holeDesignAndVolumeCfs);
-                return '/api/v3/trackor_types/' + config.holeDesignAndVolumeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.holeDesignAndVolumeTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.holeDesignAndVolumeTT], 2, 6, holeDesignAndVolumeBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.holeDesignAndVolumeTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-
-                dynCalculations[config.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, configTblIdxs[config.holeDesignAndVolumeTT]);
-            }
-        });
-
-        // labTesting
-        var labTestingBaseRow = $('tr.labTestingBaseRow');
-        var labTestingBaseRowCfs = getConfigFields(config.labTestingTT, labTestingBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(labTestingBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.labTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.labTestingTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.labTestingTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
-
-        // apiScreenSize
-        var apiScreenSizeBaseRow = $('tr.apiScreenSizeBaseRow');
-        var apiScreenSizeBaseRowCfs = getConfigFields(config.apiScreenSizeTT, apiScreenSizeBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(apiScreenSizeBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.apiScreenSizeTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                var startIdx = 7;
-                var endIdx = 11;
-
-                $.each(response.splice(0, 3), function (idx, elem) {
-                    saveTid(config.apiScreenSizeTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.apiScreenSizeTT, row);
-                    fillCfs(rowCfs, elem);
-
-                    if (startIdx === 7) {
-                        startIdx = 6;
-                        endIdx = 10;
-                    }
-                });
-            }
-        });
-
-        // fieldTesting
-        var fieldTestingBaseRow = $('tr.fieldTestingBaseRow');
-        var fieldTestingBaseRowCfs = getConfigFields(config.fieldTestingTT, fieldTestingBaseRow, configTblIdxs[config.fieldTestingTT][0]);
-
-        requestQueue.push({
-            url: function () {
-                var fields = [
-                    'FT_SHIFT'
-                ];
-                fields = fields.concat(Object.keys(fieldTestingBaseRowCfs));
-
-                return '/api/v3/trackor_types/' + config.fieldTestingTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                var groups = {};
-
-                // Group by FT_TESTING_NAME
-                $.each(response, function (idx, elem) {
-                    if (elem['FT_SHIFT'].length === 0) {
-                        return true;
-                    }
-
-                    saveTid(config.fieldTestingTT, elem['TRACKOR_ID'], false);
-                    if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
-                        groups[elem['FT_TESTING_NAME']] = [];
-                    }
-                    groups[elem['FT_TESTING_NAME']].push(elem);
-                });
-
-                // Sort by FT_SHIFT
-                $.each(groups, function (groupName, elem) {
-                    var sortedGroup = elem.sort(function (a, b) {
-                        return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
-                    });
-
-                    var grepAM = $.grep(sortedGroup, function (elem) {
-                        return elem['FT_SHIFT'] === 'AM';
-                    });
-                    var grepPM = $.grep(sortedGroup, function (elem) {
-                        return elem['FT_SHIFT'] === 'PM';
-                    });
-                    if (grepAM.length === 0) {
-                        sortedGroup.unshift({
-                            'FT_TESTING_NAME': groupName,
-                            'FT_SHIFT': 'AM'
-                        });
-                    }
-                    if (grepPM.length === 0) {
-                        sortedGroup.push({
-                            'FT_SHIFT': 'PM'
-                        });
-                    }
-
-                    $.each(sortedGroup, function (idx, elem) {
-                        var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
-                        var startIdx = tblIdxIdx === 0 ? 4 : 8;
-                        var endIdx = tblIdxIdx === 0 ? 7 : 11;
-
-                        var row = appendSubtableRow(configTblIdxs[config.fieldTestingTT][tblIdxIdx],
-                            startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
-                        var rowCfs = getConfigFields(config.fieldTestingTT, row, configTblIdxs[config.fieldTestingTT][tblIdxIdx]);
-                        fillCfs(rowCfs, elem);
-                    });
-                });
-            }
-        });
-
-        // retorts
-        var retortsBaseRow = $('tr.retortsBaseRow');
-        var retortsBaseRowCfs = getConfigFields(config.retortsTT, retortsBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(retortsBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.retortsTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response, function (idx, elem) {
-                    saveTid(config.retortsTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.retortsTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
-
-        // wasteHaulOffUsage
-        var wasteHaulOffUsageBaseRow = $('tr.wasteHaulOffUsageBaseRow');
-        var wasteHaulOffUsageBaseRowCfs = getConfigFields(config.wasteHaulOffUsageTT, wasteHaulOffUsageBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(wasteHaulOffUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.wasteHaulOffUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response, function (idx, elem) {
-                    saveTid(config.wasteHaulOffUsageTT, elem['TRACKOR_ID'], false);
-
-                    var tblIdxIdx;
-                    var startIdx;
-                    var endIdx;
-
-                    if (idx >= 0 && idx <= 6) {
-                        tblIdxIdx = 0;
-                        startIdx = 4;
-                        endIdx = 5;
-                    } else if (idx >= 7 && idx <= 14) {
-                        tblIdxIdx = 1;
-                        startIdx = 6;
-                        endIdx = 7;
-                    } else {
-                        tblIdxIdx = 2;
-                        startIdx = 8;
-                        endIdx = 9;
-                    }
-
-                    var row = appendSubtableRow(configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx], startIdx, endIdx,
-                        wasteHaulOffUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.wasteHaulOffUsageTT, row, configTblIdxs[config.wasteHaulOffUsageTT][tblIdxIdx]);
-                    fillCfs(rowCfs, elem);
-                });
-
-                dynCalculations[config.wasteHaulOffUsageTT + '.WHOU_TONS']();
-            }
-        });
-
-        // consumablesUsageTT
-        var consumablesUsageBaseRow = $('tr.consumablesUsageBaseRow');
-        var consumablesUsageBaseRowCfs = getConfigFields(config.consumablesUsageTT, consumablesUsageBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(consumablesUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.consumablesUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response, function (idx, elem) {
-                    saveTid(config.consumablesUsageTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.consumablesUsageTT], 1, 10, consumablesUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.consumablesUsageTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
-
-        // binderUsageTT
-        var binderUsageBaseRow = $('tr.binderUsageBaseRow');
-        var binderUsageBaseRowCfs = getConfigFields(config.binderUsageTT, binderUsageBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(binderUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.binderUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response, function (idx, elem) {
-                    saveTid(config.binderUsageTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.binderUsageTT], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.binderUsageTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
-
-        // binderUsageTT
-        // binderLbsUsedTT
-        var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
-        var binderLbsUsedBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedBaseRow.parent(), configTblIdxs[config.binderLbsUsedTT][0]);
-        var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
-        var binderLbsUsedUnitBaseRowCfs = getConfigFields(config.binderLbsUsedTT, binderLbsUsedUnitBaseRow, configTblIdxs[config.binderLbsUsedTT][0]);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(binderLbsUsedBaseRowCfs).concat(Object.keys(binderLbsUsedUnitBaseRowCfs));
-                return '/api/v3/trackor_types/' + config.binderLbsUsedTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(config.binderLbsUsedTT, elem['TRACKOR_ID'], false);
-                    saveTid(config.dynTT, elem['TRACKOR_ID'], false);
-
-                    var tblIdx = configTblIdxs[config.binderLbsUsedTT][idx];
-                    var tdIdxs = 2 + idx;
-
-                    var row1 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedBaseRow, elem['TRACKOR_ID']);
-                    var row2 = appendSubtableRow(tblIdx, tdIdxs, tdIdxs, binderLbsUsedUnitBaseRow, elem['TRACKOR_ID']);
-                    var row1Cfs = getConfigFields(config.binderLbsUsedTT, row1, tblIdx);
-                    var row2Cfs = getConfigFields(config.binderLbsUsedTT, row2, tblIdx);
-
-                    fillCfs(row1Cfs, elem);
-                    fillCfs(row2Cfs, elem);
-                });
-            }
-        });
-
-        // equipmentUsageTT
-        var equipmentUsageBaseRow = $('tr.equipmentUsageBaseRow');
-        var equipmentUsageBaseRowCfs = getConfigFields(config.equipmentUsageTT, equipmentUsageBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(equipmentUsageBaseRowCfs);
-                return '/api/v3/trackor_types/' + config.equipmentUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 9), function (idx, elem) {
-                    saveTid(config.equipmentUsageTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.equipmentUsageTT], 1, 4, equipmentUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.equipmentUsageTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-            }
-        });
-
-        // techniciansUsageTT, contactInformation
-        var techniciansUsageBaseRow = $('tr.techniciansUsageBaseRow');
-        var techniciansUsageBaseRowCfs = getConfigFields(config.techniciansUsageTT, techniciansUsageBaseRow);
-        var contactInformationBaseRow = $('tr.contactInformationBaseRow');
-        var contactInformationBaseRowCfs = getConfigFields(config.techniciansUsageTT, contactInformationBaseRow);
-
-        requestQueue.push({
-            url: function () {
-                var fields = Object.keys(techniciansUsageBaseRowCfs).concat(Object.keys(contactInformationBaseRowCfs));
-                return '/api/v3/trackor_types/' + config.techniciansUsageTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                    '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-            },
-            successCode: 200,
-            success: function (response) {
-                $.each(response.splice(0, 3), function (idx, elem) {
-                    saveTid(config.techniciansUsageTT, elem['TRACKOR_ID'], false);
-
-                    var row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 4, techniciansUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(config.techniciansUsageTT, row);
-                    fillCfs(rowCfs, elem);
-
-                    row = appendSubtableRow(configTblIdxs[config.techniciansUsageTT], 1, 6, contactInformationBaseRow, elem['TRACKOR_ID']);
-                    rowCfs = getConfigFields(config.techniciansUsageTT, row);
-                    fillCfs(rowCfs, elem);
-                });
-
-                pushSupplyRequestLoad();
-            }
-        });
-
-        var pushSupplyRequestLoad = function () {
-            // supplyRequestTT
-            var supplyRequestBaseRow = $('tr.supplyRequestBaseRow').first();
-            var supplyRequestBaseRowCfs = getConfigFields(config.supplyRequestTT, supplyRequestBaseRow);
-
-            requestQueue.push({
-                url: function () {
-                    var fields = Object.keys(supplyRequestBaseRowCfs);
-                    return '/api/v3/trackor_types/' + config.supplyRequestTT + '/trackors?fields=' + encodeURIComponent(fields.join(',')) +
-                        '&' + config.rigDailyReportTT + '.TRACKOR_KEY=' + encodeURIComponent(key);
-                },
-                successCode: 200,
-                success: function (response) {
-                    $.each(response, function (idx, elem) {
-                        saveTid(config.supplyRequestTT, elem['TRACKOR_ID'], false);
-
-                        var row = appendSubtableRow(configTblIdxs[config.supplyRequestTT], 7, 11, supplyRequestBaseRow, elem['TRACKOR_ID']);
-                        var rowCfs = getConfigFields(config.supplyRequestTT, row);
-                        fillCfs(rowCfs, elem);
-                    });
-                }
-            });
-        };
-    };
-
-    ApiClient.startRequestQueueWork(requestQueue, 18, 'Loading report data...', function () {
-        ApiClient.concurrentLimit = 1;
-
-        subscribeChangeDynCfs();
-        $('#content').show();
-    });
-}
-
-function selectReportLoadPage(selectReportDialog, page) {
-    var fields = [
-        'TRACKOR_KEY',
-        config.rigSiteTT + '.TRACKOR_KEY',
-        'RDR_REPORT_DAY',
-        config.rigMonthReportTT + '.RMR_REPORT_MONTH',
-        config.rigYearReportTT + '.RYR_REPORT_YEAR'
-    ];
-    var sort = [
-        config.rigSiteTT + '.TRACKOR_KEY:desc',
-        config.rigYearReportTT + '.RYR_REPORT_YEAR:desc',
-        config.rigMonthReportTT + '.RMR_REPORT_MONTH:desc',
-        'RDR_REPORT_DAY:desc'
-    ];
-
-    var siteFilter = selectReportDialog.find('select.site');
-    var filter = {};
-
-    if (siteFilter.val() !== '') {
-        var key = config.rigSiteTT + '.TRACKOR_KEY';
-        filter[key] = siteFilter.val();
+    var tableRow = rows.eq(this.currentRow);
+    var cellCount = tableRow.children().length;
+    if (this.currentCell > cellCount - 1) {
+        this.currentCell = cellCount - 1;
     }
 
-    ApiClient.doRequest({
-        modalLoadingMessage: 'Loading reports...',
-        url: '/api/v3/trackor_types/' + config.rigDailyReportTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
-        + '&page=' + page + '&per_page=15&sort=' + encodeURIComponent(sort.join(',')) + '&' + $.param(filter),
-        successCode: 200,
-        success: function (response) {
-            var buttonPrev = selectReportDialog.find('button.reportsPrev');
-            var buttonNext = selectReportDialog.find('button.reportsNext');
-
-            buttonPrev.button('option', 'disabled', page === 1);
-            buttonPrev.data('page', page - 1);
-            buttonNext.button('option', 'disabled', response.length === 0);
-            buttonNext.data('page', page + 1);
-
-            var table = selectReportDialog.find('table.reports tbody').empty();
-            $.each(response, function (idx, obj) {
-                var tid = obj['TRACKOR_ID'];
-                var tr = $('<tr></tr>');
-                tr.click(function () {
-                    $('span.site').empty().text(obj[config.rigSiteTT + '.TRACKOR_KEY']);
-
-                    setCfValue(config.dynTT + '.REPORT_DATE',
-                        getRigMonthIndex(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']) + '/' +
-                        obj['RDR_REPORT_DAY'] + '/' +
-                        obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']);
-
-                    selectReportDialog.dialog('close');
-                    loadReport(tid);
-                });
-
-                $('<td></td>').text(obj[config.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
-                $('<td></td>').text(obj['RDR_REPORT_DAY']).appendTo(tr);
-                $('<td></td>').text(obj[config.rigMonthReportTT + '.RMR_REPORT_MONTH']).appendTo(tr);
-                $('<td></td>').text(obj[config.rigYearReportTT + '.RYR_REPORT_YEAR']).appendTo(tr);
-
-                var link = $('<a>Open</a>').attr('href', 'javascript:void(0)');
-                $('<td></td>').append(link).appendTo(tr);
-
-                table.append(tr);
-            });
-            if (response.length === 0) {
-                var tr = $('<tr></tr>').addClass('nodata');
-                $('<td colspan="5"></td>').text('No reports').appendTo(tr);
-
-                table.append(tr);
-            }
-
-            // Selectmenu z-index bug fix
-            var siteFilter = selectReportDialog.find('select.site');
-            if (siteFilter.is(':ui-selectmenu')) {
-                siteFilter.selectmenu('destroy');
-            }
-            siteFilter.selectmenu();
-
-            selectReportDialog.dialog('open');
-        }
-    });
-}
-
-function startSelectReport(selectReportDialog) {
-    var siteFilter = selectReportDialog.find('select.site');
-
-    // Load sites
-    var fields = [
-        'TRACKOR_KEY'
-    ];
-    var sort = [
-        'TRACKOR_KEY'
-    ];
-
-    var appendOpt = function (value, text) {
-        $('<option></option>').attr('value', value).text(text).appendTo(siteFilter);
-    };
-
-    siteFilter.empty();
-    appendOpt('', '-- Any site --');
-
-    ApiClient.doRequest({
-        modalLoadingMessage: 'Loading sites...',
-        url: '/api/v3/trackor_types/' + config.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
-        + '&sort=' + encodeURIComponent(sort.join(',')),
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, obj) {
-                appendOpt(obj['TRACKOR_KEY'], obj['TRACKOR_KEY']);
-            });
-            selectReportLoadPage(selectReportDialog, 1);
-        }
-    });
-}
-
-function initSelectReportDialog() {
-    var selectReportDialog = $('#selectReportDialog');
-    selectReportDialog.dialog({
-        width: 'auto',
-        height: 'auto',
-        modal: true,
-        autoOpen: false,
-        resizable: false,
-        draggable: false,
-        closeOnEscape: false,
-        open: function (event, ui) {
-            $(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-        }
-    });
-
-    selectReportDialog.find('select.site').selectmenu().on('selectmenuchange', function () {
-        selectReportDialog.dialog('close');
-        selectReportLoadPage(selectReportDialog, 1);
-    });
-
-    selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click(function () {
-        selectReportDialog.dialog('close');
-        selectReportLoadPage(selectReportDialog, $(this).data('page'));
-    });
-
-    return selectReportDialog;
-}
-
-function alertDialog(message, callback, title) {
-    if (typeof(title) !== 'string') {
-        title = 'Information';
+    var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
+    tableCell.focus();
+    tableCell.addClass('active');
+};
+ArrowNavigation.prototype.setActiveCellRowTo = function (td) {
+    if (td.index() === 0) {
+        return;
     }
 
-    var div = $('<div></div>');
-    div.html(message).dialog({
-        title: title,
-        resizable: false,
-        modal: true,
-        buttons: {
-            'OK': function () {
-                $(this).dialog('close');
-            }
-        },
-        close: function () {
-            div.remove();
-            if (typeof(callback) === 'function') {
-                callback();
-            }
-        }
-    });
-}
-
-function confirmDialog(message, callback, title) {
-    if (typeof(title) !== 'string') {
-        title = 'Confirm';
+    var row = $('#content').find('tr').index(td.closest('tr'));
+    if (row === 0) {
+        return;
     }
 
-    var div = $('<div></div>');
-    div.html(message).dialog({
-        title: title,
-        resizable: false,
-        modal: true,
-        buttons: {
-            'OK': function () {
-                $(this).dialog('close');
-                callback();
-            },
-            'Cancel': function () {
-                $(this).dialog('close');
-            }
-        },
-        close: function () {
-            div.remove();
+    this.currentRow = row;
+    this.currentCell = td.index();
+    this.updateCell();
+};
+ArrowNavigation.prototype.initCells = function (td) {
+    var _this = this;
+    td.unbind('mousedown').mousedown(function () {
+        var obj = $(this);
+        if (obj.height() !== 0 && obj.is(':not(.unselectable)')) {
+            _this.setActiveCellRowTo(obj);
+        }
+    }).unbind('dblclick').dblclick(function () {
+        var div = $(this).find('div[contenteditable]:first');
+        if (div.length !== 0) {
+            div.focus();
         }
     });
-}
+};
+ArrowNavigation.prototype.init = function () {
+    this.updateCell();
+    this.initCells($('#content').find('td'));
 
-// Arrow navigation related
-var ArrowNavigation = {
-    currentRow: 2,
-    currentCell: 1,
-    isCtrlPressed: false,
-
-    updateCell: function (direction) {
-        $('td.active').removeClass('active').find('div[contenteditable]').blur();
-
-        var rows = $('#content').find('tr');
-        if (this.currentRow > rows.length - 1) {
-            this.currentRow = rows.length - 1;
+    $(document).keydown((function (e) {
+        if (e.which === 17) {
+            this.isCtrlPressed = true;
         }
 
-        var tableRow = rows.eq(this.currentRow);
-        var cellCount = tableRow.children().length;
-        if (this.currentCell > cellCount - 1) {
-            this.currentCell = cellCount - 1;
-        }
+        var focusedDiv = $('div[contenteditable]:focus');
 
-        var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
-        tableCell.focus();
-        tableCell.addClass('active');
-    },
-    setActiveCellRowTo: function (td) {
-        if (td.index() === 0) {
-            return;
-        }
+        if (e.shiftKey || this.isCtrlPressed ||
+            $('#content').is(':hidden') || focusedDiv.length !== 0) {
 
-        var row = $('#content').find('tr').index(td.closest('tr'));
-        if (row === 0) {
-            return;
-        }
-
-        ArrowNavigation.currentRow = row;
-        ArrowNavigation.currentCell = td.index();
-        ArrowNavigation.updateCell();
-    },
-    initCells: function (td) {
-        td.unbind('mousedown').mousedown(function () {
-            ArrowNavigation.setActiveCellRowTo($(this));
-        }).unbind('dblclick').dblclick(function () {
-            var div = $(this).find('div[contenteditable]:first');
-            if (div.length !== 0) {
-                div.focus();
+            if (e.keyCode === 27 && focusedDiv.length !== 0) {
+                focusedDiv.blur();
             }
-        });
-    },
-    init: function () {
-        ArrowNavigation.updateCell();
+            return true;
+        }
 
-        this.initCells($('#content').find('td'));
-
-        $(document).keydown(function (e) {
-            if (e.which === 17) {
-                ArrowNavigation.isCtrlPressed = true;
-            }
-
-            var focusedDiv = $('div[contenteditable]:focus');
-
-            if (e.shiftKey || ArrowNavigation.isCtrlPressed ||
-                $('#content').is(':hidden') || focusedDiv.length !== 0) {
-
-                if (e.keyCode === 27 && focusedDiv.length !== 0) {
-                    focusedDiv.blur();
-                }
-                return true;
-            }
-
-            if (e.keyCode === 37) {
-                if (ArrowNavigation.currentCell === 1) {
-                    return false;
-                }
-                ArrowNavigation.currentCell--;
-                ArrowNavigation.updateCell('left');
-                return false;
-            } else if (e.keyCode === 38) {
-                if (ArrowNavigation.currentRow === 2) {
-                    return false;
-                }
-                ArrowNavigation.currentRow--;
-                ArrowNavigation.updateCell('up');
-                return false;
-            } else if (e.keyCode === 39) {
-                ArrowNavigation.currentCell++;
-                ArrowNavigation.updateCell('right');
-                return false;
-            } else if (e.keyCode === 40 || e.keyCode === 13) {
-                ArrowNavigation.currentRow++;
-                ArrowNavigation.updateCell('down');
+        if (e.keyCode === 37) {
+            if (this.currentCell === 1) {
                 return false;
             }
-        }).keyup(function (e) {
-            if (e.which === 17) {
-                ArrowNavigation.isCtrlPressed = false;
-            } else if (e.which === 8 || e.which === 46) {
-                var tableCell = $('td.active');
+            this.currentCell--;
+            this.updateCell();
+            return false;
+        } else if (e.keyCode === 38) {
+            if (this.currentRow === 2) {
+                return false;
+            }
+            this.currentRow--;
+            this.updateCell();
+            return false;
+        } else if (e.keyCode === 39) {
+            this.currentCell++;
+            this.updateCell();
+            return false;
+        } else if (e.keyCode === 40 || e.keyCode === 13) {
+            this.currentRow++;
+            this.updateCell();
+            return false;
+        }
+    }).bind(this)).keyup((function (e) {
+        if (e.which === 17) {
+            this.isCtrlPressed = false;
+        } else if (e.which === 8 || e.which === 46) {
+            var tableCell = $('td.active');
+            if (tableCell.find('div[contenteditable]:focus').length === 0) {
                 tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
             }
-        });
-    }
+        }
+    }).bind(this));
 };
 
-$(function () {
-    // http://stackoverflow.com/a/24693866
-    $.datepicker._findPos = function (obj) {
-        var position;
-        if (obj.type === 'hidden') {
-            obj = $(obj).closest('td');
-        }
-        position = $(obj).offset();
-        return [position.left, position.top];
-    };
-
-    ApiClient.init();
-    ArrowNavigation.init();
-    init();
-});
+//# sourceMappingURL=../maps/js/rigdaily.js.map
