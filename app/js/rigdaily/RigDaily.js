@@ -38,6 +38,8 @@ function RigDaily() {
 }
 RigDaily.prototype.changeReport = function () {
     tids = {};
+    locks = {};
+    edited = {};
     isReportEdited = false;
     $(window).off('beforeunload');
 
@@ -75,7 +77,7 @@ RigDaily.prototype.startSubmitReport = function () {
         isReportEdited = false;
     });
 
-    var makeReloadFieldsRequest = function (tid, cfs) {
+    var makeReloadFieldsRequest = function (ttName, tid, cfs) {
         var fields = getFieldNamesForReload(cfs);
         if (fields.length !== 0) {
             queue.push(new ApiClientQueueRequestOptions({
@@ -84,7 +86,14 @@ RigDaily.prototype.startSubmitReport = function () {
                 url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
                 successCode: 200,
                 success: function (response) {
-                    fillCfs(cfs, response);
+                    var fields = getLockableFieldNames(cfs);
+                    if (fields.length !== 0) {
+                        requestTrackorLocks(queue, tid, ttName, fields, function () {
+                            fillCfs(cfs, response);
+                        });
+                    } else {
+                        fillCfs(cfs, response);
+                    }
                 }
             }));
         }
@@ -94,57 +103,31 @@ RigDaily.prototype.startSubmitReport = function () {
             return;
         }
 
-        queue.push(new ApiClientQueueRequestOptions({
-            type: 'PUT',
-            contentType: 'application/json',
-            url: '/api/v3/trackors/' + encodeURIComponent(tid),
-            data: JSON.stringify(data),
-            dataType: 'json',
-            processData: false,
-            successCode: 200,
-            success: function () {
-                updateOriginalCfsData(cfs, data);
-                makeReloadFieldsRequest(tid, cfs);
-            }
-        }));
+        requestUpdateTrackorById(queue, tid, data, function () {
+            updateOriginalCfsData(cfs, data);
+            makeReloadFieldsRequest(ttName, tid, cfs);
+        });
     };
     var makeCreateRequest = function (tid, ttName, tblIdx, data, cfs) {
-        queue.push(new ApiClientQueueRequestOptions({
-            type: 'POST',
-            data: JSON.stringify({
-                'fields': data,
-                'parents': getTrackorTypeRelations(ttName, tid, tblIdx)
-            }),
-            dataType: 'json',
-            processData: false,
-            contentType: 'application/json',
-            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors',
-            successCode: 201,
-            success: function (response) {
-                var newTid = response['TRACKOR_ID'];
-                updateCfsTid(cfs, tblIdx, tid, newTid);
-                updateTtTid(ttName, tid, newTid);
+        var parents = getTrackorTypeRelations(ttName, tid, tblIdx);
+        requestCreateTrackor(queue, ttName, data, parents, function (response) {
+            var newTid = response['TRACKOR_ID'];
+            updateCfsTid(cfs, tblIdx, tid, newTid);
+            updateTtTid(ttName, tid, newTid);
 
-                updateOriginalCfsData(cfs, data);
-                makeReloadFieldsRequest(newTid, cfs);
-            }
-        }));
+            updateOriginalCfsData(cfs, data);
+            makeReloadFieldsRequest(ttName, newTid, cfs);
+        });
     };
     var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
-        queue.push(new ApiClientQueueRequestOptions({
-            type: 'DELETE',
-            contentType: 'application/json',
-            url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors?trackor_id=' + encodeURIComponent(tid),
-            successCode: 200,
-            success: function () {
-                var newTid = generateTrackorId(ttName);
-                updateCfsTid(cfs, tblIdx, tid, newTid);
-                updateTtTid(ttName, tid, newTid);
+        requestDeleteTrackor(queue, ttName, tid, function () {
+            var newTid = generateTrackorId(ttName);
+            updateCfsTid(cfs, tblIdx, tid, newTid);
+            updateTtTid(ttName, tid, newTid);
 
-                var data = makeEmptyCfsObject(cfs);
-                fillCfs(cfs, data);
-            }
-        }));
+            var data = makeEmptyCfsObject(cfs);
+            fillCfs(cfs, data);
+        });
     };
 
     try {
@@ -402,12 +385,17 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                $.each(response.splice(0, 4), function (idx, elem) {
-                    saveTid(trackorTypes.labTestingTT, elem['TRACKOR_ID'], false);
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
+                });
+                requestTrackorsLocks(queue, tids, trackorTypes.labTestingTT, labTestingBaseRowCfs, function () {
+                    $.each(response.splice(0, 4), function (idx, elem) {
+                        saveTid(trackorTypes.labTestingTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(tableIndexes[trackorTypes.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.labTestingTT, row);
-                    fillCfs(rowCfs, elem);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.labTestingTT], 7, 11, labTestingBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.labTestingTT, row);
+                        fillCfs(rowCfs, elem);
+                    });
                 });
             }
         }));
@@ -704,12 +692,17 @@ RigDaily.prototype.loadReport = function (tid) {
                 },
                 successCode: 200,
                 success: function (response) {
-                    fillCellsForNewTrackor(trackorTypes.supplyRequestTT, 10, response, function (idx, tid, elem) {
-                        saveTid(trackorTypes.supplyRequestTT, tid, false);
+                    var tids = $.map(response, function (elem) {
+                        return elem['TRACKOR_ID'];
+                    });
+                    requestTrackorsLocks(queue, tids, trackorTypes.supplyRequestTT, supplyRequestBaseRowCfs, function () {
+                        fillCellsForNewTrackor(trackorTypes.supplyRequestTT, 10, response, function (idx, tid, elem) {
+                            saveTid(trackorTypes.supplyRequestTT, tid, false);
 
-                        var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, tid);
-                        var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
-                        fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
+                            var row = appendSubtableRow(tableIndexes[trackorTypes.supplyRequestTT], 7, 11, supplyRequestBaseRow, tid);
+                            var rowCfs = getConfigFields(trackorTypes.supplyRequestTT, row);
+                            fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
+                        });
                     });
                 }
             }));
