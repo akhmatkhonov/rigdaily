@@ -715,6 +715,7 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     var fields = [
         'TRACKOR_KEY',
         trackorTypes.rigSiteTT + '.TRACKOR_KEY',
+        trackorTypes.projectTT + '.PR_PROJECT_NAME',
         'RDR_REPORT_DATE'
     ];
     var sort = [
@@ -722,12 +723,15 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
         'RDR_REPORT_DATE:desc'
     ];
 
-    var siteFilter = selectReportDialog.find('select.site');
     var filter = {};
+    var siteProjectFilter = selectReportDialog.find('select.siteproject');
+    if (siteProjectFilter.val() !== '') {
+        var filterValue = siteProjectFilter.val().split('_');
+        filter[trackorTypes.rigSiteTT + '.TRACKOR_KEY'] = filterValue[0];
 
-    if (siteFilter.val() !== '') {
-        var key = trackorTypes.rigSiteTT + '.TRACKOR_KEY';
-        filter[key] = siteFilter.val();
+        if (filterValue.length === 2) {
+            filter[trackorTypes.projectTT + '.TRACKOR_KEY'] = filterValue[1];
+        }
     }
 
     var perPage = 15;
@@ -751,16 +755,18 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
                 var tr = $('<tr></tr>');
                 tr.click((function () {
                     $('span.site').empty().text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']);
+                    $('span.project').empty().text(obj[trackorTypes.projectTT + '.PR_PROJECT_NAME']);
 
                     selectReportDialog.dialog('close');
                     this.loadReport(tid);
                 }).bind(this));
 
                 $('<td></td>').text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
+                $('<td></td>').text(obj[trackorTypes.projectTT + '.PR_PROJECT_NAME']).appendTo(tr);
                 var reportDate = dateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
-                $('<td></td>').text(reportDate.getUTCDate() + 1).appendTo(tr);
+                $('<td></td>').text(reportDate.getDate()).appendTo(tr);
                 $('<td></td>').text(dateUtils.objGetMonthName(reportDate)).appendTo(tr);
-                $('<td></td>').text(reportDate.getUTCFullYear()).appendTo(tr);
+                $('<td></td>').text(reportDate.getFullYear()).appendTo(tr);
 
                 var link = $('<a>Open</a>').attr('href', 'javascript:void(0)');
                 $('<td></td>').append(link).appendTo(tr);
@@ -775,7 +781,7 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
             }
 
             // Selectmenu z-index bug fix
-            var siteFilter = selectReportDialog.find('select.site');
+            var siteFilter = selectReportDialog.find('select.siteproject');
             if (siteFilter.is(':ui-selectmenu')) {
                 siteFilter.selectmenu('destroy');
             }
@@ -786,32 +792,48 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     }));
 };
 RigDaily.prototype.startSelectReport = function (selectReportDialog) {
-    var siteFilter = selectReportDialog.find('select.site');
+    var siteProjectFilter = selectReportDialog.find('select.siteproject');
+    var appendOpt = function (value, text, selected) {
+        var attrs = {
+            'value': value
+        };
+        if (selected) {
+            attrs['selected'] = 'selected';
+        }
+        $('<option></option>').attr(attrs).text(text).appendTo(siteProjectFilter);
+    };
+    siteProjectFilter.empty();
+    appendOpt('', '-- Any site/project --', true);
 
-    // Load sites
     var fields = [
-        'TRACKOR_KEY'
+        'TRACKOR_KEY',
+        'PR_PROJECT_NAME',
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY'
     ];
     var sort = [
-        'TRACKOR_KEY'
+        trackorTypes.rigSiteTT + '.TRACKOR_KEY',
+        'PR_PROJECT_NAME'
     ];
-
-    var appendOpt = function (value, text) {
-        $('<option></option>').attr('value', value).text(text).appendTo(siteFilter);
-    };
-
-    siteFilter.empty();
-    appendOpt('', '-- Any site --');
-
     this.client.request(new ApiClientRequestOptions({
-        modalLoadingMessage: 'Loading sites...',
-        url: '/api/v3/trackor_types/' + trackorTypes.rigSiteTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
+        modalLoadingMessage: 'Loading sites and projects...',
+        url: '/api/v3/trackor_types/' + trackorTypes.projectTT + '/trackors?fields=' + encodeURIComponent(fields.join(','))
         + '&sort=' + encodeURIComponent(sort.join(',')),
         successCode: 200,
         success: (function (response) {
+            var currentSite = null;
             $.each(response, function (idx, obj) {
-                appendOpt(obj['TRACKOR_KEY'], obj['TRACKOR_KEY']);
+                var rigSiteKey = obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY'];
+                if (currentSite !== null && currentSite !== rigSiteKey) {
+                    currentSite = rigSiteKey;
+                    appendOpt(rigSiteKey, rigSiteKey + ' / -- Any project --');
+                } else if (currentSite === null) {
+                    currentSite = rigSiteKey;
+                }
+
+                appendOpt(rigSiteKey + '_' + obj['TRACKOR_KEY'], rigSiteKey + ' / ' + obj['PR_PROJECT_NAME']);
             });
+            appendOpt(currentSite, currentSite + ' / -- Any project --');
+
             this.selectReportLoadPage(selectReportDialog, 1);
         }).bind(this)
     }));
@@ -831,7 +853,7 @@ RigDaily.prototype.initSelectReportDialog = function () {
         }
     });
 
-    selectReportDialog.find('select.site').selectmenu().on('selectmenuchange', (function () {
+    selectReportDialog.find('select.siteproject').selectmenu().on('selectmenuchange', (function () {
         selectReportDialog.dialog('close');
         this.selectReportLoadPage(selectReportDialog, 1);
     }).bind(this));

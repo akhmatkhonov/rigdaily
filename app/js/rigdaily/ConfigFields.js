@@ -653,12 +653,14 @@ function updateOriginalCfsData(cfs, data) {
     });
 }
 
-function requestUpdateTrackorById(queue, tid, data, callback) {
+function requestUpdateTrackorById(queue, tid, fields, callback) {
     queue.push(new ApiClientQueueRequestOptions({
         type: 'PUT',
         contentType: 'application/json',
         url: '/api/v3/trackors/' + encodeURIComponent(tid),
-        data: JSON.stringify(data),
+        data: JSON.stringify({
+            'fields': fields
+        }),
         dataType: 'json',
         processData: false,
         successCode: 200,
