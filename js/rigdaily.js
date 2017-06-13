@@ -834,6 +834,9 @@ RigDaily.prototype.startSelectReport = function (selectReportDialog) {
             });
             appendOpt(currentSite, currentSite + ' / -- Any project --');
 
+            if (typeof localStorage['selectedFilter'] !== 'undefined') {
+                siteProjectFilter.val(localStorage['selectedFilter']);
+            }
             this.selectReportLoadPage(selectReportDialog, 1);
         }).bind(this)
     }));
@@ -853,12 +856,14 @@ RigDaily.prototype.initSelectReportDialog = function () {
         }
     });
 
-    selectReportDialog.find('select.siteproject').selectmenu().on('selectmenuchange', (function () {
-        selectReportDialog.dialog('close');
-        this.selectReportLoadPage(selectReportDialog, 1);
-    }).bind(this));
-
     var _this = this;
+    selectReportDialog.find('select.siteproject').selectmenu().on('selectmenuchange', function () {
+        localStorage['selectedFilter'] = $(this).val();
+
+        selectReportDialog.dialog('close');
+        _this.selectReportLoadPage(selectReportDialog, 1);
+    });
+
     selectReportDialog.find('button.reportsPrev, button.reportsNext').button().click(function () {
         selectReportDialog.dialog('close');
         _this.selectReportLoadPage(selectReportDialog, $(this).data('page'));
@@ -2019,9 +2024,7 @@ function requestUpdateTrackorById(queue, tid, fields, callback) {
         type: 'PUT',
         contentType: 'application/json',
         url: '/api/v3/trackors/' + encodeURIComponent(tid),
-        data: JSON.stringify({
-            'fields': fields
-        }),
+        data: JSON.stringify(fields),
         dataType: 'json',
         processData: false,
         successCode: 200,
