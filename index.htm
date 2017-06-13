@@ -60,14 +60,15 @@
 <div id="selectReportDialog" title="Rig Daily Report (OneVizion)" style="display: none">
     <div style="margin-bottom: 10px; text-align: center;">Select report</div>
     <label>
-        Filter by site:
-        <select class="site" style="width: 100%;">
+        Filter by Site/Project:
+        <select class="siteproject" style="min-width: 250px; width: 100%;">
         </select>
     </label>
     <table class="reports">
         <thead>
         <tr>
             <th>Site</th>
+            <th>Project</th>
             <th>Day</th>
             <th>Month</th>
             <th>Year</th>
@@ -93,6 +94,10 @@
         <div>
             Site:
             <span class="site" style="font-weight: bold"></span>
+        </div>
+        <div>
+            Project:
+            <span class="project" style="font-weight: bold"></span>
         </div>
         <div style="margin-top: 30px">
             <button id="submitReportData">Submit Report data</button>
