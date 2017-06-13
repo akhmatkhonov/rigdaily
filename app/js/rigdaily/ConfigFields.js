@@ -658,9 +658,7 @@ function requestUpdateTrackorById(queue, tid, fields, callback) {
         type: 'PUT',
         contentType: 'application/json',
         url: '/api/v3/trackors/' + encodeURIComponent(tid),
-        data: JSON.stringify({
-            'fields': fields
-        }),
+        data: JSON.stringify(fields),
         dataType: 'json',
         processData: false,
         successCode: 200,
