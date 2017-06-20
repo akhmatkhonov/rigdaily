@@ -41,7 +41,7 @@ RigDaily.prototype.changeReport = function () {
     locks = {};
     edited = {};
     isReportEdited = false;
-    $(window).off('beforeunload');
+    $(window).off('beforeunload', beforeUnloadHandler);
 
     // Clear content
     $('tr.subtable:not(.baseRow):not(.staticRow)').remove();
@@ -74,7 +74,8 @@ RigDaily.prototype.changeReport = function () {
 RigDaily.prototype.startSubmitReport = function () {
     var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7, true);
     queue.success(function () {
-        isReportEdited = false;
+        isReportEdited = edited.length !== 0;
+        $(window).off('beforeunload', beforeUnloadHandler);
     });
 
     var makeReloadFieldsRequest = function (ttName, tid, cfs) {
@@ -88,7 +89,7 @@ RigDaily.prototype.startSubmitReport = function () {
                 success: function (response) {
                     var fields = getLockableFieldNames(cfs);
                     if (fields.length !== 0) {
-                        requestTrackorLocks(queue, tid, ttName, fields, function () {
+                        requestTrackorLocks(queue, ttName, tid, fields, function () {
                             fillCfs(cfs, response);
                         });
                     } else {
@@ -104,7 +105,7 @@ RigDaily.prototype.startSubmitReport = function () {
         }
 
         requestUpdateTrackorById(queue, tid, data, function () {
-            updateOriginalCfsData(cfs, data);
+            updateOriginalCfsData(cfs, data, tid);
             makeReloadFieldsRequest(ttName, tid, cfs);
         });
     };
@@ -115,12 +116,14 @@ RigDaily.prototype.startSubmitReport = function () {
             updateCfsTid(cfs, tblIdx, tid, newTid);
             updateTtTid(ttName, tid, newTid);
 
-            updateOriginalCfsData(cfs, data);
+            updateOriginalCfsData(cfs, data, tid);
             makeReloadFieldsRequest(ttName, newTid, cfs);
         });
     };
     var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
         requestDeleteTrackor(queue, ttName, tid, function () {
+            applyCfsNotChanged(cfs, tid);
+
             var newTid = generateTrackorId(ttName);
             updateCfsTid(cfs, tblIdx, tid, newTid);
             updateTtTid(ttName, tid, newTid);
@@ -170,7 +173,7 @@ RigDaily.prototype.startSubmitReport = function () {
             }
         });
     } catch (e) {
-        if (e instanceof RequiredFieldsNotPresentException || e instanceof FieldValidateFailedException) {
+        if (e instanceof RequiredFieldsNotPresentException || e instanceof ValidationFailedException) {
             this.arrowNavigation.setActiveCellRowTo(e.focusObj.closest('td'));
             e.focusObj.focus().tooltip({
                 items: 'div',
@@ -199,7 +202,7 @@ RigDaily.prototype.startSubmitReport = function () {
 };
 
 RigDaily.prototype.loadReport = function (tid) {
-    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 17, true, 7);
+    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 19, true, 7);
     queue.success(function () {
         subscribeChangeDynCfs();
         $('#content').show();
