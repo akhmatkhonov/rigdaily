@@ -41,7 +41,7 @@ RigDaily.prototype.changeReport = function () {
     locks = {};
     edited = {};
     isReportEdited = false;
-    $(window).off('beforeunload');
+    $(window).off('beforeunload', beforeUnloadHandler);
 
     // Clear content
     $('tr.subtable:not(.baseRow):not(.staticRow)').remove();
@@ -74,7 +74,8 @@ RigDaily.prototype.changeReport = function () {
 RigDaily.prototype.startSubmitReport = function () {
     var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7, true);
     queue.success(function () {
-        isReportEdited = false;
+        isReportEdited = edited.length !== 0;
+        $(window).off('beforeunload', beforeUnloadHandler);
     });
 
     var makeReloadFieldsRequest = function (ttName, tid, cfs) {
@@ -88,7 +89,7 @@ RigDaily.prototype.startSubmitReport = function () {
                 success: function (response) {
                     var fields = getLockableFieldNames(cfs);
                     if (fields.length !== 0) {
-                        requestTrackorLocks(queue, tid, ttName, fields, function () {
+                        requestTrackorLocks(queue, ttName, tid, fields, function () {
                             fillCfs(cfs, response);
                         });
                     } else {
@@ -104,7 +105,7 @@ RigDaily.prototype.startSubmitReport = function () {
         }
 
         requestUpdateTrackorById(queue, tid, data, function () {
-            updateOriginalCfsData(cfs, data);
+            updateOriginalCfsData(cfs, data, tid);
             makeReloadFieldsRequest(ttName, tid, cfs);
         });
     };
@@ -115,12 +116,14 @@ RigDaily.prototype.startSubmitReport = function () {
             updateCfsTid(cfs, tblIdx, tid, newTid);
             updateTtTid(ttName, tid, newTid);
 
-            updateOriginalCfsData(cfs, data);
+            updateOriginalCfsData(cfs, data, tid);
             makeReloadFieldsRequest(ttName, newTid, cfs);
         });
     };
     var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
         requestDeleteTrackor(queue, ttName, tid, function () {
+            applyCfsNotChanged(cfs, tid);
+
             var newTid = generateTrackorId(ttName);
             updateCfsTid(cfs, tblIdx, tid, newTid);
             updateTtTid(ttName, tid, newTid);
@@ -170,7 +173,7 @@ RigDaily.prototype.startSubmitReport = function () {
             }
         });
     } catch (e) {
-        if (e instanceof RequiredFieldsNotPresentException || e instanceof FieldValidateFailedException) {
+        if (e instanceof RequiredFieldsNotPresentException || e instanceof ValidationFailedException) {
             this.arrowNavigation.setActiveCellRowTo(e.focusObj.closest('td'));
             e.focusObj.focus().tooltip({
                 items: 'div',
@@ -199,7 +202,7 @@ RigDaily.prototype.startSubmitReport = function () {
 };
 
 RigDaily.prototype.loadReport = function (tid) {
-    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 17, true, 7);
+    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 19, true, 7);
     queue.success(function () {
         subscribeChangeDynCfs();
         $('#content').show();
@@ -982,16 +985,25 @@ fieldValidators[trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH'
     var prevDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_PREVIOUS_MEASURED_DEPTH');
     var currentDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
     if (prevDepth > currentDepth) {
-        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
+        throw new ValidationFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH');
     }
 };
 fieldValidators[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'] = function () {
     var prevDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH');
     var currentDepth = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
     if (prevDepth > currentDepth) {
-        throw new FieldValidateFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
+        throw new ValidationFailedException('Current Measured Depth should be greater or equal than Previous Measured Depth', trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH');
     }
 };
+
+var typeValidators = {
+    'number': function (value, cfFullName, tid, tblIdx) {
+        if (isNaN(parseFloat(value))) {
+            throw new ValidationFailedException('Incorrect number value', cfFullName, tid, tblIdx);
+        }
+    }
+};
+
 var dynCalculations = {};
 
 // rigDailyReportTT
@@ -1381,9 +1393,9 @@ function RequiredFieldsNotPresentException(focusObj) {
     this.focusObj = focusObj;
 }
 
-function FieldValidateFailedException(message, name, tid, tblIdx) {
+function ValidationFailedException(message, name, tid, tblIdx) {
     this.message = message;
-    this.focusObj = findCf(name, tid, tblIdx).children('div[contenteditable]');
+    this.focusObj = findCf(name, tid, tblIdx).children('div[contenteditable=true]');
 }
 
 function checkInfinity(number) {
@@ -1391,8 +1403,15 @@ function checkInfinity(number) {
 }
 
 function findCf(name, tid, tblIdx) {
+    var ttName = name.split('.')[0];
     var cfs = $('[data-cf="' + name + '"]');
     if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
+        cfs = cfs.filter(function () {
+            var cf = $(this);
+            return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
+        });
+    } else if (typeof tid !== 'undefined' && typeof tableIndexes[ttName] === 'string') {
+        tblIdx = tableIndexes[ttName];
         cfs = cfs.filter(function () {
             var cf = $(this);
             return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
@@ -1484,7 +1503,8 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'reload': obj.data('reload') + '' === 'true',
             'forceSubmit': obj.data('submit') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
-            'lockable': obj.data('lockable') + '' === 'true', 'type': obj.data('t'),
+            'lockable': obj.data('lockable') + '' === 'true',
+            'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
         });
@@ -1501,11 +1521,11 @@ function isCfLocked(cf) {
     var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
 
-    if (!$.isArray(locks[cf.tt])) {
+    if (typeof locks[cf.tt] !== 'object') {
         return false;
     }
 
-    return $.isArray(locks[cf.tt][tid]) && typeof locks[cf.tt][tid][cf.name] !== 'undefined';
+    return $.isArray(locks[cf.tt][tid]) && $.inArray(cf.name, locks[cf.tt][tid]) !== -1;
 }
 
 function fillCf(cf, value) {
@@ -1568,18 +1588,7 @@ function fillCf(cf, value) {
                         edited[cf.tt][cf.name].push(tid);
                     }
                 } else {
-                    var ttCheck = typeof edited[cf.tt] !== 'undefined';
-                    var cfCheck = ttCheck && typeof edited[cf.tt][cf.name] !== 'undefined';
-
-                    if (cfCheck && $.inArray(tid, edited[cf.tt][cf.name]) !== -1) {
-                        edited[cf.tt][cf.name].splice(edited[cf.tt][cf.name].indexOf(tid), 1);
-                    }
-                    if (cfCheck && edited[cf.tt][cf.name].length === 0) {
-                        delete edited[cf.tt][cf.name];
-                    }
-                    if (ttCheck && Object.keys(edited[cf.tt]).length === 0) {
-                        delete edited[cf.tt];
-                    }
+                    applyCfNotChanged(cf, tid);
                 }
 
                 var prevIsReportEdited = isReportEdited;
@@ -1658,7 +1667,7 @@ function fillCf(cf, value) {
                         .datepicker({
                             dateFormat: 'mm/dd/yy',
                             onSelect: function (dateText) {
-                                div.empty().text(dateText);
+                                div.empty().text(dateText).trigger('blur');
                             }
                         });
                     if (date !== null) {
@@ -1743,6 +1752,9 @@ function checkCfsFilledForNewTrackorCreate(cfs, data, tid, tblIdx) {
                     return false;
                 }
                 try {
+                    if (typeof typeValidators[cf.type] === 'function') {
+                        typeValidators[cf.type](data[cf.name], cf.tt + '.' + cf.name, tid, tblIdx);
+                    }
                     if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
                         fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
                     }
@@ -1904,35 +1916,46 @@ function appendSubtableRow(tblIdx, colStartIdx, colEndIdx, baseRow, tid) {
     return row;
 }
 
-function convertEditableCfsToDataObject(cfs, tid, tblIdx, allData) {
+function convertEditableCfsToDataObject(cfs, tid, tblIdx, dataAll) {
     var result = {};
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
-            if (cf.editable && !isCfLocked(cf)) {
-                var val = cf.obj.children('div[contenteditable]')[0].innerText;
-                if (cf.required && val.length === 0) {
-                    var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
-                    throw new RequiredFieldsNotPresentException(focusObj);
-                }
+            var val;
+            if (cf.editable) {
+                val = cf.obj.children('div[contenteditable]')[0].innerText;
+                if (!isCfLocked(cf)) {
+                    if (cf.required && val.length === 0) {
+                        var focusObj = cf.obj.addClass('required_error').children('div[contenteditable]');
+                        throw new RequiredFieldsNotPresentException(focusObj);
+                    }
 
-                if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
-                    fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
-                }
+                    if (typeof typeValidators[cf.type] === 'function') {
+                        typeValidators[cf.type](val, cf.tt + '.' + cf.name, tid, tblIdx);
+                    }
+                    if (typeof fieldValidators[cf.tt + '.' + cf.name] === 'function') {
+                        fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
+                    }
 
-                if (cf.type === 'date') {
-                    // Reformat date
-                    var dateObj = dateUtils.localDateToObj(val);
-                    val = dateUtils.objToRemoteDate(dateObj);
-                }
+                    if (cf.type === 'date') {
+                        // Reformat date
+                        var dateObj = dateUtils.localDateToObj(val);
+                        val = dateUtils.objToRemoteDate(dateObj);
+                    }
 
-                if (cf.orig_data !== val) {
-                    result[cf.name] = val;
+                    if (cf.orig_data !== val) {
+                        result[cf.name] = val;
+                    }
                 }
-                if (typeof allData === 'object') {
-                    allData[cf.name] = val;
+                if (typeof dataAll === 'object') {
+                    dataAll[cf.name] = val;
                 }
             } else if (cf.forceSubmit) {
-                result[cf.name] = cf.obj.text();
+                val = cf.obj.text();
+
+                result[cf.name] = val;
+                if (typeof dataAll === 'object') {
+                    dataAll[cf.name] = val;
+                }
             }
         });
     });
@@ -1987,7 +2010,7 @@ function getFieldNamesForReload(cfs) {
     var fields = [];
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
-            if (cf.reload) {
+            if (cf.reload || cf.lockable) {
                 fields.push(cf.name);
             }
         });
@@ -2007,7 +2030,30 @@ function getLockableFieldNames(cfs) {
     return fields;
 }
 
-function updateOriginalCfsData(cfs, data) {
+function applyCfsNotChanged(cfs, tid) {
+    $.each(cfs, function (idx, cfObj) {
+        $.each(cfObj, function (idx, cf) {
+            applyCfNotChanged(cf, tid);
+        });
+    });
+}
+
+function applyCfNotChanged(cf, tid) {
+    var ttCheck = typeof edited[cf.tt] !== 'undefined';
+    var cfCheck = ttCheck && typeof edited[cf.tt][cf.name] !== 'undefined';
+
+    if (cfCheck && $.inArray(tid, edited[cf.tt][cf.name]) !== -1) {
+        edited[cf.tt][cf.name].splice(edited[cf.tt][cf.name].indexOf(tid), 1);
+    }
+    if (cfCheck && edited[cf.tt][cf.name].length === 0) {
+        delete edited[cf.tt][cf.name];
+    }
+    if (ttCheck && Object.keys(edited[cf.tt]).length === 0) {
+        delete edited[cf.tt];
+    }
+}
+
+function updateOriginalCfsData(cfs, data, tid) {
     $.each(cfs, function (idx, cfObj) {
         $.each(cfObj, function (idx, cf) {
             // Update orig_data
@@ -2015,6 +2061,8 @@ function updateOriginalCfsData(cfs, data) {
                 cf.orig_data = data[cf.name];
                 cf.obj.data('orig_data', data[cf.name]);
             }
+
+            applyCfNotChanged(cf, tid);
         });
     });
 }
@@ -2068,7 +2116,7 @@ function requestTrackorLocks(queue, ttName, tid, fields, callback) {
             $.each(response, function (idx, elem) {
                 var field_name = elem['field_name'];
                 if (elem['locked'] && $.inArray(field_name, fields) !== -1) {
-                    if (!$.isArray(locks[ttName])) {
+                    if (typeof locks[ttName] !== 'object') {
                         locks[ttName] = {};
                     }
                     if (!$.isArray(locks[ttName][tid])) {
@@ -2083,9 +2131,10 @@ function requestTrackorLocks(queue, ttName, tid, fields, callback) {
 }
 
 function requestTrackorsLocks(queue, tids, ttName, cfs, callback) {
-    // TODO: remove
-    callback();
-    return;
+    if (tids.length === 0) {
+        callback();
+        return;
+    }
 
     var fields = getLockableFieldNames(cfs);
     if (fields.length !== 0) {
@@ -2103,7 +2152,7 @@ function requestTrackorsLocks(queue, tids, ttName, cfs, callback) {
                     if (elem['locked'] &&
                         $.inArray(field_name, fields) !== -1 &&
                         $.inArray(tid, tids) !== -1) {
-                        if (!$.isArray(locks[ttName])) {
+                        if (typeof locks[ttName] !== 'object') {
                             locks[ttName] = {};
                         }
                         if (!$.isArray(locks[ttName][tid])) {
@@ -2219,8 +2268,8 @@ ArrowNavigation.prototype.init = function () {
             this.isCtrlPressed = false;
         } else if (e.which === 8 || e.which === 46) {
             var tableCell = $('td.active');
-            if (tableCell.find('div[contenteditable]:focus').length === 0) {
-                tableCell.find('div[contenteditable]:not(:focus)').empty().trigger('blur');
+            if (tableCell.find('div[contenteditable=true]:focus').length === 0) {
+                tableCell.find('div[contenteditable=true]:not(:focus)').empty().trigger('blur');
             }
         }
     }).bind(this));
