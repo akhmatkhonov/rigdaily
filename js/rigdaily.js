@@ -1562,10 +1562,11 @@ function fillCf(cf, value) {
         }
 
         if (isLocked) {
-            div.tooltip({
-                items: 'div',
-                content: 'Locked'
-            });
+            div.addClass('locked')
+                .tooltip({
+                    items: 'div',
+                    content: 'Locked'
+                });
             cf.obj.empty().append(div);
         } else {
             cf.obj.empty().append(div);
@@ -2268,8 +2269,8 @@ ArrowNavigation.prototype.init = function () {
             this.isCtrlPressed = false;
         } else if (e.which === 8 || e.which === 46) {
             var tableCell = $('td.active');
-            if (tableCell.find('div[contenteditable=true]:focus').length === 0) {
-                tableCell.find('div[contenteditable=true]:not(:focus)').empty().trigger('blur');
+            if (tableCell.find('div[contenteditable]:not(.locked):focus').length === 0) {
+                tableCell.find('div[contenteditable]:not(.locked):not(:focus)').empty().trigger('blur');
             }
         }
     }).bind(this));
