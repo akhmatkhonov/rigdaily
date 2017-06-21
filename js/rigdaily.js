@@ -74,7 +74,7 @@ RigDaily.prototype.changeReport = function () {
 RigDaily.prototype.startSubmitReport = function () {
     var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7, true);
     queue.success(function () {
-        isReportEdited = edited.length !== 0;
+        isReportEdited = Object.keys(edited).length !== 0;
         $(window).off('beforeunload', beforeUnloadHandler);
     });
 
