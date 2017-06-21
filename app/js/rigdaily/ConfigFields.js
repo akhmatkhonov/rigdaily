@@ -184,10 +184,11 @@ function fillCf(cf, value) {
         }
 
         if (isLocked) {
-            div.tooltip({
-                items: 'div',
-                content: 'Locked'
-            });
+            div.addClass('locked')
+                .tooltip({
+                    items: 'div',
+                    content: 'Locked'
+                });
             cf.obj.empty().append(div);
         } else {
             cf.obj.empty().append(div);
