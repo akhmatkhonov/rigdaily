@@ -33,6 +33,7 @@ function RigDaily() {
     $('#print').button({
         icon: 'ui-icon-print'
     }).click(function () {
+        $('#ui-datepicker-div').hide();
         window.print();
     });
 }
