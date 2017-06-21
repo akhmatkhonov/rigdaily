@@ -73,13 +73,24 @@ RigDaily.prototype.changeReport = function () {
     this.selectReportLoadPage(this.selectReportDialog, 1);
 };
 RigDaily.prototype.startSubmitReport = function () {
-    var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7, true);
-    queue.success(function () {
+    var fullSuccessCallback = (function () {
         isReportEdited = Object.keys(edited).length !== 0;
         $(window).off('beforeunload', beforeUnloadHandler);
-    });
+    }).bind(this);
 
-    var makeReloadFieldsRequest = function (ttName, tid, cfs) {
+    var queue = new ApiClientRequestQueue(this.client, 'Submitting report data...', 0, true, 7, true);
+    queue.success(function () {
+        if (!queueNewTrackors.isEmpty()) {
+            queueNewTrackors.totalRequests = queueNewTrackors.queue.length;
+            queueNewTrackors.start();
+        } else {
+            fullSuccessCallback();
+        }
+    });
+    var queueNewTrackors = new ApiClientRequestQueue(this.client, 'Creating new trackors...', 0, true, 1, true);
+    queueNewTrackors.success(fullSuccessCallback);
+
+    var makeReloadFieldsRequest = function (queue, ttName, tid, cfs) {
         var fields = getFieldNamesForReload(cfs);
         if (fields.length !== 0) {
             queue.push(new ApiClientQueueRequestOptions({
@@ -107,18 +118,18 @@ RigDaily.prototype.startSubmitReport = function () {
 
         requestUpdateTrackorById(queue, tid, data, function () {
             updateOriginalCfsData(cfs, data, tid);
-            makeReloadFieldsRequest(ttName, tid, cfs);
+            makeReloadFieldsRequest(queue, ttName, tid, cfs);
         });
     };
     var makeCreateRequest = function (tid, ttName, tblIdx, data, cfs) {
         var parents = getTrackorTypeRelations(ttName, tid, tblIdx);
-        requestCreateTrackor(queue, ttName, data, parents, function (response) {
+        requestCreateTrackor(queueNewTrackors, ttName, data, parents, function (response) {
             var newTid = response['TRACKOR_ID'];
             updateCfsTid(cfs, tblIdx, tid, newTid);
             updateTtTid(ttName, tid, newTid);
 
             updateOriginalCfsData(cfs, data, tid);
-            makeReloadFieldsRequest(ttName, newTid, cfs);
+            makeReloadFieldsRequest(queueNewTrackors, ttName, newTid, cfs);
         });
     };
     var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
