@@ -28,7 +28,7 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = fun
     dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
 };
 
-// Rig pumps
+// rigDailyReportTT/Rig pumps
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
@@ -67,7 +67,44 @@ dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'] = function (ti
 };
 dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_DEPTH'] = dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'];
 
+
+// fieldTestingTT
+dynCalculations[trackorTypes.fieldTestingTT + '.FT_TESTING_NAME'] = function (tid, tblIdx) {
+    var originalName = getOriginalCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, tblIdx);
+    var otherTblIdx = tblIdx === 'ftam' ? 'ftpm' : 'ftam';
+    var otherTid = null;
+
+    $.each(tids[trackorTypes.fieldTestingTT], function (idx, tid) {
+        if (originalName === getOriginalCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, otherTblIdx)) {
+            otherTid = tid;
+            return false;
+        }
+    });
+
+    if (otherTid !== null) {
+        var otherName = getCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', otherTid, otherTblIdx);
+        var otherCf = findCf(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', otherTid, otherTblIdx);
+        var name = getCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, tblIdx);
+        var isNameChanged = name !== otherName;
+        var isOtherLocked = otherCf.find('div.locked[contenteditable=false]').length !== 0;
+
+        if (isNameChanged && isOtherLocked) {
+            setCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', originalName, tid, tblIdx);
+        } else if (isNameChanged && !isOtherLocked) {
+            setCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', name, otherTid, otherTblIdx);
+        }
+    }
+};
+
 // retortsTT
+dynCalculations[trackorTypes.retortsTT + '.RET_NAME'] = function (tid, tblIdx, div) {
+    var td = div.closest('td');
+    var cfs = findCf(trackorTypes.retortsTT + '.RET_NAME', tid, tblIdx);
+    cfs.find('div[contenteditable=true]').filter(function () {
+        var cIdx = $(this).closest('td').data('cidx');
+        return cIdx !== td.data('cidx');
+    }).empty().text(div.text());
+};
 dynCalculations[trackorTypes.retortsTT + '.RET_AM_OIL'] = function (tid, tblIdx) {
     var water = getCfValue(trackorTypes.retortsTT + '.RET_AM_WATER', tid, tblIdx);
     var oil = getCfValue(trackorTypes.retortsTT + '.RET_AM_OIL', tid, tblIdx);

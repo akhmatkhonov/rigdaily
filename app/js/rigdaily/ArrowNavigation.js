@@ -4,7 +4,7 @@ function ArrowNavigation() {
     this.isCtrlPressed = false;
 }
 ArrowNavigation.prototype.updateCell = function () {
-    $('td.active').removeClass('active').find('div[contenteditable]').blur();
+    $('td.active').removeClass('active').find('div[contenteditable=true]').blur();
 
     var rows = $('#content').find('tr');
     if (this.currentRow > rows.length - 1) {

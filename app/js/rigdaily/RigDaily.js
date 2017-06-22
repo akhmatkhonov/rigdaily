@@ -427,20 +427,25 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                var startIdx = 7;
-                var endIdx = 11;
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
+                });
+                requestTrackorsLocks(queue, tids, trackorTypes.apiScreenSizeTT, apiScreenSizeBaseRowCfs, function () {
+                    var startIdx = 7;
+                    var endIdx = 11;
 
-                $.each(response.splice(0, 3), function (idx, elem) {
-                    saveTid(trackorTypes.apiScreenSizeTT, elem['TRACKOR_ID'], false);
+                    $.each(response.splice(0, 3), function (idx, elem) {
+                        saveTid(trackorTypes.apiScreenSizeTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(tableIndexes[trackorTypes.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, row);
-                    fillCfs(rowCfs, elem);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, row);
+                        fillCfs(rowCfs, elem);
 
-                    if (startIdx === 7) {
-                        startIdx = 6;
-                        endIdx = 10;
-                    }
+                        if (startIdx === 7) {
+                            startIdx = 6;
+                            endIdx = 10;
+                        }
+                    });
                 });
             }
         }));
@@ -461,54 +466,59 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                var groups = {};
-
-                // Group by FT_TESTING_NAME
-                $.each(response, function (idx, elem) {
-                    if (elem['FT_SHIFT'].length === 0) {
-                        return true;
-                    }
-
-                    saveTid(trackorTypes.fieldTestingTT, elem['TRACKOR_ID'], false);
-                    if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
-                        groups[elem['FT_TESTING_NAME']] = [];
-                    }
-                    groups[elem['FT_TESTING_NAME']].push(elem);
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
                 });
+                requestTrackorsLocks(queue, tids, trackorTypes.fieldTestingTT, fieldTestingBaseRowCfs, function () {
+                    var groups = {};
 
-                // Sort by FT_SHIFT
-                $.each(groups, function (groupName, elem) {
-                    var sortedGroup = elem.sort(function (a, b) {
-                        return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
+                    // Group by FT_TESTING_NAME
+                    $.each(response, function (idx, elem) {
+                        if (elem['FT_SHIFT'].length === 0) {
+                            return true;
+                        }
+
+                        saveTid(trackorTypes.fieldTestingTT, elem['TRACKOR_ID'], false);
+                        if (typeof groups[elem['FT_TESTING_NAME']] === 'undefined') {
+                            groups[elem['FT_TESTING_NAME']] = [];
+                        }
+                        groups[elem['FT_TESTING_NAME']].push(elem);
                     });
 
-                    var grepAM = $.grep(sortedGroup, function (elem) {
-                        return elem['FT_SHIFT'] === 'AM';
-                    });
-                    var grepPM = $.grep(sortedGroup, function (elem) {
-                        return elem['FT_SHIFT'] === 'PM';
-                    });
-                    if (grepAM.length === 0) {
-                        sortedGroup.unshift({
-                            'FT_TESTING_NAME': groupName,
-                            'FT_SHIFT': 'AM'
+                    // Sort by FT_SHIFT
+                    $.each(groups, function (groupName, elem) {
+                        var sortedGroup = elem.sort(function (a, b) {
+                            return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
                         });
-                    }
-                    if (grepPM.length === 0) {
-                        sortedGroup.push({
-                            'FT_SHIFT': 'PM'
+
+                        var grepAM = $.grep(sortedGroup, function (elem) {
+                            return elem['FT_SHIFT'] === 'AM';
                         });
-                    }
+                        var grepPM = $.grep(sortedGroup, function (elem) {
+                            return elem['FT_SHIFT'] === 'PM';
+                        });
+                        if (grepAM.length === 0) {
+                            sortedGroup.unshift({
+                                'FT_TESTING_NAME': groupName,
+                                'FT_SHIFT': 'AM'
+                            });
+                        }
+                        if (grepPM.length === 0) {
+                            sortedGroup.push({
+                                'FT_SHIFT': 'PM'
+                            });
+                        }
 
-                    $.each(sortedGroup, function (idx, elem) {
-                        var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
-                        var startIdx = tblIdxIdx === 0 ? 4 : 8;
-                        var endIdx = tblIdxIdx === 0 ? 7 : 11;
+                        $.each(sortedGroup, function (idx, elem) {
+                            var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
+                            var startIdx = tblIdxIdx === 0 ? 4 : 8;
+                            var endIdx = tblIdxIdx === 0 ? 7 : 11;
 
-                        var row = appendSubtableRow(tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx],
-                            startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
-                        var rowCfs = getConfigFields(trackorTypes.fieldTestingTT, row, tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx]);
-                        fillCfs(rowCfs, elem);
+                            var row = appendSubtableRow(tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx],
+                                startIdx, endIdx, fieldTestingBaseRow, elem['TRACKOR_ID']);
+                            var rowCfs = getConfigFields(trackorTypes.fieldTestingTT, row, tableIndexes[trackorTypes.fieldTestingTT][tblIdxIdx]);
+                            fillCfs(rowCfs, elem);
+                        });
                     });
                 });
             }
@@ -526,12 +536,17 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                $.each(response, function (idx, elem) {
-                    saveTid(trackorTypes.retortsTT, elem['TRACKOR_ID'], false);
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
+                });
+                requestTrackorsLocks(queue, tids, trackorTypes.retortsTT, retortsBaseRowCfs, function () {
+                    $.each(response, function (idx, elem) {
+                        saveTid(trackorTypes.retortsTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(tableIndexes[trackorTypes.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.retortsTT, row);
-                    fillCfs(rowCfs, elem);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.retortsTT, row);
+                        fillCfs(rowCfs, elem);
+                    });
                 });
             }
         }));
@@ -603,7 +618,7 @@ RigDaily.prototype.loadReport = function (tid) {
 
         // binderUsageTT
         var binderUsageBaseRow = $('tr.binderUsageBaseRow');
-        var binderUsageBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderUsageBaseRow);
+        var binderUsageBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderUsageBaseRow, tableIndexes[trackorTypes.binderUsageTT][0]);
         var binderLbsUsedBaseRow = $('tr.binderLbsUsedBaseRow');
         var binderLbsUsedBaseRowCfs = getConfigFields(trackorTypes.binderUsageTT, binderLbsUsedBaseRow.parent(), tableIndexes[trackorTypes.binderUsageTT][1]);
         var binderLbsUsedUnitBaseRow = $('tr.binderLbsUsedUnitBaseRow');
@@ -624,7 +639,7 @@ RigDaily.prototype.loadReport = function (tid) {
                     saveTid(trackorTypes.binderUsageTT, elem['TRACKOR_ID'], false);
 
                     var row = appendSubtableRow(tableIndexes[trackorTypes.binderUsageTT][0], 1, 10, binderUsageBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.binderUsageTT, row);
+                    var rowCfs = getConfigFields(trackorTypes.binderUsageTT, row, tableIndexes[trackorTypes.binderUsageTT][0]);
                     fillCfs(rowCfs, elem);
 
                     // binderLbs

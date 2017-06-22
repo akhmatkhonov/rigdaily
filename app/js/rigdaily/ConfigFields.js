@@ -65,6 +65,26 @@ function getCfValue(name, tid, tblIdx) {
     return value;
 }
 
+function getOriginalCfValue(name, tid, tblIdx) {
+    var cfs = findCf(name, tid, tblIdx);
+
+    if (cfs.length === 0) {
+        return null;
+    } else if (cfs.length > 1) {
+        cfs = cfs.first();
+    }
+
+    var dataType = cfs.data('t');
+    var value = cfs.data('orig_data');
+    if (dataType === 'number') {
+        value = parseFloat(value);
+        if (isNaN(value)) {
+            value = 0;
+        }
+    }
+    return value;
+}
+
 function setCfValue(name, value, tid, tblIdx) {
     var cfs = findCf(name, tid, tblIdx);
 
@@ -86,7 +106,7 @@ function setCfValue(name, value, tid, tblIdx) {
     var editDiv = cfs.find('div[contenteditable]');
     if (editDiv.length !== 0) {
         editDiv.empty().text(value);
-        editDiv.trigger('change');
+        editDiv.trigger('blur').trigger('change');
     } else {
         cfs.empty().text(value).trigger('change');
     }
@@ -197,7 +217,8 @@ function fillCf(cf, value) {
             div.on('blur keyup paste', function () {
                 var tr = cf.obj.closest('tr');
                 var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
-                var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+                var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) :
+                    (!$.isArray(tids[cf.tt]) ? tids[cf.tt] : undefined);
                 var isChanged = '' + cf.obj.data('orig_data') !== div.text();
 
                 if (isChanged) {
@@ -315,7 +336,7 @@ function fillCf(cf, value) {
             var tr = cf.obj.closest('tr');
             var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
             var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx, subscribeObj);
         }).trigger('change');
     }
 }
@@ -403,7 +424,7 @@ function subscribeChangeDynCfs() {
                     var tr = cf.obj.closest('tr');
                     var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
                     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx, cf.obj);
                 }).trigger('change');
             }
         });
