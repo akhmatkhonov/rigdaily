@@ -2262,7 +2262,7 @@ function ArrowNavigation() {
     this.isCtrlPressed = false;
 }
 ArrowNavigation.prototype.updateCell = function () {
-    $('td.active').removeClass('active').find('div[contenteditable=true]').blur();
+    var activeTd = $('td.active').removeClass('active');
 
     var rows = $('#content').find('tr');
     if (this.currentRow > rows.length - 1) {
@@ -2276,6 +2276,10 @@ ArrowNavigation.prototype.updateCell = function () {
     }
 
     var tableCell = tableRow.children(':eq(' + this.currentCell + ')');
+    if (!tableCell.is(activeTd)) {
+        activeTd.find('div[contenteditable=true]').trigger('blur');
+    }
+
     tableCell.focus();
     tableCell.addClass('active');
 };
