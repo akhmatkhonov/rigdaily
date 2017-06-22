@@ -15,7 +15,7 @@ gulp.task('js', function () {
         .pipe(order([
             'RigDaily.js',
             'Config.js',
-            'FieldValidators.js',
+            'Validators.js',
             'DynamicCalculations.js',
             'ConfigFields.js',
             'ArrowNavigation.js'
