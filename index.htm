@@ -114,23 +114,9 @@
                   data-reload="true"></span>
             <span data-cf="Rig_Daily_Report.RDR_DAILY_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
                   data-reload="true"></span>
-
-            <!-- Running totals (Month) -->
-            <span data-cf="Project.PR_CUMULATIVE_TOTAL_CONSUMABLES" data-ed="false" data-t="number"
+            <span data-cf="Rig_Daily_Report.RDR_PREVIOUS_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
                   data-reload="true"></span>
-            <span data-cf="Project.PR_CUMULATIVE_TOTAL_BINDER" data-ed="false" data-t="number"
-                  data-reload="true"></span>
-            <span data-cf="Project.PR_CUMULATIVE_TOTAL_EQUIPMENT" data-ed="false" data-t="number"
-                  data-reload="true"></span>
-            <span data-cf="Project.PR_CUMULATIVE_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
-                  data-reload="true"></span>
-            <span data-cf="Project.PR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
-                  data-reload="true"></span>
-            <span data-cf="Project.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL" data-ed="false" data-t="number"
-                  data-reload="true"></span>
-
-            <!-- Waste haul off tonnages -->
-            <span data-cf="Rig_Daily_Report.RDR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
+            <span data-cf="Rig_Daily_Report.RDR_PREVIOUS_TOTAL_TECHNICIANS" data-ed="false" data-t="number"
                   data-reload="true"></span>
         </div>
     </div>
@@ -761,7 +747,8 @@
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td class=xl226 style='border-top:none;border-left:none'>Daily</td>
             <td class=xl227 style='border-top:none;border-left:none'
-                data-cf="Rig_Daily_Report.RDR_WHOU_DAILY_TOTAL_TONNAGE" data-t="number" data-ed="false"></td>
+                data-cf="Rig_Daily_Report.RDR_WHOU_DAILY_TOTAL_TONNAGE" data-t="number" data-ed="false"
+                data-reload="true"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -798,7 +785,7 @@
             <td class=xl234 style='border-top:none;border-left:none'
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl291 style='border-right:1.0pt solid black;border-left:none'
-                data-cf="Dynamic.PREV_WHL_TOTAL_TONNAGE" data-ed="false" data-t="number"></td>
+                data-cf="Rig_Daily_Report.RDR_CUMULATIVE_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -836,7 +823,7 @@
                 data-cf="Waste_Haul_Off_Usage.WHOU_TONS" data-t="number" data-tIdx="whou3"></td>
             <td colspan=2 class=xl293 style='border-right:1.0pt solid black;border-left:none'
                 data-cf="Rig_Daily_Report.RDR_WHOU_TOTAL_LOADS_TO_DATE" data-t="number" data-ed="false"
-                data-submit="true"></td>
+                data-reload="true"></td>
         </tr>
         <tr style='height:15.0pt' class="staticRow">
             <td style='height:15.0pt'></td>
@@ -1040,7 +1027,8 @@
             <td class=xl193 style='border-top:none;border-left:none'>Cumulative Total Lbs</td>
             <td class=xl138 style='border-top:none;border-left:none'>Lbs / Ton</td>
             <td colspan=2 class=xl193 style='border-left:none'>Previous</td>
-            <td class=xl201 style='border-top:none;border-left:none' data-cf="Dynamic.PREV" data-ed="false"
+            <td class=xl201 style='border-top:none;border-left:none' data-cf="Dynamic.RT_PREV_CONS_BINDER"
+                data-ed="false"
                 data-t="number"></td>
         </tr>
         <tr style='height:15.0pt' class="binderLbsUsedUnitBaseRow baseRow">
@@ -1067,7 +1055,7 @@
                 Cumulative Total
             </td>
             <td class=xl142 style='border-top:none;border-left:none'
-                data-cf="Dynamic.CUMULATIVE_TOTAL" data-ed="false" data-t="number"></td>
+                data-cf="Dynamic.RT_CUMULATIVE_TOTAL_CONS_BINDER" data-ed="false" data-t="number"></td>
         </tr>
         </tbody>
     </table>
@@ -1122,7 +1110,7 @@
             <td class=xl96 style='border-top:none'>Consumables</td>
             <td class=xl146 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_PREV_CONSUMABLES" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Daily_Report.RDR_PREVIOUS_TOTAL_CONSUMABLES" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl147 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
@@ -1130,7 +1118,7 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_TOTAL_CONSUMABLES" data-ed="false"
+                <span data-cf="Rig_Daily_Report.RDR_TOTAL_CONSUMABLES" data-ed="false"
                       data-t="number" data-reload="true"></span>
             </td>
         </tr>
@@ -1151,7 +1139,7 @@
             <td class=xl96 style='border-top:none'>Binder</td>
             <td class=xl146 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_PREV_BINDER" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Daily_Report.RDR_PREVIOUS_TOTAL_BINDER" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl147 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
@@ -1159,7 +1147,7 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_TOTAL_BINDER" data-ed="false" data-t="number"
+                <span data-cf="Rig_Daily_Report.RDR_TOTAL_BINDER" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1208,7 +1196,7 @@
             <td class=xl96 style='border-top:none'>Waste Haul Off</td>
             <td class=xl146 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_PREV_WHLOFF" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Daily_Report.RDR_PREVIOUS_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"></span>
             </td>
             <td class=xl148 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
@@ -1216,7 +1204,7 @@
             </td>
             <td colspan=2 class=xl277 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_TOTAL_WHLOFF" data-ed="false" data-t="number"
+                <span data-cf="Rig_Daily_Report.RDR_TOTAL_WASTE_HAUL" data-ed="false" data-t="number"
                       data-reload="true"></span>
             </td>
         </tr>
@@ -1237,7 +1225,8 @@
             <td class=xl96 style='border-top:none'>Running Total</td>
             <td class=xl146 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_PREV" data-ed="false" data-t="number"></span>
+                <span data-cf="Rig_Daily_Report.RDR_PREVIOUS_TOTAL_RUNNING_TOTAL" data-ed="false"
+                      data-t="number"></span>
             </td>
             <td class=xl187 style='border-top:none;border-left:none'>
                 <span style="float: left">$</span>
@@ -1245,7 +1234,7 @@
             </td>
             <td colspan=2 class=xl279 style='border-right:1.0pt solid black;border-left:none'>
                 <span style="float: left">$</span>
-                <span data-cf="Dynamic.RT_TOTAL" data-ed="false"
+                <span data-cf="Rig_Daily_Report.RDR_TOTAL_RUNNING_TOTAL" data-ed="false"
                       data-t="number" data-reload="true"></span>
             </td>
         </tr>

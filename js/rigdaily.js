@@ -1052,7 +1052,7 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH') -
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_PREVIOUS_MEASURED_DEPTH'));
 
-    dynCalculations[trackorTypes.dynTT + '.RT_TOTAL']();
+    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_TOTAL_RUNNING_TOTAL']();
 };
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED'] = function () {
     dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
@@ -1171,14 +1171,8 @@ dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
 
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_WHOU_COST_TON'] = dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'];
 
-dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL') -
-        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(trackorTypes.dynTT + '.PREV_WHL_TOTAL_TONNAGE', number);
-};
-
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
-    var number = getCfValue(trackorTypes.dynTT + '.PREV_WHL_TOTAL_TONNAGE') +
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL') +
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_DAILY_TOTAL_TONNAGE');
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_WHOU_TOTAL_LOADS_TO_DATE', number);
 };
@@ -1323,55 +1317,23 @@ dynCalculations[trackorTypes.techniciansUsageTT + '.TECU_QUANTITY'] = function (
 dynCalculations[trackorTypes.techniciansUsageTT + '.TECU_TOTAL'] = dynCalculations[trackorTypes.equipmentUsageTT + '.EQU_TOTAL'];
 
 // Running totals
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES'] = function () {
-    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') -
-        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
-    setCfValue(trackorTypes.dynTT + '.RT_PREV_CONSUMABLES', number);
-
-    number = (getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(trackorTypes.dynTT + '.PREV', number);
-
-    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER'] = function () {
-    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER') -
-        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(trackorTypes.dynTT + '.RT_PREV_BINDER', number);
-
-    number = (getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_BINDER')) -
-        (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL'));
-    setCfValue(trackorTypes.dynTT + '.PREV', number);
-
-    dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES']();
-};
-
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED'] = function () {
     var number = checkInfinity(getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_LBS_USED') /
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_CUMULATIVE_TOTAL_WASTE_HAUL'));
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_LBS__TONS', number);
 };
 
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'] = function () {
-    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT') + getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS');
-    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_EQTECH', number);
-
-    number -= getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_EQUIPMENT'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_EQUIPMENT') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_TECHNICIANS');
     setCfValue(trackorTypes.dynTT + '.RT_PREV_EQTECH', number);
 };
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_TECHNICIANS'] = dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_EQUIPMENT'];
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_TECHNICIANS'] = dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_EQUIPMENT'];
 
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL'] = function () {
-    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_WASTE_HAUL') -
-        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
-    setCfValue(trackorTypes.dynTT + '.RT_PREV_WHLOFF', number);
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_CONSUMABLES'] = function () {
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_BINDER');
+    setCfValue(trackorTypes.dynTT + '.RT_PREV_CONS_BINDER', number);
 };
-
-dynCalculations[trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL'] = function () {
-    var number = getCfValue(trackorTypes.projectTT + '.PR_CUMULATIVE_TOTAL_RUNNING_TOTAL') -
-        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
-    setCfValue(trackorTypes.dynTT + '.RT_PREV', number);
-};
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_BINDER'] = dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_CONSUMABLES'];
 
 // Daily running totals
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] = function () {
@@ -1381,16 +1343,16 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES'] 
         + getCfValue(trackorTypes.dynTT + '.RT_DAILY_EQTECH');
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL', number);
 
-    number = getCfValue(trackorTypes.dynTT + '.RT_PREV_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
-    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_CONSUMABLES', number);
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_TOTAL_CONSUMABLES', number);
 
-    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES') +
-        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(trackorTypes.dynTT + '.CUMULATIVE_TOTAL', number);
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL') +
+        getCfValue(trackorTypes.dynTT + '.RT_PREV_CONS_BINDER');
+    setCfValue(trackorTypes.dynTT + '.RT_CUMULATIVE_TOTAL_CONS_BINDER', number);
 };
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL'] = function () { // Binder
-    var number = getCfValue(trackorTypes.dynTT + '.RT_PREV_BINDER') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
-    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_BINDER', number);
+    var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_BINDER') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_TOTAL_BINDER', number);
 
     number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
         + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL')
@@ -1416,8 +1378,8 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL'] =
     var number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_WASTE_HAUL');
     setCfValue(trackorTypes.dynTT + '.WHL_DAILY_TOTAL', number);
 
-    number += getCfValue(trackorTypes.dynTT + '.RT_PREV_WHLOFF');
-    setCfValue(trackorTypes.dynTT + '.RT_TOTAL_WHLOFF', number);
+    number += getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_WASTE_HAUL');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_TOTAL_WASTE_HAUL', number);
 
     number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_CONSUMABLES')
         + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL')
@@ -1431,14 +1393,19 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL'
         (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
 
-    number = getCfValue(trackorTypes.dynTT + '.RT_PREV') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
-    setCfValue(trackorTypes.dynTT + '.RT_TOTAL', number);
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PREVIOUS_TOTAL_RUNNING_TOTAL') + getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_TOTAL_RUNNING_TOTAL', number);
 };
 
-dynCalculations[trackorTypes.dynTT + '.RT_TOTAL'] = function () {
-    var number = checkInfinity(getCfValue(trackorTypes.dynTT + '.RT_TOTAL') /
+dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_TOTAL_RUNNING_TOTAL'] = function () {
+    var number = checkInfinity(getCfValue(trackorTypes.rigDailyReportTT + '.RDR_TOTAL_RUNNING_TOTAL') /
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
     setCfValue(trackorTypes.projectTT + '.PR_TOTAL_EST_COST__FT', number);
+
+    number = checkInfinity(getCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL') /
+        (getCfValue(trackorTypes.rigDailyReportTT + '.RDR_AM_FOOTAGE_DRILLED') +
+        getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED')));
+    setCfValue(trackorTypes.rigDailyReportTT + '.RDR_DAILY_EST_COST__FT', number);
 };
 
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
