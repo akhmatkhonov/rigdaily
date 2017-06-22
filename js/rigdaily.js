@@ -427,20 +427,25 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                var startIdx = 7;
-                var endIdx = 11;
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
+                });
+                requestTrackorsLocks(queue, tids, trackorTypes.apiScreenSizeTT, apiScreenSizeBaseRowCfs, function () {
+                    var startIdx = 7;
+                    var endIdx = 11;
 
-                $.each(response.splice(0, 3), function (idx, elem) {
-                    saveTid(trackorTypes.apiScreenSizeTT, elem['TRACKOR_ID'], false);
+                    $.each(response.splice(0, 3), function (idx, elem) {
+                        saveTid(trackorTypes.apiScreenSizeTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(tableIndexes[trackorTypes.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, row);
-                    fillCfs(rowCfs, elem);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.apiScreenSizeTT], startIdx, endIdx, apiScreenSizeBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.apiScreenSizeTT, row);
+                        fillCfs(rowCfs, elem);
 
-                    if (startIdx === 7) {
-                        startIdx = 6;
-                        endIdx = 10;
-                    }
+                        if (startIdx === 7) {
+                            startIdx = 6;
+                            endIdx = 10;
+                        }
+                    });
                 });
             }
         }));
@@ -531,12 +536,17 @@ RigDaily.prototype.loadReport = function (tid) {
             },
             successCode: 200,
             success: function (response) {
-                $.each(response, function (idx, elem) {
-                    saveTid(trackorTypes.retortsTT, elem['TRACKOR_ID'], false);
+                var tids = $.map(response, function (elem) {
+                    return elem['TRACKOR_ID'];
+                });
+                requestTrackorsLocks(queue, tids, trackorTypes.retortsTT, retortsBaseRowCfs, function () {
+                    $.each(response, function (idx, elem) {
+                        saveTid(trackorTypes.retortsTT, elem['TRACKOR_ID'], false);
 
-                    var row = appendSubtableRow(tableIndexes[trackorTypes.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
-                    var rowCfs = getConfigFields(trackorTypes.retortsTT, row);
-                    fillCfs(rowCfs, elem);
+                        var row = appendSubtableRow(tableIndexes[trackorTypes.retortsTT], 4, 11, retortsBaseRow, elem['TRACKOR_ID']);
+                        var rowCfs = getConfigFields(trackorTypes.retortsTT, row);
+                        fillCfs(rowCfs, elem);
+                    });
                 });
             }
         }));
@@ -1051,7 +1061,7 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_FOOTAGE_DRILLED'] = fun
     dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_DAILY_TOTAL_RUNNING_TOTAL']();
 };
 
-// Rig pumps
+// rigDailyReportTT/Rig pumps
 dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM'] = function () {
     setCfValue(trackorTypes.rigDailyReportTT + '.RDR_EQUIP_TOTAL_GPM',
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PUMP_1_GPM_PM') +
@@ -1090,7 +1100,44 @@ dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'] = function (ti
 };
 dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_DEPTH'] = dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'];
 
+
+// fieldTestingTT
+dynCalculations[trackorTypes.fieldTestingTT + '.FT_TESTING_NAME'] = function (tid, tblIdx) {
+    var originalName = getOriginalCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, tblIdx);
+    var otherTblIdx = tblIdx === 'ftam' ? 'ftpm' : 'ftam';
+    var otherTid = null;
+
+    $.each(tids[trackorTypes.fieldTestingTT], function (idx, tid) {
+        if (originalName === getOriginalCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, otherTblIdx)) {
+            otherTid = tid;
+            return false;
+        }
+    });
+
+    if (otherTid !== null) {
+        var otherName = getCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', otherTid, otherTblIdx);
+        var otherCf = findCf(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', otherTid, otherTblIdx);
+        var name = getCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, tblIdx);
+        var isNameChanged = name !== otherName;
+        var isOtherLocked = otherCf.find('div.locked[contenteditable=false]').length !== 0;
+
+        if (isNameChanged && isOtherLocked) {
+            setCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', originalName, tid, tblIdx);
+        } else if (isNameChanged && !isOtherLocked) {
+            setCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', name, otherTid, otherTblIdx);
+        }
+    }
+};
+
 // retortsTT
+dynCalculations[trackorTypes.retortsTT + '.RET_NAME'] = function (tid, tblIdx, div) {
+    var td = div.closest('td');
+    var cfs = findCf(trackorTypes.retortsTT + '.RET_NAME', tid, tblIdx);
+    cfs.find('div[contenteditable=true]').filter(function () {
+        var cIdx = $(this).closest('td').data('cidx');
+        return cIdx !== td.data('cidx');
+    }).empty().text(div.text());
+};
 dynCalculations[trackorTypes.retortsTT + '.RET_AM_OIL'] = function (tid, tblIdx) {
     var water = getCfValue(trackorTypes.retortsTT + '.RET_AM_WATER', tid, tblIdx);
     var oil = getCfValue(trackorTypes.retortsTT + '.RET_AM_OIL', tid, tblIdx);
@@ -1393,6 +1440,7 @@ dynCalculations[trackorTypes.dynTT + '.RT_TOTAL'] = function () {
         getCfValue(trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH'));
     setCfValue(trackorTypes.projectTT + '.PR_TOTAL_EST_COST__FT', number);
 };
+
 var loseDataMessage = 'You will lose any unsaved data. Continue?';
 
 var isReportEdited = false;
@@ -1460,6 +1508,26 @@ function getCfValue(name, tid, tblIdx) {
     return value;
 }
 
+function getOriginalCfValue(name, tid, tblIdx) {
+    var cfs = findCf(name, tid, tblIdx);
+
+    if (cfs.length === 0) {
+        return null;
+    } else if (cfs.length > 1) {
+        cfs = cfs.first();
+    }
+
+    var dataType = cfs.data('t');
+    var value = cfs.data('orig_data');
+    if (dataType === 'number') {
+        value = parseFloat(value);
+        if (isNaN(value)) {
+            value = 0;
+        }
+    }
+    return value;
+}
+
 function setCfValue(name, value, tid, tblIdx) {
     var cfs = findCf(name, tid, tblIdx);
 
@@ -1481,7 +1549,7 @@ function setCfValue(name, value, tid, tblIdx) {
     var editDiv = cfs.find('div[contenteditable]');
     if (editDiv.length !== 0) {
         editDiv.empty().text(value);
-        editDiv.trigger('change');
+        editDiv.trigger('blur').trigger('change');
     } else {
         cfs.empty().text(value).trigger('change');
     }
@@ -1711,7 +1779,7 @@ function fillCf(cf, value) {
             var tr = cf.obj.closest('tr');
             var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
             var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx, subscribeObj);
         }).trigger('change');
     }
 }
@@ -1799,7 +1867,7 @@ function subscribeChangeDynCfs() {
                     var tr = cf.obj.closest('tr');
                     var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
                     var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx);
+                    dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx, cf.obj);
                 }).trigger('change');
             }
         });
