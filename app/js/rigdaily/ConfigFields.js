@@ -24,7 +24,7 @@ function checkInfinity(number) {
     return number === Number.POSITIVE_INFINITY || number === Number.NEGATIVE_INFINITY ? 0 : number;
 }
 
-function findCf(name, tid, tblIdx) {
+function findCf(name, tid, tblIdx, noerror) {
     var ttName = name.split('.')[0];
     var cfs = $('[data-cf="' + name + '"]');
     if (typeof tid !== 'undefined' && typeof tblIdx !== 'undefined') {
@@ -39,14 +39,14 @@ function findCf(name, tid, tblIdx) {
             return (typeof cf.data('tidx') === 'undefined' || cf.data('tidx') === tblIdx) && cf.closest('tr').data('tid_' + tblIdx) === tid;
         });
     }
-    if (cfs.length === 0) {
+    if (cfs.length === 0 && !noerror) {
         console.log('Config field ' + name + '[' + tid + ':' + tblIdx + '] not found');
     }
     return cfs;
 }
 
-function getCfValue(name, tid, tblIdx) {
-    var cfs = findCf(name, tid, tblIdx);
+function getCfValue(name, tid, tblIdx, noerror) {
+    var cfs = findCf(name, tid, tblIdx, noerror);
 
     if (cfs.length === 0) {
         return null;
@@ -65,8 +65,8 @@ function getCfValue(name, tid, tblIdx) {
     return value;
 }
 
-function getOriginalCfValue(name, tid, tblIdx) {
-    var cfs = findCf(name, tid, tblIdx);
+function getOriginalCfValue(name, tid, tblIdx, noerror) {
+    var cfs = findCf(name, tid, tblIdx, noerror);
 
     if (cfs.length === 0) {
         return null;
@@ -154,19 +154,41 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
     return cfs;
 }
 
+function getCfTid(cf, isReturnObject) {
+    var getResult = function (tid, tblIdx) {
+        return isReturnObject ? {'tid': tid, 'tblIdx': tblIdx} : tid;
+    };
+
+    var isSingleTid = !$.isArray(tids[cf.tt]);
+    var isSingleTblIdx = !$.isArray(tableIndexes[cf.tt]);
+    var tr, tid, tblIdx;
+
+    if (isSingleTid && isSingleTblIdx) {
+        return getResult(tids[cf.tt], getFirstTblIdx(cf.tt));
+    } else if (isSingleTblIdx || typeof cf.tIdx !== 'undefined') {
+        tblIdx = isSingleTblIdx ? getFirstTblIdx(cf.tt) : cf.tIdx;
+        tr = cf.obj.closest('tr');
+        tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+        if (typeof tid === 'undefined') {
+            console.log('Unable to get trackor id for [' + cf.tt + '.' + cf.name + ':' + tblIdx + ']');
+        }
+        return getResult(tid, tblIdx);
+    } else {
+        console.log('Unable to get trackor id for [' + cf.tt + '.' + cf.name + ':?]');
+        return getResult(undefined, undefined);
+    }
+}
+
 function isCfLocked(cf) {
     if (!cf.lockable) {
         return false;
     }
 
-    var tr = cf.obj.closest('tr');
-    var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
-    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-
     if (typeof locks[cf.tt] !== 'object') {
         return false;
     }
 
+    var tid = getCfTid(cf);
     return $.isArray(locks[cf.tt][tid]) && $.inArray(cf.name, locks[cf.tt][tid]) !== -1;
 }
 
@@ -215,10 +237,7 @@ function fillCf(cf, value) {
 
             // Init editable
             div.on('blur keyup paste', function () {
-                var tr = cf.obj.closest('tr');
-                var tblIdx = cf.tIdx !== undefined ? cf.tIdx : tableIndexes[cf.tt];
-                var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) :
-                    (!$.isArray(tids[cf.tt]) ? tids[cf.tt] : undefined);
+                var tid = getCfTid(cf);
                 var isChanged = '' + cf.obj.data('orig_data') !== div.text();
 
                 if (isChanged) {
@@ -333,10 +352,8 @@ function fillCf(cf, value) {
     // Subscribe events
     if (dynCalculations.hasOwnProperty(cf.tt + '.' + cf.name)) {
         subscribeObj.change(function () {
-            var tr = cf.obj.closest('tr');
-            var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
-            var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
-            dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx, subscribeObj);
+            var data = getCfTid(cf, true);
+            dynCalculations[cf.tt + '.' + cf.name](data['tid'], data['tblIdx'], subscribeObj);
         }).trigger('change');
     }
 }
@@ -423,7 +440,7 @@ function subscribeChangeDynCfs() {
                 cf.obj.change(function () {
                     var tr = cf.obj.closest('tr');
                     var tblIdx = cf.tIdx !== undefined ? cf.tIdx : getFirstTblIdx(cf.tt);
-                    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : undefined;
+                    var tid = tr.hasClass('subtable') ? tr.data('tid_' + tblIdx) : tids[cf.tt];
                     dynCalculations[cf.tt + '.' + cf.name](tid, tblIdx, cf.obj);
                 }).trigger('change');
             }

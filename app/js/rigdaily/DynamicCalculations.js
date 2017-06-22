@@ -75,7 +75,7 @@ dynCalculations[trackorTypes.fieldTestingTT + '.FT_TESTING_NAME'] = function (ti
     var otherTid = null;
 
     $.each(tids[trackorTypes.fieldTestingTT], function (idx, tid) {
-        if (originalName === getOriginalCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, otherTblIdx)) {
+        if (originalName === getOriginalCfValue(trackorTypes.fieldTestingTT + '.FT_TESTING_NAME', tid, otherTblIdx, true)) {
             otherTid = tid;
             return false;
         }
@@ -123,7 +123,7 @@ dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS'] = function () {
     var newValue = 0;
     $.each(tids[trackorTypes.wasteHaulOffUsageTT], function (idx, tid) {
         $.each(tableIndexes[trackorTypes.wasteHaulOffUsageTT], function (idx, tblIdx) {
-            var val = getCfValue(trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx);
+            var val = getCfValue(trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS', tid, tblIdx, true);
             if (val !== null) {
                 newValue += val;
                 return false;
