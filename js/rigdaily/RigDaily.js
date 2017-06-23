@@ -90,6 +90,18 @@ RigDaily.prototype.startSubmitReport = function () {
     var queueNewTrackors = new ApiClientRequestQueue(this.client, 'Creating new trackors...', 0, true, 1, true);
     queueNewTrackors.success(fullSuccessCallback);
 
+    var getReloadFieldRequestCount = function (ttName, tid, cfs) {
+        var requestCount = 0;
+        var fields = getFieldNamesForReload(cfs);
+        if (fields.length !== 0) {
+            requestCount++;
+            fields = getLockableFieldNames(cfs);
+            if (fields.length !== 0) {
+                requestCount++;
+            }
+        }
+        return requestCount;
+    };
     var makeReloadFieldsRequest = function (queue, ttName, tid, cfs) {
         var fields = getFieldNamesForReload(cfs);
         if (fields.length !== 0) {
@@ -115,6 +127,8 @@ RigDaily.prototype.startSubmitReport = function () {
         if (Object.keys(data).length === 0) {
             return;
         }
+        queue.totalRequests++;
+        queue.totalRequests += getReloadFieldRequestCount(ttName, tid, cfs);
 
         requestUpdateTrackorById(queue, tid, data, function () {
             updateOriginalCfsData(cfs, data, tid);
@@ -122,6 +136,9 @@ RigDaily.prototype.startSubmitReport = function () {
         });
     };
     var makeCreateRequest = function (tid, ttName, tblIdx, data, cfs) {
+        queueNewTrackors.totalRequests++;
+        queueNewTrackors.totalRequests += getReloadFieldRequestCount(ttName, tid, cfs);
+
         var parents = getTrackorTypeRelations(ttName, tid, tblIdx);
         requestCreateTrackor(queueNewTrackors, ttName, data, parents, function (response) {
             var newTid = response['TRACKOR_ID'];
@@ -133,6 +150,8 @@ RigDaily.prototype.startSubmitReport = function () {
         });
     };
     var makeDeleteRequest = function (tid, ttName, tblIdx, cfs) {
+        queue.totalRequests++;
+
         requestDeleteTrackor(queue, ttName, tid, function () {
             applyCfsNotChanged(cfs, tid);
 
@@ -206,7 +225,6 @@ RigDaily.prototype.startSubmitReport = function () {
     }
 
     if (!queue.isEmpty()) {
-        queue.totalRequests = queue.queue.length;
         queue.start();
     } else {
         this.alertDialog('Nothing to submit');
@@ -214,7 +232,7 @@ RigDaily.prototype.startSubmitReport = function () {
 };
 
 RigDaily.prototype.loadReport = function (tid) {
-    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 19, true, 7);
+    var queue = new ApiClientRequestQueue(this.client, 'Loading report data...', 22, true, 7);
     queue.success(function () {
         subscribeChangeDynCfs();
         $('#content').show();
