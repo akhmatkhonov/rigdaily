@@ -7,7 +7,41 @@
     <link rel="shortcut icon" type="image/gif" href="css/images/onevizion_world_icon.ico"/>
     <title>Rig Daily Report (OneVizion)</title>
 
-    <script type="text/javascript" data-main="js/app.js" src="js/require.min.js"></script>
+    <script type="text/javascript" src="js/jquery-3.2.0.min.js"></script>
+    <script type="text/javascript" src="js/jquery-ui.min.js"></script>
+
+    <!-- ApiClient -->
+    <script type="text/javascript" src="js/apiclient/AuthUI.js"></script>
+    <script type="text/javascript" src="js/apiclient/Client.js"></script>
+    <script type="text/javascript" src="js/apiclient/DateUtils.js"></script>
+    <script type="text/javascript" src="js/apiclient/ErrorQueueUI.js"></script>
+    <script type="text/javascript" src="js/apiclient/LoadingUI.js"></script>
+    <script type="text/javascript" src="js/apiclient/RequestOptions.js"></script>
+    <script type="text/javascript" src="js/apiclient/RequestQueue.js"></script>
+    <script type="text/javascript" src="js/apiclient/AuthRequestQueue.js"></script>
+    <script type="text/javascript" src="js/apiclient/QueueRequestOptions.js"></script>
+
+    <!-- Rig Daily -->
+    <script type="text/javascript" src="js/rigdaily/Config.js"></script>
+    <script type="text/javascript" src="js/rigdaily/DynamicCalculations.js"></script>
+    <script type="text/javascript" src="js/rigdaily/Validators.js"></script>
+    <script type="text/javascript" src="js/rigdaily/ConfigFields.js"></script>
+    <script type="text/javascript" src="js/rigdaily/ArrowNavigation.js"></script>
+    <script type="text/javascript" src="js/rigdaily/RigDaily.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            // Dialogs auto centering when page resizes
+            $(window).resize(function () {
+                $('.ui-dialog-content:visible').each(function () {
+                    var dialog = $(this).data('uiDialog');
+                    dialog.option('position', dialog.options.position);
+                });
+            });
+
+            console.log('Rig Daily init start');
+            window.rigDaily = new RigDaily();
+        });
+    </script>
 </head>
 <body>
 
