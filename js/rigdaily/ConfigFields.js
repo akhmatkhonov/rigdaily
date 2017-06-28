@@ -147,6 +147,7 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'required': obj.data('required') + '' === 'true',
             'lockable': obj.data('lockable') + '' === 'true',
             'concurrentControl': obj.data('cc') + '' === 'true',
+            'deleteLockable': obj.data('dl') + '' === 'true',
             'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
@@ -605,6 +606,7 @@ function convertEditableCfsToDataObject(cfs, tid, tblIdx, dataAll) {
                     }
 
                     if (cf.orig_data !== val) {
+
                         result[cf.name] = val;
                     }
                 }
@@ -639,13 +641,13 @@ function getTrackorTypeRelations(ttName, tid, tblIdx) {
 }
 
 function generateTrackorId(ttName) {
-    var newTid = -10000000;
+    var minTid = -10000000;
     $.each(tids[ttName], function (idx, tid) {
-        if (tid < 0) {
-            newTid--;
+        if (tid < minTid) {
+            minTid = tid;
         }
     });
-    return newTid;
+    return minTid - 1;
 }
 
 function updateCfsTid(cfs, tblIdx, oldTid, newTid) {

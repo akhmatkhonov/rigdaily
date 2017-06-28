@@ -97,6 +97,7 @@ RigDaily.prototype.startSubmitReport = function () {
 
     var requests = {};
     var requestsCount = 0;
+    var tidMap = {};
 
     var isConcurrentControlRequest = function (cfs, data) {
         var result = false;
@@ -144,46 +145,46 @@ RigDaily.prototype.startSubmitReport = function () {
             return;
         }
 
-        var requestOptions = $.grep(requests[ttName][tid], function (obj) {
+        var requestObj = $.grep(requests[ttName][tid], function (obj) {
             return obj['type'] === 'reloadFields';
         })[0];
-        if (typeof requestOptions === 'undefined') {
-            console.log('No reloadFields requests found for ' + ttName + ':' + tid);
+        if (typeof requestObj === 'undefined') {
+            console.log('No reloadLocks requests found for ' + ttName + ':' + tid);
             return;
         }
+
+        var requestOptions = requestObj['requestOptions'];
         queue.push(requestOptions);
     };
 
-    var pushReloadLocksRequestToQueue = function (queue, ttName, tid, reloadFieldsResponse) {
+    var pushReloadLocksRequestToQueue = function (queue, ttName, tid, originalTid, reloadFieldsResponse) {
         if (typeof requests[ttName] === 'undefined') {
             console.log('No requests found for ' + ttName);
             return;
         }
-        if (typeof requests[ttName][tid] === 'undefined') {
-            console.log('No requests found for ' + ttName + ':' + tid);
+        if (typeof requests[ttName][originalTid] === 'undefined') {
+            console.log('No requests found for ' + ttName + ':' + originalTid);
             return;
         }
 
-        var requestObj = $.grep(requests[ttName][tid], function (obj) {
+        var requestObj = $.grep(requests[ttName][originalTid], function (obj) {
             return obj['type'] === 'reloadLocks';
         })[0];
         if (typeof requestObj === 'undefined') {
-            console.log('No reloadLocks requests found for ' + ttName + ':' + tid);
+            console.log('No reloadLocks requests found for ' + ttName + ':' + originalTid);
             return;
         }
         var requestOptions = requestObj['requestOptions'];
         var lockableFields = requestObj['lockableFields'];
 
         // Override success callback
-        var originalCallback = requestOptions.successCallback;
-        requestOptions.success(function (response) {
+        var originalCallback = requestOptions.success;
+        requestOptions.success = function (response) {
             $.each(response, function (idx, elem) {
                 var field_name = elem['field_name'];
                 var tid = elem['trackor_id'];
 
-                if (elem['locked'] &&
-                    $.inArray(field_name, lockableFields) !== -1 &&
-                    $.inArray(tid, tids) !== -1) {
+                if (elem['locked'] && $.inArray(field_name, lockableFields) !== -1) {
                     if (typeof locks[ttName] !== 'object') {
                         locks[ttName] = {};
                     }
@@ -195,7 +196,7 @@ RigDaily.prototype.startSubmitReport = function () {
             });
 
             originalCallback.call(this, reloadFieldsResponse);
-        });
+        };
 
         queue.push(requestOptions);
     };
@@ -207,10 +208,15 @@ RigDaily.prototype.startSubmitReport = function () {
             var newTid = response['TRACKOR_ID'];
             updateCfsTid(cfs, tblIdx, fakeTid, newTid);
             updateTtTid(ttName, fakeTid, newTid);
-
             updateOriginalCfsData(cfs, data, fakeTid);
+
+            if (typeof tidMap[ttName] === 'undefined') {
+                tidMap[ttName] = {};
+            }
+            tidMap[ttName][fakeTid] = newTid;
+
             if (reloadRequired) {
-                pushReloadFieldsRequestToQueue(queueConcurrent, ttName, newTid);
+                pushReloadFieldsRequestToQueue(queueConcurrent, ttName, fakeTid);
             }
         });
         appendRequest(ttName, fakeTid, 'create', requestOptions, {'cfs': cfs, 'data': data});
@@ -251,14 +257,20 @@ RigDaily.prototype.startSubmitReport = function () {
         var lockableFields = getLockableFieldNames(cfs);
         var reloadLockableFieldsRequired = lockableFields.length !== 0;
 
+        var originalTid = tid;
         var requestOptions = new ApiClientQueueRequestOptions({
             type: 'GET',
             contentType: 'application/json',
-            url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(',')),
+            url: function () {
+                if (typeof tidMap[ttName] !== 'undefined' && !!tidMap[ttName][tid]) {
+                    tid = tidMap[ttName][tid];
+                }
+                return '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(fields.join(','));
+            },
             successCode: 200,
             success: function (response) {
                 if (reloadLockableFieldsRequired) {
-                    pushReloadLocksRequestToQueue(queueConcurrent, ttName, tid, response);
+                    pushReloadLocksRequestToQueue(queueConcurrent, ttName, tid, originalTid, response);
                 } else {
                     fillCfs(cfs, response);
                 }
@@ -270,7 +282,12 @@ RigDaily.prototype.startSubmitReport = function () {
             requestOptions = new ApiClientQueueRequestOptions({
                 type: 'GET',
                 contentType: 'application/json',
-                url: '/api/v3/trackors/' + encodeURIComponent(tid) + '?fields=' + encodeURIComponent(lockableFields.join(',')),
+                url: function () {
+                    if (typeof tidMap[ttName] !== 'undefined' && !!tidMap[ttName][tid]) {
+                        tid = tidMap[ttName][tid];
+                    }
+                    return '/api/v3/trackors/' + encodeURIComponent(tid) + '/locks?fields=' + encodeURIComponent(lockableFields.join(','));
+                },
                 successCode: 200,
                 success: function (response) {
                     fillCfs(cfs, response);
