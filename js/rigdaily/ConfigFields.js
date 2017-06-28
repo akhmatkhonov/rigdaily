@@ -599,13 +599,12 @@ function convertEditableCfsToDataObject(cfs, tid, tblIdx, dataAll) {
                         fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
                     }
 
-                    if (cf.type === 'date') {
-                        // Reformat date
-                        var dateObj = dateUtils.localDateToObj(val);
-                        val = dateUtils.objToRemoteDate(dateObj);
-                    }
-
                     if (cf.orig_data !== val) {
+                        if (cf.type === 'date') {
+                            // Reformat date
+                            var dateObj = dateUtils.localDateToObj(val);
+                            val = dateUtils.objToRemoteDate(dateObj);
+                        }
 
                         result[cf.name] = val;
                     }
