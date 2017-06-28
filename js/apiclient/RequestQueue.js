@@ -38,10 +38,10 @@ ApiClientRequestQueue.prototype.push = function (options) {
 ApiClientRequestQueue.prototype.isEmpty = function () {
     return this.queue.length === 0;
 };
-ApiClientRequestQueue.prototype.start = function () {
+ApiClientRequestQueue.prototype.start = function (initialCompleteRequests) {
     this.inProgressRequests = 0;
     this.erroredRequests = 0;
-    this.completeRequests = 0;
+    this.completeRequests = initialCompleteRequests || 0;
     this.cancelled = false;
     this.processNext();
 };
@@ -77,7 +77,11 @@ ApiClientRequestQueue.prototype.processNext = function () {
     this.inProgressRequests++;
 
     if (!this.client.errorQueueUi.isOpen() && !this.client.loadingUi.isShown()) {
-        this.client.loadingUi.showLoading(this.message);
+        var percent = parseInt(this.completeRequests / this.totalRequests * 100);
+        if (percent > 100) {
+            percent = 100;
+        }
+        this.client.loadingUi.showLoading(this.message + (percent !== 0 ? ' ' + percent + '%' : ''));
     }
 
     options.complete = (function () {

@@ -103,6 +103,11 @@ ArrowNavigation.prototype.init = function () {
             var tableCell = $('td.active');
             if (tableCell.find('div[contenteditable]:not(.locked):focus').length === 0) {
                 tableCell.find('div[contenteditable]:not(.locked):not(:focus)').empty().trigger('blur');
+
+                // Allow lockable clean
+                if (tableCell.data('dl') + '' === 'true') {
+                    tableCell.find('div[contenteditable].locked:not(:focus)').empty().trigger('blur');
+                }
             }
         }
     }).bind(this));

@@ -146,6 +146,8 @@ function getConfigFields(ttName, parent, tblIdx, prependTtName) {
             'forceSubmit': obj.data('submit') + '' === 'true',
             'required': obj.data('required') + '' === 'true',
             'lockable': obj.data('lockable') + '' === 'true',
+            'concurrentControl': obj.data('cc') + '' === 'true',
+            'deleteLockable': obj.data('dl') + '' === 'true',
             'type': obj.data('t'),
             'editable': obj.data('ed') + '' === 'true' || typeof obj.data('ed') === 'undefined',
             'editable_style': obj.data('ed-style')
@@ -597,13 +599,13 @@ function convertEditableCfsToDataObject(cfs, tid, tblIdx, dataAll) {
                         fieldValidators[cf.tt + '.' + cf.name](tid, tblIdx);
                     }
 
-                    if (cf.type === 'date') {
-                        // Reformat date
-                        var dateObj = dateUtils.localDateToObj(val);
-                        val = dateUtils.objToRemoteDate(dateObj);
-                    }
-
                     if (cf.orig_data !== val) {
+                        if (cf.type === 'date') {
+                            // Reformat date
+                            var dateObj = dateUtils.localDateToObj(val);
+                            val = dateUtils.objToRemoteDate(dateObj);
+                        }
+
                         result[cf.name] = val;
                     }
                 }
@@ -638,13 +640,13 @@ function getTrackorTypeRelations(ttName, tid, tblIdx) {
 }
 
 function generateTrackorId(ttName) {
-    var newTid = -10000000;
+    var minTid = -10000000;
     $.each(tids[ttName], function (idx, tid) {
-        if (tid < 0) {
-            newTid--;
+        if (tid < minTid) {
+            minTid = tid;
         }
     });
-    return newTid;
+    return minTid - 1;
 }
 
 function updateCfsTid(cfs, tblIdx, oldTid, newTid) {
@@ -729,7 +731,7 @@ function updateOriginalCfsData(cfs, data, tid) {
 }
 
 function requestUpdateTrackorById(queue, tid, fields, callback) {
-    queue.push(new ApiClientQueueRequestOptions({
+    var requestOptions = new ApiClientQueueRequestOptions({
         type: 'PUT',
         contentType: 'application/json',
         url: '/api/v3/trackors/' + encodeURIComponent(tid),
@@ -738,11 +740,15 @@ function requestUpdateTrackorById(queue, tid, fields, callback) {
         processData: false,
         successCode: 200,
         success: callback
-    }));
+    });
+    if (typeof queue === 'object') {
+        queue.push(requestOptions);
+    }
+    return requestOptions;
 }
 
 function requestCreateTrackor(queue, ttName, fields, parents, callback) {
-    queue.push(new ApiClientQueueRequestOptions({
+    var requestOptions = new ApiClientQueueRequestOptions({
         type: 'POST',
         data: JSON.stringify({
             'fields': fields,
@@ -754,41 +760,25 @@ function requestCreateTrackor(queue, ttName, fields, parents, callback) {
         url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors',
         successCode: 201,
         success: callback
-    }));
+    });
+    if (typeof queue === 'object') {
+        queue.push(requestOptions);
+    }
+    return requestOptions;
 }
 
 function requestDeleteTrackor(queue, ttName, tid, callback) {
-    queue.push(new ApiClientQueueRequestOptions({
+    var requestOptions = new ApiClientQueueRequestOptions({
         type: 'DELETE',
         contentType: 'application/json',
         url: '/api/v3/trackor_types/' + encodeURIComponent(ttName) + '/trackors?trackor_id=' + encodeURIComponent(tid),
         successCode: 200,
         success: callback
-    }));
-}
-
-function requestTrackorLocks(queue, ttName, tid, fields, callback) {
-    queue.push(new ApiClientQueueRequestOptions({
-        type: 'GET',
-        contentType: 'application/json',
-        url: '/api/v3/trackors/' + encodeURIComponent(tid) + '/locks?fields=' + encodeURIComponent(fields.join(',')),
-        successCode: 200,
-        success: function (response) {
-            $.each(response, function (idx, elem) {
-                var field_name = elem['field_name'];
-                if (elem['locked'] && $.inArray(field_name, fields) !== -1) {
-                    if (typeof locks[ttName] !== 'object') {
-                        locks[ttName] = {};
-                    }
-                    if (!$.isArray(locks[ttName][tid])) {
-                        locks[ttName][tid] = [];
-                    }
-                    locks[ttName][tid].push(field_name);
-                }
-            });
-            callback();
-        }
-    }));
+    });
+    if (typeof queue === 'object') {
+        queue.push(requestOptions);
+    }
+    return requestOptions;
 }
 
 function requestTrackorsLocks(queue, tids, ttName, cfs, callback) {
