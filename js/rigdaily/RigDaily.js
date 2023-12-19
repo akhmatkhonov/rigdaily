@@ -1,5 +1,5 @@
 function RigDaily() {
-    this.client = new ApiClient('https://energy.onevizion.com').authSuccess(function (username) {
+    this.client = new ApiClient('https://trial.onevizion.com').authSuccess(function (username) {
         $('span.loggedin').empty().text(username);
     });
 
