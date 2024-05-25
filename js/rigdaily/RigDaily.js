@@ -471,8 +471,8 @@ RigDaily.prototype.loadReport = function (tid) {
 
             fillCfs(rigDailyCfs, response);
 
-            dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_AM_CURRENT_MEASURED_DEPTH']();
-            dynCalculations[trackorTypes.rigDailyReportTT + '.RDR_PM_CURRENT_MEASURED_DEPTH']();
+            dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_AM_CURRENT_MEASURED_DEPTH']();
+            dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PM_CURRENT_MEASURED_DEPTH']();
 
             pushRigSiteLoad();
             pushOtherLoad();
@@ -510,9 +510,9 @@ RigDaily.prototype.loadReport = function (tid) {
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = [
-                    'RS_CLIENT',
-                    'RS_RIG_MANAGER',
-                    'RS_RIG_CONTRACTOR'
+                    'VHMRIGD_RS_CLIENT',
+                    'VHMRIGD_RS_RIG_MANAGER',
+                    'VHMRIGD_RS_RIG_CONTRACTOR'
                 ];
                 fields = fields.concat(Object.keys(rigSiteCfs));
 
@@ -522,9 +522,9 @@ RigDaily.prototype.loadReport = function (tid) {
             successCode: 200,
             success: function (response) {
                 response = response[0];
-                clientKey = response['RS_CLIENT'];
-                managerKey = response['RS_RIG_MANAGER'];
-                contractorKey = response['RS_RIG_CONTRACTOR'];
+                clientKey = response['VHMRIGD_RS_CLIENT'];
+                managerKey = response['VHMRIGD_RS_RIG_MANAGER'];
+                contractorKey = response['VHMRIGD_RS_RIG_CONTRACTOR'];
                 fillCfs(rigSiteCfs, response);
 
                 pushClientLoad();
@@ -607,7 +607,7 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, elem);
                 });
 
-                dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.HDV_HOLE'](undefined, tableIndexes[trackorTypes.holeDesignAndVolumeTT]);
+                dynCalculations[trackorTypes.holeDesignAndVolumeTT + '.VHMRIGD_HDV_HOLE'](undefined, tableIndexes[trackorTypes.holeDesignAndVolumeTT]);
             }
         }));
 
@@ -680,7 +680,7 @@ RigDaily.prototype.loadReport = function (tid) {
         queue.push(new ApiClientQueueRequestOptions({
             url: function () {
                 var fields = [
-                    'FT_SHIFT'
+                    'VHMRIGD_FT_SHIFT'
                 ];
                 fields = fields.concat(Object.keys(fieldTestingBaseRowCfs));
 
@@ -697,43 +697,43 @@ RigDaily.prototype.loadReport = function (tid) {
 
                     // Group by FT_TESTING_NAME
                     $.each(response, function (idx, elem) {
-                        if (elem['FT_SHIFT'].length === 0) {
+                        if (elem['VHMRIGD_FT_SHIFT'].length === 0) {
                             return true;
                         }
 
                         saveTid(trackorTypes.fieldTestingTT, elem['TRACKOR_ID'], false);
-                        if (!!!groups[elem['FT_TESTING_NAME']]) {
-                            groups[elem['FT_TESTING_NAME']] = [];
+                        if (!!!groups[elem['VHMRIGD_FT_TESTING_NAME']]) {
+                            groups[elem['VHMRIGD_FT_TESTING_NAME']] = [];
                         }
-                        groups[elem['FT_TESTING_NAME']].push(elem);
+                        groups[elem['VHMRIGD_FT_TESTING_NAME']].push(elem);
                     });
 
                     // Sort by FT_SHIFT
                     $.each(groups, function (groupName, elem) {
                         var sortedGroup = elem.sort(function (a, b) {
-                            return a['FT_SHIFT'].localeCompare(b['FT_SHIFT']);
+                            return a['VHMRIGD_FT_SHIFT'].localeCompare(b['VHMRIGD_FT_SHIFT']);
                         });
 
                         var grepAM = $.grep(sortedGroup, function (elem) {
-                            return elem['FT_SHIFT'] === 'AM';
+                            return elem['VHMRIGD_FT_SHIFT'] === 'AM';
                         });
                         var grepPM = $.grep(sortedGroup, function (elem) {
-                            return elem['FT_SHIFT'] === 'PM';
+                            return elem['VHMRIGD_FT_SHIFT'] === 'PM';
                         });
                         if (grepAM.length === 0) {
                             sortedGroup.unshift({
-                                'FT_TESTING_NAME': groupName,
-                                'FT_SHIFT': 'AM'
+                                'VHMRIGD_FT_TESTING_NAME': groupName,
+                                'VHMRIGD_FT_SHIFT': 'AM'
                             });
                         }
                         if (grepPM.length === 0) {
                             sortedGroup.push({
-                                'FT_SHIFT': 'PM'
+                                'VHMRIGD_FT_SHIFT': 'PM'
                             });
                         }
 
                         $.each(sortedGroup, function (idx, elem) {
-                            var tblIdxIdx = elem['FT_SHIFT'] === 'AM' ? 0 : 1;
+                            var tblIdxIdx = elem['VHMRIGD_FT_SHIFT'] === 'AM' ? 0 : 1;
                             var startIdx = tblIdxIdx === 0 ? 4 : 8;
                             var endIdx = tblIdxIdx === 0 ? 7 : 11;
 
@@ -813,7 +813,7 @@ RigDaily.prototype.loadReport = function (tid) {
                     fillCfs(rowCfs, tid < 0 ? makeEmptyCfsObject(rowCfs) : elem);
                 });
 
-                dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.WHOU_TONS']();
+                dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.VHMRIGD_WHOU_TONS']();
             }
         }));
 
@@ -968,12 +968,12 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
     var fields = [
         'TRACKOR_KEY',
         trackorTypes.rigSiteTT + '.TRACKOR_KEY',
-        trackorTypes.projectTT + '.PR_PROJECT_NAME',
-        'RDR_REPORT_DATE'
+        trackorTypes.projectTT + '.VHMRIGD_PR_PROJECT_NAME',
+        'VHMRIGD_RDR_REPORT_DATE'
     ];
     var sort = [
         trackorTypes.rigSiteTT + '.TRACKOR_KEY:desc',
-        'RDR_REPORT_DATE:desc'
+        'VHMRIGD_RDR_REPORT_DATE:desc'
     ];
 
     var filter = {};
@@ -1008,15 +1008,15 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
                 var tr = $('<tr></tr>');
                 tr.click((function () {
                     $('span.site').empty().text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']);
-                    $('span.project').empty().text(obj[trackorTypes.projectTT + '.PR_PROJECT_NAME']);
+                    $('span.project').empty().text(obj[trackorTypes.projectTT + '.VHMRIGD_PR_PROJECT_NAME']);
 
                     selectReportDialog.dialog('close');
                     this.loadReport(tid);
                 }).bind(this));
 
                 $('<td></td>').text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
-                $('<td></td>').text(obj[trackorTypes.projectTT + '.PR_PROJECT_NAME']).appendTo(tr);
-                var reportDate = dateUtils.remoteDateToObj(obj['RDR_REPORT_DATE']);
+                $('<td></td>').text(obj[trackorTypes.projectTT + '.VHMRIGD_PR_PROJECT_NAME']).appendTo(tr);
+                var reportDate = dateUtils.remoteDateToObj(obj['VHMRIGD.VHMRIGD_RDR_REPORT_DATE']);
                 $('<td></td>').text(reportDate.getDate()).appendTo(tr);
                 $('<td></td>').text(dateUtils.objGetMonthName(reportDate)).appendTo(tr);
                 $('<td></td>').text(reportDate.getFullYear()).appendTo(tr);
@@ -1060,12 +1060,12 @@ RigDaily.prototype.startSelectReport = function (selectReportDialog) {
 
     var fields = [
         'TRACKOR_KEY',
-        'PR_PROJECT_NAME',
+        'VHMRIGD_PR_PROJECT_NAME',
         trackorTypes.rigSiteTT + '.TRACKOR_KEY'
     ];
     var sort = [
         trackorTypes.rigSiteTT + '.TRACKOR_KEY',
-        'PR_PROJECT_NAME'
+        'VHMRIGD_PR_PROJECT_NAME'
     ];
     this.client.request(new ApiClientRequestOptions({
         modalLoadingMessage: 'Loading sites and projects...',
@@ -1083,7 +1083,7 @@ RigDaily.prototype.startSelectReport = function (selectReportDialog) {
                     currentSite = rigSiteKey;
                 }
 
-                appendOpt(rigSiteKey + '_' + obj['TRACKOR_KEY'], rigSiteKey + ' / ' + obj['PR_PROJECT_NAME']);
+                appendOpt(rigSiteKey + '_' + obj['TRACKOR_KEY'], rigSiteKey + ' / ' + obj['VHMRIGD_PR_PROJECT_NAME']);
             });
             appendOpt(currentSite, currentSite + ' / -- Any project --');
 
