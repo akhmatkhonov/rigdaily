@@ -43,7 +43,6 @@ ApiClient.prototype.request = function (options) {
             }
         }).bind(this),
         success: function (data) {
-            console.log(data)
             responseData = data;
         },
         complete: (function () {
