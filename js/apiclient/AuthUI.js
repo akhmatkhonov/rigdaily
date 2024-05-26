@@ -59,7 +59,6 @@ function ApiClientAuthUI(client, credentialsCallback, endpoint) {
     }).bind(this));
 }
 ApiClientAuthUI.prototype.setErrorMessage = function (message) {
-    console.log(message)
     this.handle.find('span.error_text').html(message.trim()).closest('div.error').show();
     this.handle.dialog('option', 'position', {
         my: 'center',
