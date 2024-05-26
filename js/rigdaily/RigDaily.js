@@ -1016,7 +1016,7 @@ RigDaily.prototype.selectReportLoadPage = function (selectReportDialog, page) {
 
                 $('<td></td>').text(obj[trackorTypes.rigSiteTT + '.TRACKOR_KEY']).appendTo(tr);
                 $('<td></td>').text(obj[trackorTypes.projectTT + '.VHMRIGD_PR_PROJECT_NAME']).appendTo(tr);
-                var reportDate = dateUtils.remoteDateToObj(obj['VHMRIGD.VHMRIGD_RDR_REPORT_DATE']);
+                var reportDate = dateUtils.remoteDateToObj(obj['VHMRIGD_RDR_REPORT_DATE']);
                 $('<td></td>').text(reportDate.getDate()).appendTo(tr);
                 $('<td></td>').text(dateUtils.objGetMonthName(reportDate)).appendTo(tr);
                 $('<td></td>').text(reportDate.getFullYear()).appendTo(tr);
