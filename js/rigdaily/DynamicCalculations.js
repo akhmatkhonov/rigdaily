@@ -360,7 +360,7 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_RUNNIN
         (getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_AM_FOOTAGE_DRILLED') + getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PM_FOOTAGE_DRILLED')));
     setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_EST_COST__FT', number);
 
-    number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_RUNNING_TOTAL') + getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_RUNNING_TOTAL');
+    number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_RUNTOT') + getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_RUNNING_TOTAL');
     setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_TOTAL_RUNNING_TOTAL', number);
 };
 
