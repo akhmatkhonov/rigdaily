@@ -3,7 +3,7 @@ function ApiClientAuthRequestQueue(client) {
 
     this.push(new ApiClientQueueRequestOptions({
         url: '/api/v3/user_settings',
-        dataType: 'jsonp',
+        //dataType: 'jsonp',
         success: (function (data) {
             this.client.userSettings = data;
             console.log(data);
