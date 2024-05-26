@@ -131,17 +131,17 @@ dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.VHMRIGD_WHOU_TONS'] = funct
         });
     });
 
-    setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR.VHMRIGD_WHOU_DAILY_TOTAL_TONNAGE', newValue);
-    newValue *= getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR.VHMRIGD_WHOU_COST_TON');
+    setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_WHOU_DAILY_TOTAL_TONNAGE', newValue);
+    newValue *= getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_WHOU_COST_TON');
     setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_WASTE_HAUL', newValue);
 };
 
-dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR.VHMRIGD_WHOU_COST_TON'] = dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.VHMRIGD_WHOU_TONS'];
+dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_WHOU_COST_TON'] = dynCalculations[trackorTypes.wasteHaulOffUsageTT + '.VHMRIGD_WHOU_TONS'];
 
-dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR.VHMRIGD_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
+dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_WHOU_DAILY_TOTAL_TONNAGE'] = function () {
     var number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_CUMULATIVE_TOTAL_WASTE_HAUL') +
-        getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR.VHMRIGD_WHOU_DAILY_TOTAL_TONNAGE');
-    setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR.VHMRIGD_WHOU_TOTAL_LOADS_TO_DATE', number);
+        getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_WHOU_DAILY_TOTAL_TONNAGE');
+    setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_WHOU_TOTAL_LOADS_TO_DATE', number);
 };
 
 // consumablesUsageTT
