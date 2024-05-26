@@ -3,6 +3,7 @@ function ApiClientAuthRequestQueue(client) {
 
     this.push(new ApiClientQueueRequestOptions({
         url: '/api/v3/user_settings',
+        headers: 'Access-Control-Allow-Origin: *',
         //dataType: 'jsonp',
         success: (function (data) {
             this.client.userSettings = data;
