@@ -7,7 +7,6 @@ function ApiClientAuthRequestQueue(client) {
         //dataType: 'jsonp',
         success: (function (data) {
             this.client.userSettings = data;
-            console.log(data);
             this.client.authUi.canShow = false;
             if (typeof this.client.authSuccessCallback === 'function') {
                 this.client.authSuccessCallback(this.client.credentials.username);
