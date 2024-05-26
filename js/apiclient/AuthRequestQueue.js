@@ -3,7 +3,6 @@ function ApiClientAuthRequestQueue(client) {
 
     this.push(new ApiClientQueueRequestOptions({
         url: '/api/v3/user_settings',
-        crossDomain: true,
         dataType: 'jsonp',
         success: (function (data) {
             this.client.userSettings = data;
