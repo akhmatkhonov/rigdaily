@@ -343,7 +343,7 @@ dynCalculations[trackorTypes.dynTT + '.RT_DAILY_EQTECH'] = function () {
 
 dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_WASTE_HAUL'] = function () {
     var number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_WASTE_HAUL');
-    setCfValue(trackorTypes.dynTT + '.VHMRIGD_WHL_DAILY_TOTAL', number);
+    setCfValue(trackorTypes.dynTT + '.WHL_DAILY_TOTAL', number);
 
     number += getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_WASTE_HAUL');
     setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_TOTAL_WASTE_HAUL', number);
