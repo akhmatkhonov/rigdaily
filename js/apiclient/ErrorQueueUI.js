@@ -76,7 +76,7 @@ ApiClientErrorQueueUI.prototype.push = function (options) {
     var fullUrl = options.getUrl();
     var shortUrlPos = fullUrl.indexOf('?');
     var shortUrl = shortUrlPos !== -1 ? fullUrl.substring(0, shortUrlPos) : fullUrl;
-
+    console.log(options);
     var tr = $('<tr />');
     tr.data('requestOptions', options);
     tr.append($('<td />').text(this.tbodyHandle.children().length + 1));
