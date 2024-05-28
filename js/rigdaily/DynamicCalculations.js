@@ -1,5 +1,4 @@
 var dynCalculations = {};
-
 // rigDailyReportTT
 dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_REPORT_DATE'] = function () {
     var reportDateStr = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_REPORT_DATE');
