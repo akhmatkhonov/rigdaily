@@ -4,7 +4,6 @@ function ApiDateUtils() {
 }
 
 ApiDateUtils.prototype.remoteDateToObj = function (remoteDateStr) {
-    console.log(remoteDateStr)
     if (remoteDateStr === null || remoteDateStr === undefined || remoteDateStr.length === 0) {
         return null;
     }
