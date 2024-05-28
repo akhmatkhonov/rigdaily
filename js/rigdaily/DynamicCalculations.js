@@ -1,10 +1,10 @@
 var dynCalculations = {};
 
 // rigDailyReportTT
-dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_REP.RT_DATE'] = function () {
-    var reportDateStr = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_REP.RT_DATE');
+dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_REPORT_DATE'] = function () {
+    var reportDateStr = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_REPORT_DATE');
     var reportDate = dateUtils.localDateToObj(reportDateStr);
-    setCfValue(trackorTypes.dynTT + '.REP.RT_ID', reportDate.getDate());
+    setCfValue(trackorTypes.dynTT + '.REPORT_ID', reportDate.getDate());
 };
 dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_AM_CURRENT_MEASURED_DEPTH'] = function () {
     setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_AM_FOOTAGE_DRILLED',
@@ -298,7 +298,7 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_TEC
 
 dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_CONSUMABLES'] = function () {
     var number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_CONSUMABLES') + getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_BINDER');
-    setCfValue(trackorTypes.dynTT + '.RT_PREV.VHMRIGD_CONS_BINDER', number);
+    setCfValue(trackorTypes.dynTT + '.RT_PREV_CONS_BINDER', number);
 };
 dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_BINDER'] = dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_CONSUMABLES'];
 
@@ -314,8 +314,8 @@ dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL_CONSUM
     setCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_TOTAL_CONSUMABLES', number);
 
     number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL') +
-        getCfValue(trackorTypes.dynTT + '.RT_PREV.VHMRIGD_CONS_BINDER');
-    setCfValue(trackorTypes.dynTT + '.RT_CUMULATIVE_TOTAL.VHMRIGD_CONS_BINDER', number);
+        getCfValue(trackorTypes.dynTT + '.RT_PREV_CONS_BINDER');
+    setCfValue(trackorTypes.dynTT + '.RT_CUMULATIVE_TOTAL_CONS_BINDER', number);
 };
 dynCalculations[trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL'] = function () { // Binder
     var number = getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_PREVIOUS_TOTAL_BINDER') + getCfValue(trackorTypes.rigDailyReportTT + '.VHMRIGD_RDR_DAILY_TOTAL');
